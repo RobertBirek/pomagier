@@ -828,7 +828,7 @@ app.post("/api/locations/assign", async (req, res) => {
       const result = await pool.request().input("code", code).query(`
         SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name
         FROM tw__Towar
-        WHERE tw_Symbol = @code OR tw_PodstKodKresk = @code OR tw_Nazwa LIKE '%' + @code + '%'
+        WHERE tw_PodstKodKresk = @code
       `);
       if (result.recordset.length > 0) {
         foundProducts.push(result.recordset[0] as any);
