@@ -26,3 +26,9 @@ export const auditLog = pgTable("audit_log", {
   details: text("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const config = pgTable("config", {
+  key: varchar("key", { length: 50 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

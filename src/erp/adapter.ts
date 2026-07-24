@@ -6,4 +6,5 @@ export interface ErpAdapter {
   getProductInfo(towId: number, magId: number): Promise<ProductInfo>;
   healthCheck(): Promise<{ ok: boolean; latencyMs: number; error?: string }>;
   getPool?(): Promise<sql.ConnectionPool>;
+  reconnect?(config: { host: string; port: number; database: string; user: string; password: string }): Promise<void>;
 }

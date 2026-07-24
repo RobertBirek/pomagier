@@ -1,7 +1,6 @@
 import sql from "mssql";
 import type { ErpAdapter } from "./adapter";
 import type { ProductInfo, ScanResult } from "./types";
-import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 interface ProductRow {
@@ -22,21 +21,45 @@ interface ProductRow {
 
 export class MssqlErpAdapter implements ErpAdapter {
   private pool: sql.ConnectionPool | null = null;
+  private config: { host: string; port: number; database: string; user: string; password: string } | null = null;
 
   async getPool(): Promise<sql.ConnectionPool> {
     if (this.pool) return this.pool;
+    if (this.config) {
+      return this._connect(this.config);
+    }
     const env = getEnv();
-
-    const hostParts = env.MSSQL_HOST.split("\\");
-    const server = hostParts[0];
-    const instanceName = hostParts.length > 1 ? hostParts[1] : undefined;
-
-    const config: sql.config = {
-      server,
-      port: instanceName ? undefined : env.MSSQL_PORT,
+    return this._connect({
+      host: env.MSSQL_HOST,
+      port: env.MSSQL_PORT,
       database: env.MSSQL_DATABASE,
       user: env.MSSQL_USER,
       password: env.MSSQL_PASSWORD,
+    });
+  }
+
+  async reconnect(config: { host: string; port: number; database: string; user: string; password: string }): Promise<void> {
+    if (this.pool) {
+      await this.pool.close();
+      this.pool = null;
+    }
+    this.config = config;
+    // Test connection immediately
+    await this._connect(config);
+    logger.info("MSSQL reconnected with new config");
+  }
+
+  private async _connect(cfg: { host: string; port: number; database: string; user: string; password: string }): Promise<sql.ConnectionPool> {
+    const hostParts = cfg.host.split("\\");
+    const server = hostParts[0];
+    const instanceName = hostParts.length > 1 ? hostParts[1] : undefined;
+
+    const sqlConfig: sql.config = {
+      server,
+      port: instanceName ? undefined : cfg.port,
+      database: cfg.database,
+      user: cfg.user,
+      password: cfg.password,
       options: {
         encrypt: true,
         trustServerCertificate: true,
@@ -45,11 +68,8 @@ export class MssqlErpAdapter implements ErpAdapter {
         ...(instanceName ? { instanceName } : {}),
       },
     };
-    this.pool = await sql.connect(config);
-    logger.info(
-      { host: env.MSSQL_HOST, database: env.MSSQL_DATABASE },
-      "MSSQL connection pool created",
-    );
+    this.pool = await sql.connect(sqlConfig);
+    logger.info({ host: cfg.host, database: cfg.database }, "MSSQL connection pool created");
     return this.pool;
   }
 

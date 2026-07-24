@@ -92,4 +92,8 @@ export class MockErpAdapter implements ErpAdapter {
   async healthCheck() {
     return { ok: true, latencyMs: 1 };
   }
+
+  async reconnect(_config: any) {
+    // no-op for mock
+  }
 }
