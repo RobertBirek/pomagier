@@ -1,18 +1,64 @@
-# AGENTS.md
+# AGENTS.md — PomagierGT
 
-This repository is empty. Nothing to build, test, or run yet.
+## Stack technologiczny
 
-## Useful OpenCode Skills
+| Warstwa | Technologia | Stan |
+|---|---|---|
+| Frontend/PWA | React, TypeScript, TanStack Router, Tailwind CSS | [Do weryfikacji — klon Lovable] |
+| Backend API | [Wymaga decyzji] | Nie wybrany |
+| Baza aplikacyjna | [Wymaga decyzji — Postgres?] | Nie wybrana |
+| ERP | Insert Subiekt GT (MSSQL + Sfera GT) | Dostępny (MSSQL MCP) |
+| Deployment | VPS Linux + Docker | [Do weryfikacji] |
+| Testy | [Wymaga decyzji — Vitest? Playwright?] | Nie skonfigurowane |
 
-| Skill | Install | Use |
-|-------|---------|-----|
-| [Obra Superpowers](https://github.com/obra/superpowers) | `"plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]` in opencode.json | Full agentic SD methodology (brainstorm → plan → TDD → subagent → review) |
-| [Vercel React Best Practices](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) | `npx skills add https://github.com/vercel-labs/agent-skills --skill react-best-practices` | React/Next.js perf rules, waterfall detection, bundle-size, RSC/SSR checks |
-| [Composio Skills + CLI](https://github.com/ComposioHQ/skills/tree/main/skills/composio) | `npx skills add composiohq/skills` + `curl -fsSL https://composio.dev/install \| bash` | 1000+ SaaS tools via CLI/MCP (GitHub, Linear, Slack, Stripe, etc.) |
-| [Vault Daydream](https://github.com/glebis/claude-skills/tree/main/daydream) | `git clone https://github.com/glebis/claude-skills.git && cp -r claude-skills/daydream ~/.claude/skills/` | Multi-agent Obsidian vault mining — finds non-obvious note connections |
-| [Anthropic Skill Creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | `npx skills add https://github.com/anthropics/skills --skill skill-creator` | Create, test, benchmark, and improve SKILL.md files |
-| [Anthropic Frontend Design](https://github.com/anthropics/skills/tree/main/skills/frontend-design) | `npx skills add https://github.com/anthropics/skills --skill frontend-design` | Production UI with named aesthetic direction, typography, color, motion |
-| [Anthropic MCP Builder](https://github.com/anthropics/skills/tree/main/skills/mcp-builder) | `npx skills add https://github.com/anthropics/skills --skill mcp-builder` | Build MCP servers with TS/Python SDK, Zod/Pydantic schemas, evals |
-| [Cloudflare Skills](https://github.com/cloudflare/skills/tree/main/skills/cloudflare) | `npx skills add https://github.com/cloudflare/skills` | Workers, D1, R2, KV, AI, Wrangler, product decision trees |
-| [stop-slop](https://github.com/hardikpandya/stop-slop) | `git clone https://github.com/hardikpandya/stop-slop.git ~/.agents/skills/stop-slop` | Clean AI-writing tells from docs, READMEs, release notes; 1–10 scoring rubric |
-| [Anthropic Webapp Testing](https://github.com/anthropics/skills/tree/main/skills/webapp-testing) | `npx skills add https://github.com/anthropics/skills --skill webapp-testing` | Playwright-based local web app testing with server lifecycle helper |
+## Workflow projektu
+
+1. **Faza 0** — audyt środowiska (tylko odczyt) → max 3 pytania do użytkownika → STOP
+2. **Plan v0** — po odpowiedziach, przed kodem
+3. **Iteracje** — małe pionowe wycinki: implementacja → testy → demonstracja
+4. **Git** — branch `feat/*`, małe commity, PR przed mergem, zakaz force push, zakaz merge do `main`
+
+## Agenci projektu
+
+| Agent | Tryb | Plik |
+|---|---|---|
+| `pomagier` | primary (domyślny) | `.opencode/agents/pomagier.md` |
+| `pomagier-reviewer` | subagent | `.opencode/agents/pomagier-reviewer.md` |
+| `pomagier-security` | subagent | `.opencode/agents/pomagier-security.md` |
+| `pomagier-devops` | subagent | `.opencode/agents/pomagier-devops.md` |
+| `pomagier-erp` | subagent | `.opencode/agents/pomagier-erp.md` |
+
+## Skille projektu
+
+| Skill | Plik | Stan |
+|---|---|---|
+| `subiekt-gt` | `.opencode/skills/subiekt-gt/SKILL.md` | Szkielet |
+| `pwa-warehouse` | `.opencode/skills/pwa-warehouse/SKILL.md` | Szkielet |
+
+## Pliki wiedzy
+
+| Plik | Zawartość |
+|---|---|
+| `README.md` | Opis projektu, architektura, moduły, stan |
+| `PRD.md` | Cele, MVP, decyzje otwarte |
+| `ARCHITECTURE.md` | Diagram warstw, topologia, odpowiedzialności |
+| `SECURITY.md` | Sekrety, RBAC, OWASP, ochrona ERP |
+| `TESTING.md` | Poziomy testów, scenariusze, kryteria akceptacji |
+| `PLAN.md` | Szablon planu v0 (do wypełnienia) |
+| `DECISIONS.md` | Rejestr decyzji architektonicznych |
+| `DB_SCHEMA.md` | Schemat bazy aplikacyjnej (do zaprojektowania) |
+| `API.md` | Projekt API (do zaprojektowania) |
+| `DEPLOYMENT.md` | Deployment (do weryfikacji) |
+| `CHANGELOG.md` | Historia zmian |
+| `TASKS.md` | Dziennik wykonanych zadań |
+
+## Zasady bezwzględne (TL;DR)
+
+- **Bez sekretów** w repo — tylko `{{PLACEHOLDERS}}`
+- **Bez bezpośredniego zapisu** do tabel Subiekta GT bez jawnej decyzji
+- **Bez force push**, bez merge do `main` bez zgody
+- **Bez fikcyjnych nazw** tabel/endpointów Subiekta — używaj MCP do weryfikacji
+- **Bez `any`** w TypeScript jeśli można określić typ
+- **Bez generowania wszystkich modułów naraz** — pionowe przyrosty
+- **Bez ignorowania błędów** buildu, lintowania, testów
+- Pisz **po polsku** do użytkownika, kod i technikalia **po angielsku**

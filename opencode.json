@@ -1,7 +1,37 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "default_agent": "pomagier",
+  "instructions": ["AGENTS.md"],
   "plugin": [
     "opencode-skills-collection@latest",
     "superpowers@git+https://github.com/obra/superpowers.git"
-  ]
+  ],
+  "references": {
+    "lovable-ui": {
+      "repository": "RobertBirek/pomagier-magazyn-smart",
+      "branch": "main",
+      "description": "Prototyp UI/UX PomagierGT utworzony w Lovable. Używaj jako referencji komponentów, stylistyki i ekranów. Nie traktuj jako obowiązującej architektury produkcyjnej."
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "tail_turns": 20
+  },
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "git push*": "ask",
+      "git commit*": "ask",
+      "rm *": "ask",
+      "docker*": "ask",
+      "npm publish*": "deny",
+      "npm install -g*": "ask",
+      "*": "allow"
+    },
+    "external_directory": {
+      "*": "allow"
+    },
+    "webfetch": "allow",
+    "todowrite": "allow"
+  }
 }

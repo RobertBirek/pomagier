@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pomagier-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pomagier
+      POSTGRES_USER: pomagier
+      POSTGRES_PASSWORD: pomagier_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pomagier -d pomagier"]
+      interval: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ../.
+      dockerfile: docker/Dockerfile
+      target: dev
+    container_name: pomagier-app
+    ports:
+      - "5173:5173"
+    environment:
+      - DATABASE_URL=postgresql://pomagier:pomagier_dev@postgres:5432/pomagier
+      - MSSQL_HOST=${MSSQL_HOST}
+      - MSSQL_PORT=${MSSQL_PORT:-1433}
+      - MSSQL_DATABASE=${MSSQL_DATABASE}
+      - MSSQL_USER=${MSSQL_USER}
+      - MSSQL_PASSWORD=${MSSQL_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - NODE_ENV=development
+    volumes:
+      - ../.:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: npm run dev
+    restart: unless-stopped
+
+volumes:
+  pgdata:
