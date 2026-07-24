@@ -351,6 +351,23 @@ app.post("/api/locations/import", async (_req, res) => {
 
     const { parseLocation } = await import("../lib/locations.ts");
     const db = getDb();
+
+    // Normalize existing entries (fix missing spaces)
+    const existing = await db.select().from(schema.locations);
+    for (const loc of existing) {
+      const parsed = parseLocation(loc.code);
+      if (parsed && parsed.raw !== loc.code) {
+        // Delete old malformed, insert corrected
+        await db.delete(schema.locations).where(eq(schema.locations.id, loc.id));
+        try {
+          await db.insert(schema.locations).values({
+            code: parsed.raw, area: parsed.area, aisle: parsed.aisle,
+            rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label,
+          }).onConflictDoNothing();
+        } catch { /* skip if already exists */ }
+      }
+    }
+
     let imported = 0;
     let skipped = 0;
 

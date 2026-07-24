@@ -12,14 +12,16 @@ export interface LocationParsed {
 
 const LOCATION_RE = /^([A-Z])\s*(\d+)-(\d+)-(\d+)-(\d+)$/;
 
+/** Normalize and parse location code. Accepts both "A 1-2-3-4" and "A1-2-3-4" (auto-inserts space). */
 export function parseLocation(raw: string): LocationParsed | null {
   const trimmed = raw.trim();
   const match = trimmed.match(LOCATION_RE);
   if (!match) return null;
 
   const [, area, aisle, rack, shelf, spot] = match;
+  const normalized = `${area} ${aisle}-${rack}-${shelf}-${spot}`;
   return {
-    raw: trimmed,
+    raw: normalized,
     area,
     aisle: parseInt(aisle),
     rack: parseInt(rack),
