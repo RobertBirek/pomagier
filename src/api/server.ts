@@ -6,7 +6,7 @@ import { MssqlErpAdapter } from "../erp/mssql.adapter.ts";
 import { MockErpAdapter } from "../erp/mock.adapter.ts";
 import type { ErpAdapter } from "../erp/adapter.ts";
 import { getDb, schema } from "../db/index.ts";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { logger } from "../lib/logger.ts";
 
 const app = express();
@@ -35,6 +35,20 @@ function hashPin(pin: string): string {
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
+}
+
+// --- Field mapping helpers ---
+async function getLocationField(): Promise<string> {
+  try {
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(schema.config)
+      .where(eq(schema.config.key, "fieldmap_location"));
+    return row?.value || "tw_Pole1";
+  } catch {
+    return "tw_Pole1";
+  }
 }
 
 // --- Health ---
@@ -342,11 +356,12 @@ app.post("/api/locations/import", async (_req, res) => {
     const pool = await adapter.getPool?.();
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
 
+    const locationField = await getLocationField();
     const result = await pool.request().query(`
-      SELECT NULLIF(tw_Pole1, '') AS location
+      SELECT NULLIF(${locationField}, '') AS location
       FROM tw__Towar
-      WHERE tw_Pole1 IS NOT NULL AND tw_Pole1 != ''
-      GROUP BY tw_Pole1
+      WHERE ${locationField} IS NOT NULL AND ${locationField} != ''
+      GROUP BY ${locationField}
     `);
 
     const { parseLocation } = await import("../lib/locations.ts");
@@ -500,12 +515,14 @@ app.put("/api/products/:id/location", async (req, res) => {
     const pool = await adapter.getPool?.();
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
 
-    // Pobierz aktualną wartość tw_Pole1
+    const locationField = await getLocationField();
+
+    // Pobierz aktualną wartość pola
     const current = await pool.request()
       .input("id", parseInt(productId as any))
-      .query("SELECT tw_Pole1 FROM tw__Towar WHERE tw_Id = @id");
+      .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
 
-    const existing = (current.recordset[0] as any)?.tw_Pole1 || "";
+    const existing = (current.recordset[0] as any)?.val || "";
     const locations = existing
       .split(";")
       .map((s: string) => s.trim())
@@ -523,11 +540,11 @@ app.put("/api/products/:id/location", async (req, res) => {
 
     await pool.request()
       .input("id", parseInt(productId as any))
-      .input("pole1", newValue)
-      .query("UPDATE tw__Towar SET tw_Pole1 = @pole1 WHERE tw_Id = @id");
+      .input("val", newValue)
+      .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
 
-    logger.info({ productId, location: parsed.raw, tw_Pole1: newValue }, "Product location updated in Subiekt");
-    res.json({ ok: true, location: parsed.raw, tw_Pole1: newValue });
+    logger.info({ productId, location: parsed.raw, field: locationField, value: newValue }, "Product location updated in Subiekt");
+    res.json({ ok: true, location: parsed.raw, field: locationField, value: newValue });
   } catch (err) {
     logger.error({ err, productId, location }, "Failed to update product location");
     res.status(500).json({ error: "Błąd zapisu do Subiekt GT" });
@@ -596,6 +613,47 @@ app.get("/api/products", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Products query failed");
     res.json({ rows: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
+  }
+});
+
+// --- Mapowanie pól Pomagier ↔ Subiekt GT ---
+app.get("/api/field-mappings", async (_req, res) => {
+  try {
+    const db = getDb();
+    const rows = await db.select().from(schema.config).where(sql`${schema.config.key} LIKE 'fieldmap_%'`);
+    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.ts");
+
+    const map = new Map(rows.map((r) => [r.key.replace("fieldmap_", ""), r.value]));
+    const result = DEFAULT_MAPPINGS.map((dm) => ({
+      ...dm,
+      subiektField: map.get(dm.key) || dm.subiektField,
+    }));
+    res.json(result);
+  } catch {
+    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.ts");
+    res.json(DEFAULT_MAPPINGS);
+  }
+});
+
+app.put("/api/field-mappings", async (req, res) => {
+  const mappings = req.body as { key: string; subiektField: string }[];
+  if (!Array.isArray(mappings)) {
+    res.status(400).json({ error: "Oczekiwano tablicy" });
+    return;
+  }
+  try {
+    const db = getDb();
+    for (const m of mappings) {
+      await db
+        .insert(schema.config)
+        .values({ key: `fieldmap_${m.key}`, value: m.subiektField })
+        .onConflictDoUpdate({ target: schema.config.key, set: { value: m.subiektField } });
+    }
+    logger.info({ count: mappings.length }, "Field mappings saved");
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to save field mappings");
+    res.status(500).json({ error: "Błąd zapisu" });
   }
 });
 

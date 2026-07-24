@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getStats, getCompany, healthCheck } from "@/lib/api";
 import { KpiCard, StatusBadge, SectionTitle, LoadingRow } from "@/components/pomagier/primitives";
-import { Database, Server, Clock, Package, Users, MapPin, Wifi, WifiOff, Save, FlaskConical } from "lucide-react";
-import { useState } from "react";
+import { Database, Server, Clock, Package, Users, MapPin, Wifi, WifiOff, Save, FlaskConical, ArrowRightLeft } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 async function fetchErpConfig() {
@@ -30,6 +30,33 @@ async function testConnection(data: { host: string; port: number; database: stri
   return res.json() as Promise<{ ok: boolean; latencyMs?: number; error?: string }>;
 }
 
+async function fetchFieldMappings() {
+  const res = await fetch("/api/field-mappings");
+  return res.json() as Promise<{ key: string; label: string; subiektField: string; subiektTable: string }[]>;
+}
+
+async function saveFieldMappings(mappings: { key: string; subiektField: string }[]) {
+  const res = await fetch("/api/field-mappings", {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mappings),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
+const AVAILABLE_FIELDS = [
+  { value: "tw_Pole1", label: "tw_Pole1 (varchar 50)" },
+  { value: "tw_Pole2", label: "tw_Pole2 (varchar 50)" },
+  { value: "tw_Pole3", label: "tw_Pole3 (varchar 50)" },
+  { value: "tw_Pole4", label: "tw_Pole4 (varchar 50)" },
+  { value: "tw_Pole5", label: "tw_Pole5 (varchar 50)" },
+  { value: "tw_Pole6", label: "tw_Pole6 (varchar 50)" },
+  { value: "tw_Pole7", label: "tw_Pole7 (varchar 50)" },
+  { value: "tw_Pole8", label: "tw_Pole8 (varchar 50)" },
+  { value: "tw_Opis", label: "tw_Opis (opis)" },
+  { value: "tw_Uwagi", label: "tw_Uwagi (uwagi)" },
+];
+
 export const Route = createFileRoute("/admin/erp")({
   component: AdminErp,
 });
@@ -40,10 +67,12 @@ function AdminErp() {
   const { data: company } = useQuery({ queryKey: ["company"], queryFn: getCompany });
   const { data: health, refetch: refetchHealth } = useQuery({ queryKey: ["health"], queryFn: healthCheck, refetchInterval: 10_000 });
   const { data: config } = useQuery({ queryKey: ["erp-config"], queryFn: fetchErpConfig });
+  const { data: fieldMappings, refetch: refetchMappings } = useQuery({ queryKey: ["field-mappings"], queryFn: fetchFieldMappings });
 
   const [form, setForm] = useState({ host: "", port: 1433, database: "", user: "", password: "" });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs?: number; error?: string } | null>(null);
+  const [fieldMap, setFieldMap] = useState<{ key: string; subiektField: string }[]>([]);
 
   // Sync form when config loads
   const [synced, setSynced] = useState(false);
@@ -52,7 +81,15 @@ function AdminErp() {
     setSynced(true);
   }
 
+  // Sync field mappings when loaded
+  const [mapSynced, setMapSynced] = useState(false);
+  if (fieldMappings && !mapSynced) {
+    setFieldMap(fieldMappings.map((m) => ({ key: m.key, subiektField: m.subiektField })));
+    setMapSynced(true);
+  }
+
   const saveMut = useMutation({ mutationFn: saveErpConfig, onSuccess: () => { toast.success("Konfiguracja zapisana"); qc.invalidateQueries({ queryKey: ["health"] }); qc.invalidateQueries({ queryKey: ["stats"] }); qc.invalidateQueries({ queryKey: ["company"] }); refetchHealth(); }, onError: (e: any) => toast.error(e.message) });
+  const saveMappingsMut = useMutation({ mutationFn: saveFieldMappings, onSuccess: () => { toast.success("Mapowanie zapisane"); refetchMappings(); }, onError: (e: any) => toast.error(e.message) });
 
   const handleTest = async () => {
     setTesting(true);
@@ -170,6 +207,49 @@ function AdminErp() {
             {saveMut.isPending ? "Zapisuję…" : "Zapisz"}
           </button>
         </div>
+      </div>
+
+      {/* Field mappings */}
+      <div className="rounded-lg border bg-card p-4 max-w-2xl">
+        <SectionTitle title="Mapowanie pól" description="Powiąż funkcje PomagierGT z polami własnymi Subiekt GT" />
+        {fieldMappings && fieldMappings.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {fieldMappings.map((fm) => (
+              <div key={fm.key} className="flex items-center gap-3 rounded-md border bg-muted/20 p-3">
+                <div className="flex-1">
+                  <div className="text-sm font-semibold">{fm.label}</div>
+                  <div className="text-xs text-muted-foreground">PomagierGT → Subiekt GT ({fm.subiektTable})</div>
+                </div>
+                <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
+                <select
+                  value={fieldMap.find((m) => m.key === fm.key)?.subiektField || fm.subiektField}
+                  onChange={(e) =>
+                    setFieldMap((prev) =>
+                      prev.some((m) => m.key === fm.key)
+                        ? prev.map((m) => (m.key === fm.key ? { ...m, subiektField: e.target.value } : m))
+                        : [...prev, { key: fm.key, subiektField: e.target.value }],
+                    )
+                  }
+                  className="rounded-md border bg-background px-2 py-1.5 text-sm font-mono"
+                >
+                  {AVAILABLE_FIELDS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+
+            <button
+              onClick={() => saveMappingsMut.mutate(fieldMap)}
+              disabled={saveMappingsMut.isPending}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {saveMappingsMut.isPending ? "Zapisuję…" : "Zapisz mapowanie"}
+            </button>
+          </div>
+        )}
+        {(!fieldMappings || fieldMappings.length === 0) && <p className="text-sm text-muted-foreground mt-3">Brak skonfigurowanych mapowań pól.</p>}
       </div>
     </div>
   );
