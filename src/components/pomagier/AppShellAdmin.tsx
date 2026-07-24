@@ -36,6 +36,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
+import { useMssqlStatus } from "@/lib/use-status";
 import { StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +143,7 @@ function Breadcrumb() {
 
 export function AppShellAdmin() {
   const { operatorName } = useAuth();
+  const { online } = useMssqlStatus();
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -152,7 +154,7 @@ export function AppShellAdmin() {
             <div className="flex items-center gap-2 border-l pl-3">
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-semibold">PomagierGT</span>
-              <StatusBadge tone="success">MSSQL</StatusBadge>
+              <StatusBadge tone={online ? "success" : "danger"}>MSSQL</StatusBadge>
             </div>
             <div className="ml-auto flex items-center gap-2">
               <StatusBadge tone="success">API: OK</StatusBadge>

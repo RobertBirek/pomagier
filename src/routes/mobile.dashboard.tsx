@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { useMssqlStatus } from "@/lib/use-status";
 import { useQuery } from "@tanstack/react-query";
 import { getCompany } from "@/lib/api";
+import { ConnectionStatus } from "@/components/pomagier/primitives";
 import { Scan, ClipboardList, Package, Truck, MapPin, RefreshCw, ListTodo } from "lucide-react";
 
 const tiles = [
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/mobile/dashboard")({
 
 function Dashboard() {
   const { operatorName, warehouse } = useAuth();
+  const { online } = useMssqlStatus();
   const { data: company } = useQuery({
     queryKey: ["company"],
     queryFn: getCompany,
@@ -29,10 +32,11 @@ function Dashboard() {
   return (
     <div className="mx-auto max-w-md p-4">
       <div className="mb-4">
-        <h1 className="text-lg font-bold">{company?.name || "PomagierGT"}</h1>
-        <p className="text-xs text-muted-foreground">
-          {operatorName} · {warehouse}
-        </p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold">{company?.name || "PomagierGT"}</h1>
+          <ConnectionStatus online={online} />
+        </div>
+        <p className="text-xs text-muted-foreground">{operatorName} · {warehouse}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

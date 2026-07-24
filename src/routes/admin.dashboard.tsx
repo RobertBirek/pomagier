@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getStats, getCompany } from "@/lib/api";
 import { KpiCard, ConnectionStatus, StatusBadge, SectionTitle } from "@/components/pomagier/primitives";
+import { useMssqlStatus } from "@/lib/use-status";
 import { Package, MapPin, Users } from "lucide-react";
 
 export const Route = createFileRoute("/admin/dashboard")({
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/admin/dashboard")({
 function AdminDashboard() {
   const { data: stats, isLoading } = useQuery({ queryKey: ["stats"], queryFn: getStats, refetchInterval: 30_000 });
   const { data: company } = useQuery({ queryKey: ["company"], queryFn: getCompany });
+  const { online } = useMssqlStatus();
 
   return (
     <div className="space-y-6">
@@ -48,8 +50,8 @@ function AdminDashboard() {
       <div>
         <SectionTitle title="Status systemu" />
         <div className="mt-2 flex gap-3">
-          <ConnectionStatus online={true} label="MSSQL" />
-          <StatusBadge tone="info">API: OK</StatusBadge>
+          <ConnectionStatus online={online} label="MSSQL" />
+          <StatusBadge tone={online ? "success" : "danger"}>API</StatusBadge>
         </div>
       </div>
     </div>
