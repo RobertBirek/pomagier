@@ -28,13 +28,12 @@ export class MssqlErpAdapter implements ErpAdapter {
     if (this.config) {
       return this._connect(this.config);
     }
-    const env = getEnv();
     return this._connect({
-      host: env.MSSQL_HOST,
-      port: env.MSSQL_PORT,
-      database: env.MSSQL_DATABASE,
-      user: env.MSSQL_USER,
-      password: env.MSSQL_PASSWORD,
+      host: process.env.MSSQL_HOST || "localhost",
+      port: parseInt(process.env.MSSQL_PORT || "1433"),
+      database: process.env.MSSQL_DATABASE || "",
+      user: process.env.MSSQL_USER || "",
+      password: process.env.MSSQL_PASSWORD || "",
     });
   }
 

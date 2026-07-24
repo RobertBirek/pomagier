@@ -96,9 +96,11 @@ function AdminErp() {
         <div className="rounded-lg border bg-card p-4">
           <SectionTitle title="Firma" />
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
-            <div><span className="text-muted-foreground">Nazwa:</span> <span className="font-semibold">{company.name || "(bez nazwy)"}</span></div>
+            <div><span className="text-muted-foreground">Nazwa:</span> <span className="font-semibold">{company.name || "—"}</span></div>
             <div><span className="text-muted-foreground">NIP:</span> <span className="font-mono">{company.nip || "—"}</span></div>
             <div><span className="text-muted-foreground">REGON:</span> <span className="font-mono">{company.regon || "—"}</span></div>
+            {(company as any).street && <div><span className="text-muted-foreground">Adres:</span> <span>{(company as any).street}, {(company as any).postalCode} {(company as any).city}</span></div>}
+            {(company as any).www && <div><span className="text-muted-foreground">WWW:</span> <span className="font-mono">{(company as any).www}</span></div>}
           </div>
         </div>
       )}
