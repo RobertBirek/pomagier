@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import crypto from "node:crypto";
-import { users } from "../db/schema.ts";
+import { users } from "../src/db/schema.ts";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://pomagier:pomagier_dev@localhost:5432/pomagier";
 

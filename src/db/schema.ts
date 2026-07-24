@@ -3,7 +3,7 @@ import { pgTable, text, integer, timestamp, uuid, varchar, boolean } from "drizz
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   subiektUzId: integer("subiekt_uz_id").notNull().unique(),
-  pin: varchar("pin", { length: 10 }).notNull(),
+  pin: varchar("pin", { length: 64 }).notNull(),
   role: varchar("role", { length: 20 }).notNull().default("operator"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
