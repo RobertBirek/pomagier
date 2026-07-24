@@ -312,52 +312,75 @@ app.post("/api/erp-config", async (req, res) => {
   }
 });
 
-// --- Lokalizacje (tw_Pole1 + Postgres) ---
+// --- Lokalizacje (tylko Postgres) ---
 app.get("/api/locations", async (_req, res) => {
+  try {
+    const db = getDb();
+    const { sortLocations } = await import("../lib/locations.ts");
+    const rows = await db.select().from(schema.locations).orderBy(schema.locations.code);
+
+    const parsed = rows.map((r) => ({
+      raw: r.code,
+      area: r.area,
+      aisle: r.aisle,
+      rack: r.rack,
+      shelf: r.shelf,
+      spot: r.spot,
+      label: r.label,
+    }));
+
+    res.json(sortLocations(parsed));
+  } catch {
+    res.json([]);
+  }
+});
+
+// --- Import lokalizacji z Subiekta (jednorazowo) ---
+app.post("/api/locations/import", async (_req, res) => {
   try {
     const adapter = getAdapter();
     const pool = await adapter.getPool?.();
-    const { parseLocation, sortLocations } = await import("../lib/locations.ts");
-    const unique = new Map<string, any>();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
 
-    // Z Subiekta (tw_Pole1)
-    if (pool) {
-      const result = await pool.request().query(`
-        SELECT NULLIF(tw_Pole1, '') AS location
-        FROM tw__Towar
-        WHERE tw_Pole1 IS NOT NULL AND tw_Pole1 != ''
-        GROUP BY tw_Pole1
-        ORDER BY tw_Pole1
-      `);
-      for (const row of result.recordset) {
-        const parsed = parseLocation((row as any).location);
-        if (parsed) unique.set(parsed.raw, parsed);
+    const result = await pool.request().query(`
+      SELECT NULLIF(tw_Pole1, '') AS location
+      FROM tw__Towar
+      WHERE tw_Pole1 IS NOT NULL AND tw_Pole1 != ''
+      GROUP BY tw_Pole1
+    `);
+
+    const { parseLocation } = await import("../lib/locations.ts");
+    const db = getDb();
+    let imported = 0;
+    let skipped = 0;
+
+    for (const row of result.recordset) {
+      const raw = (row as any).location as string;
+      // Obsługa wielu lokalizacji oddzielonych średnikiem
+      const parts = raw.split(";").map((s: string) => s.trim()).filter(Boolean);
+      for (const part of parts) {
+        const parsed = parseLocation(part);
+        if (!parsed) { skipped++; continue; }
+        try {
+          await db.insert(schema.locations).values({
+            code: parsed.raw,
+            area: parsed.area,
+            aisle: parsed.aisle,
+            rack: parsed.rack,
+            shelf: parsed.shelf,
+            spot: parsed.spot,
+            label: parsed.label,
+          }).onConflictDoNothing();
+          imported++;
+        } catch { skipped++; }
       }
     }
 
-    // Z Postgres (dodane ręcznie)
-    try {
-      const db = getDb();
-      const pgLocs = await db.select().from(schema.locations);
-      for (const loc of pgLocs) {
-        unique.set(loc.code, {
-          raw: loc.code,
-          area: loc.area,
-          aisle: loc.aisle,
-          rack: loc.rack,
-          shelf: loc.shelf,
-          spot: loc.spot,
-          label: loc.label,
-          source: "manual",
-        });
-      }
-    } catch {
-      // Postgres might be down — ignore
-    }
-
-    res.json(sortLocations([...unique.values()]));
-  } catch {
-    res.json([]);
+    logger.info({ imported, skipped }, "Location import completed");
+    res.json({ ok: true, imported, skipped });
+  } catch (err) {
+    logger.error({ err }, "Import failed");
+    res.status(500).json({ error: "Import nie powiódł się" });
   }
 });
 
@@ -435,6 +458,62 @@ app.get("/api/products-by-location", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Products by location failed");
     res.json([]);
+  }
+});
+
+// --- Aktualizuj lokalizację produktu w Subiekt GT ---
+app.put("/api/products/:id/location", async (req, res) => {
+  const productId = parseInt(req.params.id);
+  const { location } = req.body ?? {};
+
+  if (!productId || !location) {
+    res.status(400).json({ error: "Brak productId lub location" });
+    return;
+  }
+
+  const { parseLocation } = await import("../lib/locations.ts");
+  const parsed = parseLocation(location);
+  if (!parsed) {
+    res.status(422).json({ error: "Nieprawidłowy format lokalizacji" });
+    return;
+  }
+
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+
+    // Pobierz aktualną wartość tw_Pole1
+    const current = await pool.request()
+      .input("id", parseInt(productId as any))
+      .query("SELECT tw_Pole1 FROM tw__Towar WHERE tw_Id = @id");
+
+    const existing = (current.recordset[0] as any)?.tw_Pole1 || "";
+    const locations = existing
+      .split(";")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+    // Sprawdź czy lokalizacja już istnieje
+    if (locations.includes(parsed.raw)) {
+      res.json({ ok: true, location: parsed.raw, message: "Lokalizacja już przypisana" });
+      return;
+    }
+
+    // Dodaj nową lokalizację (oddziel średnikiem)
+    locations.push(parsed.raw);
+    const newValue = locations.join(";");
+
+    await pool.request()
+      .input("id", parseInt(productId as any))
+      .input("pole1", newValue)
+      .query("UPDATE tw__Towar SET tw_Pole1 = @pole1 WHERE tw_Id = @id");
+
+    logger.info({ productId, location: parsed.raw, tw_Pole1: newValue }, "Product location updated in Subiekt");
+    res.json({ ok: true, location: parsed.raw, tw_Pole1: newValue });
+  } catch (err) {
+    logger.error({ err, productId, location }, "Failed to update product location");
+    res.status(500).json({ error: "Błąd zapisu do Subiekt GT" });
   }
 });
 
