@@ -886,6 +886,32 @@ app.post("/api/locations/assign", async (req, res) => {
   }
 });
 
+// --- Lokalizacje z liczbą produktów i ilościami ---
+app.get("/api/locations/stats", async (_req, res) => {
+  try {
+    const db = getDb();
+    const rows = await db
+      .select({
+        code: schema.locations.code,
+        area: schema.locations.area,
+        aisle: schema.locations.aisle,
+        rack: schema.locations.rack,
+        shelf: schema.locations.shelf,
+        label: schema.locations.label,
+        productCount: sql<number>`COUNT(${schema.productLocations.productId})::int`,
+        totalQuantity: sql<number>`COALESCE(SUM(${schema.productLocations.quantity}), 0)::int`,
+      })
+      .from(schema.locations)
+      .leftJoin(schema.productLocations, eq(schema.locations.id, schema.productLocations.locationId))
+      .groupBy(schema.locations.id)
+      .orderBy(schema.locations.code);
+
+    res.json(rows);
+  } catch {
+    res.json([]);
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
