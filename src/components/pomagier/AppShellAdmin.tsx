@@ -17,6 +17,7 @@ import {
   Printer,
   Map,
   Building2,
+  FileText,
   Plus,
   Menu,
 } from "lucide-react";
