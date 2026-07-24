@@ -64,16 +64,6 @@ function ScanPage() {
     <div className="mx-auto max-w-md p-4 space-y-4">
       <h1 className="text-lg font-bold">Skaner</h1>
 
-      {/* Camera scanner — inline */}
-      <CameraScanner onScan={handleCameraScan} inline />
-
-      {/* Divider */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 border-t" />
-        <span className="text-xs text-muted-foreground">lub wpisz ręcznie</span>
-        <div className="flex-1 border-t" />
-      </div>
-
       {/* New location dialog */}
       {pendingLocation && (
         <div className="rounded-lg border-2 border-warning bg-warning/5 p-4">
@@ -95,7 +85,11 @@ function ScanPage() {
         </div>
       )}
 
-      <ScanPanel hint="Wpisz kod EAN lub lokalizację ręcznie" onScan={handleScan} />
+      <ScanPanel
+        hint="Wpisz kod EAN lub lokalizację ręcznie"
+        onScan={handleScan}
+        scannerSlot={<CameraScanner onScan={handleCameraScan} inline />}
+      />
     </div>
   );
 }
