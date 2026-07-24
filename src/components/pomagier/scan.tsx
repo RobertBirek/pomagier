@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Camera,
@@ -38,8 +38,10 @@ export function ScanPanel({
   customActions?: ScanAction[];
 }) {
   const [history, setHistory] = useState<ScanResult[]>([]);
-  const [manual, setManual] = useState("");
-  const [manualOpen, setManualOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   const emit = (r: ScanResult) => {
     setHistory((h) => [r, ...h].slice(0, 5));
@@ -49,8 +51,21 @@ export function ScanPanel({
       unknown: toast.error,
       duplicate: toast.warning,
       wrong: toast.error,
-    } as const;
-    map[r.kind](r.label, { description: r.code });
+    };
+    map[r.kind](r.label);
+  };
+
+  const handleSubmit = () => {
+    const code = inputValue.trim();
+    if (!code) return;
+    const isCustomAction = customActions?.find((a) => a.code === code);
+    if (isCustomAction) {
+      emit({ code, ok: isCustomAction.kind === "ok", label: isCustomAction.label, kind: isCustomAction.kind });
+    } else {
+      emit({ code, ok: true, label: `Kod: ${code}`, kind: "ok" });
+    }
+    setInputValue("");
+    inputRef.current?.focus();
   };
 
   const actions = customActions ?? [
@@ -68,13 +83,20 @@ export function ScanPanel({
   return (
     <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-5">
       <div className="flex flex-col items-center">
-        <div className="relative flex h-40 w-full max-w-sm items-center justify-center rounded-lg bg-background/80 shadow-inner">
-          <ScanLine className="h-12 w-12 text-primary/50 animate-pulse" />
-          <div className="absolute inset-x-6 top-1/2 h-0.5 -translate-y-1/2 bg-primary/60" />
-          <div className="absolute inset-y-4 left-4 w-8 border-l-2 border-t-2 border-primary" />
-          <div className="absolute inset-y-4 right-4 w-8 border-r-2 border-t-2 border-primary" />
+        <div className="w-full max-w-sm">
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+            placeholder={hint}
+            autoComplete="off"
+            className="w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+          />
         </div>
-        <p className="mt-3 text-sm font-medium text-foreground">{hint}</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Zeskanuj kod (automatyczny Enter) lub wpisz i naciśnij Enter
+        </p>
         <div className="mt-4 grid w-full max-w-md grid-cols-2 gap-2">
           {actions.map((a, i) => (
             <button
@@ -94,36 +116,10 @@ export function ScanPanel({
             </button>
           ))}
         </div>
-
-        <button
-          onClick={() => setManualOpen((v) => !v)}
-          className="mt-3 text-xs text-muted-foreground underline"
-        >
-          <Keyboard className="mr-1 inline h-3 w-3" /> Wpisz kod ręcznie
-        </button>
-        {manualOpen && (
-          <div className="mt-2 flex w-full max-w-md gap-2">
-            <input
-              value={manual}
-              onChange={(e) => setManual(e.target.value)}
-              placeholder="np. 5901234123457"
-              className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
-            />
-            <button
-              onClick={() => {
-                if (!manual) return;
-                emit({ code: manual, ok: true, label: "Wprowadzono ręcznie", kind: "ok" });
-                setManual("");
-              }}
-              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Zatwierdź
-            </button>
-          </div>
-        )}
       </div>
 
-      {history.length > 0 && (
+        {/* Scan history */}
+        {history.length > 0 && (
         <div className="mt-5">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
