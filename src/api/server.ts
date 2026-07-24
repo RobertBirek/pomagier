@@ -741,6 +741,35 @@ app.post("/api/locations/sync", async (_req, res) => {
   }
 });
 
+// --- Zmiana PIN użytkownika ---
+app.put("/api/users/:subiektId/pin", async (req, res) => {
+  const subiektUzId = parseInt(req.params.subiektId);
+  const { pin } = req.body ?? {};
+
+  if (!subiektUzId || !pin || pin.length < 4 || pin.length > 8) {
+    res.status(400).json({ error: "PIN musi mieć 4-8 cyfr" });
+    return;
+  }
+  if (!/^\d+$/.test(pin)) {
+    res.status(400).json({ error: "PIN może zawierać tylko cyfry" });
+    return;
+  }
+
+  try {
+    const db = getDb();
+    await db
+      .insert(schema.users)
+      .values({ subiektUzId, pin: hashPin(pin), role: "operator" })
+      .onConflictDoUpdate({ target: schema.users.subiektUzId, set: { pin: hashPin(pin) } });
+
+    logger.info({ subiektUzId }, "PIN updated");
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "PIN update failed");
+    res.status(500).json({ error: "Błąd zapisu" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
