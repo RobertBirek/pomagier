@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
@@ -10,16 +11,29 @@ export default defineConfig({
     react(),
     tailwindcss(),
     basicSsl(),
-  ],
-  resolve: {
-    tsconfigPaths: true,
-  },
-  server: {
-    proxy: {
-      "/api": {
-        target: "http://localhost:3000",
-        changeOrigin: true,
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png"],
+      manifest: false,
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/api\/(health|company|users|warehouses|locations|stats|products\/random)/,
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "api-cache", expiration: { maxAgeSeconds: 300 } },
+          },
+          {
+            urlPattern: /\/api\/.*/,
+            handler: "NetworkFirst",
+            options: { cacheName: "api-dynamic", networkTimeoutSeconds: 5 },
+          },
+        ],
       },
-    },
+    }),
+  ],
+  resolve: { tsconfigPaths: true },
+  server: {
+    proxy: { "/api": { target: "http://localhost:3000", changeOrigin: true } },
   },
 });

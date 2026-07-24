@@ -3,6 +3,7 @@ import { ScanPanel } from "@/components/pomagier/scan";
 import { CameraScanner } from "@/components/pomagier/CameraScanner";
 import { LocationPicker } from "@/components/pomagier/LocationPicker";
 import { parseLocation } from "@/lib/locations";
+import { addScanToQueue } from "@/lib/offline-queue";
 import { toast } from "sonner";
 import { useState, useCallback } from "react";
 import { MapPin, Plus, X, Shuffle } from "lucide-react";
@@ -44,14 +45,25 @@ function ScanPage() {
   const handleScan = async (result: { code: string; ok: boolean; label: string }) => {
     const loc = parseLocation(result.code);
     if (loc) {
-      const exists = await checkLocationExists(loc.raw);
-      if (!exists) { setPendingLocation({ code: loc.raw, label: loc.label }); return; }
-      toast.success(loc.label, { description: `Lokalizacja: ${loc.raw}` });
+      try {
+        const exists = await checkLocationExists(loc.raw);
+        if (!exists) { setPendingLocation({ code: loc.raw, label: loc.label }); return; }
+        toast.success(loc.label, { description: `Lokalizacja: ${loc.raw}` });
+      } catch {
+        await addScanToQueue(result.code, loc.raw);
+        toast.warning("Offline — zapisano w kolejce", { description: loc.raw });
+      }
       return;
     }
     if (result.ok) {
-      toast.success(result.label, { description: "Przekierowuję do karty produktu…" });
-      setTimeout(() => nav({ to: "/mobile/product/$code", params: { code: result.code } }), 400);
+      try {
+        await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: result.code }) });
+        toast.success(result.label, { description: "Przekierowuję do karty produktu…" });
+        setTimeout(() => nav({ to: "/mobile/product/$code", params: { code: result.code } }), 400);
+      } catch {
+        await addScanToQueue(result.code);
+        toast.warning("Offline — zapisano w kolejce", { description: result.code });
+      }
     } else {
       toast.error(result.label);
     }

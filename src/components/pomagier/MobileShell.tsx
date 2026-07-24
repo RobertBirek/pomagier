@@ -1,9 +1,11 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Home, ScanLine, ListTodo, RefreshCw, LogOut, User, MapPin } from "lucide-react";
+import { Home, ScanLine, MapPin, RefreshCw, LogOut, User } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
-import { ConnectionStatus } from "./primitives";
+import { getQueueCount } from "@/lib/offline-queue";
+import { ConnectionStatus, StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 const tabs = [
   { to: "/mobile/dashboard", label: "Start", icon: Home },
@@ -18,6 +20,14 @@ export function MobileShell() {
   const { operatorName, warehouse, logout } = useAuth();
   const { online } = useMssqlStatus();
   const nav = useNavigate();
+  const [queueCount, setQueueCount] = useState(0);
+
+  useEffect(() => {
+    const check = () => getQueueCount().then(setQueueCount);
+    check();
+    const interval = setInterval(check, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -36,6 +46,9 @@ export function MobileShell() {
             </div>
             <div className="flex items-center gap-2">
               <ConnectionStatus online={online} />
+              {queueCount > 0 && (
+                <StatusBadge tone="warning">{queueCount}</StatusBadge>
+              )}
               <button onClick={handleLogout} className="touch-target rounded p-1 hover:bg-accent" title="Wyloguj">
                 <LogOut className="h-3.5 w-3.5" />
               </button>

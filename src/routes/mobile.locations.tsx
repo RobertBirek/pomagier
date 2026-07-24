@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { parseLocation } from "@/lib/locations";
+import { addScanToQueue } from "@/lib/offline-queue";
 import { MapPin, Package, X, CheckCircle2, Trash2 } from "lucide-react";
 import { StatusBadge } from "@/components/pomagier/primitives";
 
@@ -103,6 +104,11 @@ function LocationsPage() {
       }
     } catch (e: any) {
       toast.error(e.message);
+      // Queue offline
+      for (const item of basket) {
+        await addScanToQueue(item.code, pendingLocation);
+      }
+      toast.warning("Offline — zapisano w kolejce", { description: `${basket.length} skanów` });
     } finally {
       setSaving(false);
       setPendingLocation(null);
