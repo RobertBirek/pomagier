@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ScanPanel } from "@/components/pomagier/scan";
 import { CameraScanner } from "@/components/pomagier/CameraScanner";
+import { LocationPicker } from "@/components/pomagier/LocationPicker";
 import { parseLocation } from "@/lib/locations";
 import { toast } from "sonner";
-import { useState } from "react";
-import { MapPin, Plus, X } from "lucide-react";
+import { useState, useCallback } from "react";
+import { MapPin, Plus, X, Shuffle } from "lucide-react";
 
 async function checkLocationExists(code: string) {
   const res = await fetch(`/api/products-by-location?location=${encodeURIComponent(code)}`);
@@ -20,6 +21,11 @@ async function addLocation(code: string) {
   return res.json();
 }
 
+async function fetchRandomProduct() {
+  const res = await fetch("/api/products/random");
+  return res.json() as Promise<{ code: string; name: string }>;
+}
+
 export const Route = createFileRoute("/mobile/scan")({
   component: ScanPage,
 });
@@ -28,6 +34,12 @@ function ScanPage() {
   const nav = useNavigate();
   const [pendingLocation, setPendingLocation] = useState<{ code: string; label: string } | null>(null);
   const [adding, setAdding] = useState(false);
+  const [randomCode, setRandomCode] = useState<{ code: string; name: string } | null>(null);
+
+  const loadRandom = useCallback(async () => {
+    const p = await fetchRandomProduct();
+    setRandomCode(p);
+  }, []);
 
   const handleScan = async (result: { code: string; ok: boolean; label: string }) => {
     const loc = parseLocation(result.code);
@@ -49,6 +61,10 @@ function ScanPage() {
     handleScan({ code, ok: true, label: `Zeskanowano: ${code}` });
   };
 
+  const handleLocationPick = (code: string) => {
+    handleScan({ code, ok: true, label: `Lokalizacja: ${code}`, kind: "ok" } as any);
+  };
+
   const handleAddLocation = async () => {
     if (!pendingLocation) return;
     setAdding(true);
@@ -60,19 +76,16 @@ function ScanPage() {
     finally { setAdding(false); setPendingLocation(null); }
   };
 
+  // Reload random on mount
+  if (!randomCode) loadRandom();
+
   return (
     <div className="mx-auto max-w-md p-4 space-y-4">
       <h1 className="text-lg font-bold">Skaner</h1>
 
-      {/* Camera scanner — inline */}
       <CameraScanner onScan={handleCameraScan} inline />
 
-      {/* Divider */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 border-t" />
-        <span className="text-xs text-muted-foreground">lub wpisz ręcznie</span>
-        <div className="flex-1 border-t" />
-      </div>
+      <LocationPicker onSelect={handleLocationPick} />
 
       {/* New location dialog */}
       {pendingLocation && (
@@ -95,7 +108,29 @@ function ScanPage() {
         </div>
       )}
 
-      <ScanPanel hint="Wpisz kod EAN lub lokalizację ręcznie" onScan={handleScan} />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 border-t" />
+        <span className="text-xs text-muted-foreground">lub wpisz ręcznie</span>
+        <div className="flex-1 border-t" />
+      </div>
+
+      <ScanPanel
+        hint="Wpisz kod EAN lub lokalizację ręcznie"
+        onScan={handleScan}
+        customActions={[
+          { label: randomCode ? `${randomCode.name}` : "Losuj towar…", code: randomCode?.code || "", kind: "ok", variant: "primary" },
+          { label: "Inny losowy", code: "", kind: "ok" },
+        ]}
+      />
+
+      {/* Random reload */}
+      <button
+        onClick={loadRandom}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-accent touch-target"
+      >
+        <Shuffle className="h-4 w-4" />
+        Wylosuj inny towar
+      </button>
     </div>
   );
 }

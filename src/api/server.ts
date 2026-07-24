@@ -770,6 +770,26 @@ app.put("/api/users/:subiektId/pin", async (req, res) => {
   }
 });
 
+// --- Losowy kod towaru z Subiekta ---
+app.get("/api/products/random", async (_req, res) => {
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.json({ code: "5901234567890", name: "Demo" });
+
+    const result = await pool.request().query(`
+      SELECT TOP 1 tw_Symbol AS code, tw_Nazwa AS name
+      FROM tw__Towar
+      WHERE tw_PodstKodKresk IS NOT NULL AND tw_PodstKodKresk != ''
+      ORDER BY NEWID()
+    `);
+    const row = result.recordset[0];
+    res.json(row ? { code: row.code, name: row.name } : { code: "5901234567890", name: "Demo" });
+  } catch {
+    res.json({ code: "5901234567890", name: "Demo" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
