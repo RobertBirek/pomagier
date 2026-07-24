@@ -149,7 +149,7 @@ export function AppShellAdmin() {
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
+          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur safe-top">
             <SidebarTrigger />
             <div className="flex items-center gap-2 border-l pl-3">
               <Building2 className="h-4 w-4 text-muted-foreground" />

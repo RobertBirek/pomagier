@@ -37,7 +37,7 @@ export function MobileShell() {
   return (
     <div className="flex min-h-screen flex-col bg-muted/50">
       {!hideChrome && (
-        <header className="sticky top-0 z-30 border-b bg-card">
+        <header className="sticky top-0 z-30 border-b bg-card safe-top">
           <div className="flex items-center justify-between px-3 py-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -62,7 +62,7 @@ export function MobileShell() {
       </main>
 
       {!hideChrome && (
-        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card">
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card safe-bottom">
           <div className="grid grid-cols-4">
             {tabs.map((t) => (
               <Link
