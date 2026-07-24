@@ -30,7 +30,20 @@ function LocationsPage() {
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  const refocus = () => setTimeout(() => inputRef.current?.focus(), 50);
+
+  useEffect(() => { refocus(); }, []);
+
+  // Always refocus on any interaction
+  useEffect(() => {
+    const handler = () => refocus();
+    document.addEventListener("click", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("click", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
 
   const addToBasket = (code: string) => {
     const trimmed = code.trim();
@@ -57,13 +70,14 @@ function LocationsPage() {
 
     toast.success(`Dodano: ${trimmed}`, { duration: 800 });
     setInputValue("");
-    inputRef.current?.focus();
+    refocus();
   };
 
   const handleSubmit = () => addToBasket(inputValue);
 
   const removeItem = (code: string) => {
     setBasket((b) => b.filter((item) => item.code !== code));
+    refocus();
   };
 
   const handleSave = async () => {
@@ -92,7 +106,7 @@ function LocationsPage() {
     } finally {
       setSaving(false);
       setPendingLocation(null);
-      inputRef.current?.focus();
+      refocus();
     }
   };
 
@@ -167,7 +181,7 @@ function LocationsPage() {
                   <CheckCircle2 className="h-4 w-4" />
                   {saving ? "Zapisuję…" : "Zapisz"}
                 </button>
-                <button onClick={() => setPendingLocation(null)} className="touch-target rounded-md border px-4 py-2.5 text-sm">
+                <button onClick={() => { setPendingLocation(null); refocus(); }} className="touch-target rounded-md border px-4 py-2.5 text-sm">
                   <X className="h-4 w-4" />
                 </button>
               </div>
