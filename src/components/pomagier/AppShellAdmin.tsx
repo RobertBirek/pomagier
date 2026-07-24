@@ -13,12 +13,12 @@ import {
   Monitor,
   Bell,
   ChevronRight,
-  Building2,
-  Wifi,
-  WifiOff,
-  Map,
-  FileText,
+  Search,
   Printer,
+  Map,
+  Building2,
+  Plus,
+  Menu,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,7 +33,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useDemo } from "@/lib/demo-state";
+import { useAuth } from "@/lib/auth";
 import { StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
 
@@ -138,7 +138,7 @@ function Breadcrumb() {
 }
 
 export function AppShellAdmin() {
-  const { offline, setOffline } = useDemo();
+  const { operatorName } = useAuth();
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -148,34 +148,19 @@ export function AppShellAdmin() {
             <SidebarTrigger />
             <div className="flex items-center gap-2 border-l pl-3">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-semibold">Firma Demo Sp. z o.o.</span>
-              <StatusBadge tone="warning">DEMO</StatusBadge>
+              <span className="text-sm font-semibold">PomagierGT</span>
+              <StatusBadge tone="success">MSSQL</StatusBadge>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <StatusBadge tone="success">Sfera GT: OK</StatusBadge>
-              <StatusBadge tone="success">MSSQL: OK</StatusBadge>
-              <button
-                onClick={() => setOffline(!offline)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium",
-                  offline
-                    ? "border-destructive/40 bg-destructive/10 text-destructive"
-                    : "border-success/40 bg-success/10 text-success",
-                )}
-                title="Przełącz tryb offline (demo)"
-              >
-                {offline ? <WifiOff className="h-3 w-3" /> : <Wifi className="h-3 w-3" />}
-                {offline ? "Offline" : "Online"}
-              </button>
+              <StatusBadge tone="success">API: OK</StatusBadge>
               <button
                 className="relative rounded-md p-2 hover:bg-accent"
                 aria-label="Powiadomienia"
               >
                 <Bell className="h-4 w-4" />
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
               </button>
               <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                JW
+                {operatorName?.slice(0, 2).toUpperCase() || "OP"}
               </div>
             </div>
           </header>

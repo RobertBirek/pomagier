@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { AuthProvider } from "@/lib/auth";
 import { MobileShell } from "@/components/pomagier/MobileShell";
-import { DemoProvider } from "@/lib/demo-state";
 
 export const Route = createFileRoute("/mobile")({
   component: MobileLayout,
@@ -8,8 +8,8 @@ export const Route = createFileRoute("/mobile")({
 
 function MobileLayout() {
   return (
-    <DemoProvider>
+    <AuthProvider>
       <MobileShell />
-    </DemoProvider>
+    </AuthProvider>
   );
 }

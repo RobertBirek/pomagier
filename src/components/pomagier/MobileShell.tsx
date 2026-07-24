@@ -1,7 +1,7 @@
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Home, ScanLine, ListTodo, RefreshCw, LogOut, Battery, User } from "lucide-react";
-import { useDemo } from "@/lib/demo-state";
-import { ConnectionStatus, StatusBadge } from "./primitives";
+import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Home, ScanLine, ListTodo, RefreshCw, LogOut, User } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { ConnectionStatus } from "./primitives";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -14,7 +14,13 @@ const tabs = [
 export function MobileShell() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const hideChrome = pathname === "/mobile/login";
-  const { offline, currentOperator, currentWarehouse, pendingSync, battery } = useDemo();
+  const { operatorName, warehouse, logout } = useAuth();
+  const nav = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    nav({ to: "/mobile/login" });
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/50">
@@ -23,31 +29,16 @@ export function MobileShell() {
           <div className="flex items-center justify-between px-3 py-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="truncate font-medium">{currentOperator}</span>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground">{currentWarehouse}</span>
+              <span className="truncate font-semibold">{operatorName || "Operator"}</span>
+              <span className="text-muted-foreground">· {warehouse}</span>
             </div>
             <div className="flex items-center gap-2">
-              <ConnectionStatus online={!offline} />
-              {pendingSync > 0 && <StatusBadge tone="warning">↑ {pendingSync}</StatusBadge>}
-              <span className="inline-flex items-center gap-1 text-muted-foreground">
-                <Battery className="h-3.5 w-3.5" />
-                {battery}%
-              </span>
-              <Link
-                to="/mobile/login"
-                className="ml-1 rounded-md p-1 hover:bg-accent"
-                aria-label="Wyloguj"
-              >
+              <ConnectionStatus online={true} />
+              <button onClick={handleLogout} className="touch-target rounded p-1 hover:bg-accent" title="Wyloguj">
                 <LogOut className="h-3.5 w-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
-          {offline && (
-            <div className="bg-warning px-3 py-1 text-center text-xs font-semibold text-warning-foreground">
-              Tryb offline — operacje trafią do kolejki
-            </div>
-          )}
         </header>
       )}
 
@@ -56,24 +47,23 @@ export function MobileShell() {
       </main>
 
       {!hideChrome && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-card">
-          <div className="mx-auto grid max-w-md grid-cols-4">
-            {tabs.map((t) => {
-              const active = pathname === t.to || pathname.startsWith(t.to + "/");
-              return (
-                <Link
-                  key={t.to}
-                  to={t.to}
-                  className={cn(
-                    "touch-target flex flex-col items-center justify-center gap-0.5 py-2 text-xs",
-                    active ? "text-primary" : "text-muted-foreground",
-                  )}
-                >
-                  <t.icon className={cn("h-5 w-5", active && "text-primary")} />
-                  <span>{t.label}</span>
-                </Link>
-              );
-            })}
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card">
+          <div className="grid grid-cols-4">
+            {tabs.map((t) => (
+              <Link
+                key={t.to}
+                to={t.to}
+                className={cn(
+                  "touch-target flex flex-col items-center justify-center gap-0.5 py-1.5 text-xs transition",
+                  (pathname === t.to || pathname.startsWith(t.to + "/"))
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <t.icon className="h-4 w-4" />
+                <span>{t.label}</span>
+              </Link>
+            ))}
           </div>
         </nav>
       )}

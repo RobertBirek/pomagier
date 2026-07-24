@@ -23,7 +23,7 @@ interface ProductRow {
 export class MssqlErpAdapter implements ErpAdapter {
   private pool: sql.ConnectionPool | null = null;
 
-  private async getPool(): Promise<sql.ConnectionPool> {
+  async getPool(): Promise<sql.ConnectionPool> {
     if (this.pool) return this.pool;
     const env = getEnv();
 

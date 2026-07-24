@@ -1,14 +1,13 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { getEnv } from "@/lib/env";
 import * as schema from "./schema";
 
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getDb() {
   if (!dbInstance) {
-    const env = getEnv();
-    const client = postgres(env.DATABASE_URL);
+    const url = process.env.DATABASE_URL ?? "postgresql://pomagier:pomagier_dev@localhost:5432/pomagier";
+    const client = postgres(url);
     dbInstance = drizzle(client, { schema });
   }
   return dbInstance;

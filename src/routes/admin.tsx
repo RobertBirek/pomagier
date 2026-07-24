@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AppShellAdmin } from "@/components/pomagier/AppShellAdmin";
-import { DemoProvider } from "@/lib/demo-state";
+import { AuthProvider } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -8,8 +8,8 @@ export const Route = createFileRoute("/admin")({
 
 function AdminLayout() {
   return (
-    <DemoProvider>
+    <AuthProvider>
       <AppShellAdmin />
-    </DemoProvider>
+    </AuthProvider>
   );
 }

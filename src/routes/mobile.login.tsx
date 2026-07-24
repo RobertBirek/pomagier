@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { getUsers, getWarehouses, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
-import { useDemo } from "@/lib/demo-state";
-import { users, warehouses } from "@/lib/mock-data";
 import { useState } from "react";
 import { toast } from "sonner";
-import { User, Package } from "lucide-react";
+import { User } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/login")({
   component: Login,
@@ -12,19 +13,33 @@ export const Route = createFileRoute("/mobile/login")({
 
 function Login() {
   const nav = useNavigate();
-  const { setCurrentOperator, setCurrentWarehouse } = useDemo();
-  const [selected, setSelected] = useState(users[2]);
-  const [warehouse, setWarehouse] = useState(warehouses[0].code);
+  const auth = useAuth();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [warehouse, setWarehouse] = useState("");
 
-  const submit = (pin: string) => {
-    if (pin !== selected.pin) {
-      toast.error("Nieprawidłowy PIN", { description: `Demo PIN: ${selected.pin}` });
-      return;
+  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: getUsers });
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: getWarehouses,
+    select: (data) => {
+      setWarehouse((w) => w || data.find((wh) => wh.isMain)?.symbol || data[0]?.symbol || "");
+      return data;
+    },
+  });
+
+  const selected = users.find((u) => u.subiektId === selectedId);
+
+  const submit = async (pin: string) => {
+    if (!selectedId) return;
+    try {
+      const result = await apiLogin(selectedId, pin);
+      const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
+      auth.login(result.token, result.user, name, warehouse);
+      toast.success(`Witaj, ${name.split(" ")[0]}!`);
+      nav({ to: "/mobile/dashboard" });
+    } catch (err: any) {
+      toast.error(err.message || "Błąd logowania");
     }
-    setCurrentOperator(selected.name);
-    setCurrentWarehouse(warehouse);
-    toast.success(`Witaj, ${selected.name.split(" ")[0]}!`);
-    nav({ to: "/mobile/dashboard" });
   };
 
   return (
@@ -42,45 +57,51 @@ function Login() {
           Wybierz operatora
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {users.slice(0, 4).map((u) => (
+          {users.filter((u) => u.active).map((u) => (
             <button
-              key={u.id}
-              onClick={() => setSelected(u)}
+              key={u.subiektId}
+              onClick={() => setSelectedId(u.subiektId)}
               className={`touch-target rounded-lg border p-2 text-left text-xs transition ${
-                selected.id === u.id ? "border-primary bg-primary/10" : "bg-card hover:bg-accent"
+                selectedId === u.subiektId ? "border-primary bg-primary/10" : "bg-card hover:bg-accent"
               }`}
             >
               <div className="flex items-center gap-1.5 font-semibold">
-                <User className="h-3.5 w-3.5" /> {u.name.split(" ")[0]}
+                <User className="h-3.5 w-3.5" />
+                {u.firstName || u.lastName || `ID ${u.subiektId}`}
               </div>
               <div className="mt-0.5 text-muted-foreground">{u.role}</div>
-              <div className="mono mt-0.5 text-muted-foreground">PIN {u.pin}</div>
+              {!u.hasPin && (
+                <div className="mt-0.5 text-warning">Brak PIN (skonfiguruj)</div>
+              )}
             </button>
           ))}
+          {users.length === 0 && (
+            <p className="text-muted-foreground col-span-2 text-xs">Brak użytkowników (Subiekt niedostępny)</p>
+          )}
         </div>
       </div>
 
-      <div className="mb-3">
-        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Magazyn / stanowisko
-        </label>
-        <select
-          value={warehouse}
-          onChange={(e) => setWarehouse(e.target.value)}
-          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-        >
-          {warehouses.map((w) => (
-            <option key={w.code}>{w.code}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="rounded-lg border bg-card p-3">
-        <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          PIN dla: <b className="text-foreground">{selected.name}</b>
+      {warehouses.length > 0 && (
+        <div className="mb-3">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Magazyn</label>
+          <select value={warehouse} onChange={(e) => setWarehouse(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm">
+            {warehouses.map((w) => (
+              <option key={w.symbol} value={w.symbol}>
+                {w.symbol} — {w.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <PinPad onSubmit={submit} />
-      </div>
+      )}
+
+      {selected && (
+        <div className="rounded-lg border bg-card p-3">
+          <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            PIN dla: <b className="text-foreground">{selected.firstName || selected.lastName}</b>
+          </div>
+          <PinPad onSubmit={submit} />
+        </div>
+      )}
     </div>
   );
 }
