@@ -21,6 +21,7 @@ import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMapRouteImport } from './routes/admin.map'
 import { Route as AdminMobilePreviewRouteImport } from './routes/admin.mobile-preview'
 import { Route as AdminPrintersRouteImport } from './routes/admin.printers'
+import { Route as AdminProductsRouteImport } from './routes/admin.products'
 import { Route as AdminQueuesRouteImport } from './routes/admin.queues'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStatsRouteImport } from './routes/admin.stats'
@@ -98,6 +99,11 @@ const AdminMobilePreviewRoute = AdminMobilePreviewRouteImport.update({
 const AdminPrintersRoute = AdminPrintersRouteImport.update({
   id: '/printers',
   path: '/printers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminQueuesRoute = AdminQueuesRouteImport.update({
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/admin/map': typeof AdminMapRoute
   '/admin/mobile-preview': typeof AdminMobilePreviewRoute
   '/admin/printers': typeof AdminPrintersRoute
+  '/admin/products': typeof AdminProductsRoute
   '/admin/queues': typeof AdminQueuesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stats': typeof AdminStatsRoute
@@ -233,6 +240,7 @@ export interface FileRoutesByTo {
   '/admin/map': typeof AdminMapRoute
   '/admin/mobile-preview': typeof AdminMobilePreviewRoute
   '/admin/printers': typeof AdminPrintersRoute
+  '/admin/products': typeof AdminProductsRoute
   '/admin/queues': typeof AdminQueuesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stats': typeof AdminStatsRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/admin/map': typeof AdminMapRoute
   '/admin/mobile-preview': typeof AdminMobilePreviewRoute
   '/admin/printers': typeof AdminPrintersRoute
+  '/admin/products': typeof AdminProductsRoute
   '/admin/queues': typeof AdminQueuesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stats': typeof AdminStatsRoute
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/admin/map'
     | '/admin/mobile-preview'
     | '/admin/printers'
+    | '/admin/products'
     | '/admin/queues'
     | '/admin/settings'
     | '/admin/stats'
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/admin/map'
     | '/admin/mobile-preview'
     | '/admin/printers'
+    | '/admin/products'
     | '/admin/queues'
     | '/admin/settings'
     | '/admin/stats'
@@ -362,6 +373,7 @@ export interface FileRouteTypes {
     | '/admin/map'
     | '/admin/mobile-preview'
     | '/admin/printers'
+    | '/admin/products'
     | '/admin/queues'
     | '/admin/settings'
     | '/admin/stats'
@@ -473,6 +485,13 @@ declare module '@tanstack/react-router' {
       path: '/printers'
       fullPath: '/admin/printers'
       preLoaderRoute: typeof AdminPrintersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/queues': {
@@ -613,6 +632,7 @@ interface AdminRouteChildren {
   AdminMapRoute: typeof AdminMapRoute
   AdminMobilePreviewRoute: typeof AdminMobilePreviewRoute
   AdminPrintersRoute: typeof AdminPrintersRoute
+  AdminProductsRoute: typeof AdminProductsRoute
   AdminQueuesRoute: typeof AdminQueuesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStatsRoute: typeof AdminStatsRoute
@@ -632,6 +652,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminMapRoute: AdminMapRoute,
   AdminMobilePreviewRoute: AdminMobilePreviewRoute,
   AdminPrintersRoute: AdminPrintersRoute,
+  AdminProductsRoute: AdminProductsRoute,
   AdminQueuesRoute: AdminQueuesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStatsRoute: AdminStatsRoute,

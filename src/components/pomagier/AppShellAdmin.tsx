@@ -18,6 +18,7 @@ import {
   Map,
   Building2,
   FileText,
+  Package,
   Plus,
   Menu,
 } from "lucide-react";
@@ -41,6 +42,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Konfiguracja ERP", url: "/admin/erp", icon: Database },
+  { title: "Towary", url: "/admin/products", icon: Package },
   { title: "Magazyny", url: "/admin/warehouses", icon: Warehouse },
   { title: "Mapa magazynu", url: "/admin/map", icon: Map },
   { title: "Użytkownicy", url: "/admin/users", icon: Users },

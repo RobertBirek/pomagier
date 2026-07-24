@@ -534,6 +534,71 @@ app.put("/api/products/:id/location", async (req, res) => {
   }
 });
 
+// --- Lista towarów (paginacja, wyszukiwanie, filtrowanie) ---
+app.get("/api/products", async (req, res) => {
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.json({ rows: [], total: 0, page: 1, pageSize: 50 });
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageSize = Math.min(200, Math.max(5, parseInt(req.query.pageSize as string) || 50));
+    const search = (req.query.search as string || "").trim();
+    const warehouseId = parseInt(req.query.warehouseId as string) || 0;
+    const offset = (page - 1) * pageSize;
+
+    let whereClause = "WHERE 1=1";
+    const params: { name: string; value: any }[] = [];
+
+    if (search) {
+      whereClause += " AND (t.tw_Symbol LIKE @search OR t.tw_Nazwa LIKE @search OR t.tw_PodstKodKresk LIKE @search)";
+      params.push({ name: "search", value: `%${search}%` });
+    }
+
+    const countQuery = `SELECT COUNT(*) AS total FROM tw__Towar t ${whereClause}`;
+    const dataQuery = `
+      SELECT
+        t.tw_Id AS id, t.tw_Symbol AS symbol, t.tw_Nazwa AS name,
+        t.tw_PodstKodKresk AS barcode, t.tw_JednMiary AS unit,
+        t.tw_Opis AS description, t.tw_Pole1 AS location,
+        ISNULL((SELECT SUM(st_Stan) FROM tw_Stan WHERE st_TowId = t.tw_Id), 0) AS stock,
+        ISNULL((SELECT SUM(st_StanRez) FROM tw_Stan WHERE st_TowId = t.tw_Id), 0) AS reserved
+      FROM tw__Towar t
+      ${whereClause}
+      ORDER BY t.tw_Symbol
+      OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+    `;
+
+    const countReq = pool.request();
+    for (const p of params) {
+      countReq.input(p.name, p.value);
+    }
+    const countResult = await countReq.query(countQuery);
+    const total = (countResult.recordset[0] as any).total;
+
+    const dataReq = pool.request();
+    for (const p of params) {
+      dataReq.input(p.name, p.value);
+    }
+    dataReq.input("offset", offset);
+    dataReq.input("pageSize", pageSize);
+    if (warehouseId) dataReq.input("wh", warehouseId);
+
+    const dataResult = await dataReq.query(dataQuery);
+
+    res.json({
+      rows: dataResult.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (err) {
+    logger.error({ err }, "Products query failed");
+    res.json({ rows: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
