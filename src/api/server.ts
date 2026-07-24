@@ -312,6 +312,68 @@ app.post("/api/erp-config", async (req, res) => {
   }
 });
 
+// --- Lokalizacje (z tw_Pole1) ---
+app.get("/api/locations", async (_req, res) => {
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.json([]);
+
+    const result = await pool.request().query(`
+      SELECT NULLIF(tw_Pole1, '') AS location
+      FROM tw__Towar
+      WHERE tw_Pole1 IS NOT NULL AND tw_Pole1 != ''
+      GROUP BY tw_Pole1
+      ORDER BY tw_Pole1
+    `);
+
+    const { parseLocation, sortLocations } = await import("../lib/locations.ts");
+    const parsed = result.recordset
+      .map((r: any) => parseLocation(r.location))
+      .filter(Boolean) as any[];
+
+    const unique = new Map<string, any>();
+    for (const loc of parsed) {
+      unique.set(loc.raw, loc);
+    }
+
+    res.json(sortLocations([...unique.values()]));
+  } catch (err) {
+    logger.error({ err }, "Locations query failed");
+    res.json([]);
+  }
+});
+
+// --- Produkty w lokalizacji ---
+app.get("/api/products-by-location", async (req, res) => {
+  const location = req.query.location as string;
+  if (!location) {
+    res.status(400).json({ error: "Brak parametru location" });
+    return;
+  }
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.json([]);
+
+    const result = await pool
+      .request()
+      .input("location", location)
+      .query(`
+        SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_Pole1 AS location,
+               tw_JednMiary AS unit, tw_PodstKodKresk AS barcode
+        FROM tw__Towar
+        WHERE tw_Pole1 = @location
+        ORDER BY tw_Symbol
+      `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    logger.error({ err }, "Products by location failed");
+    res.json([]);
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
