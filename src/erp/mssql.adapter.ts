@@ -26,17 +26,23 @@ export class MssqlErpAdapter implements ErpAdapter {
   private async getPool(): Promise<sql.ConnectionPool> {
     if (this.pool) return this.pool;
     const env = getEnv();
+
+    const hostParts = env.MSSQL_HOST.split("\\");
+    const server = hostParts[0];
+    const instanceName = hostParts.length > 1 ? hostParts[1] : undefined;
+
     const config: sql.config = {
-      server: env.MSSQL_HOST,
-      port: env.MSSQL_PORT,
+      server,
+      port: instanceName ? undefined : env.MSSQL_PORT,
       database: env.MSSQL_DATABASE,
       user: env.MSSQL_USER,
       password: env.MSSQL_PASSWORD,
       options: {
-        encrypt: false,
+        encrypt: true,
         trustServerCertificate: true,
         connectTimeout: 10000,
         requestTimeout: 10000,
+        ...(instanceName ? { instanceName } : {}),
       },
     };
     this.pool = await sql.connect(config);
