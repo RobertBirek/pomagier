@@ -790,6 +790,102 @@ app.get("/api/products/random", async (_req, res) => {
   }
 });
 
+// --- Przypisz towary do lokalizacji ---
+app.post("/api/locations/assign", async (req, res) => {
+  const { codes, location } = req.body ?? {};
+  if (!Array.isArray(codes) || codes.length === 0 || !location) {
+    res.status(400).json({ error: "Brak kodów lub lokalizacji" });
+    return;
+  }
+
+  const { parseLocation } = await import("../lib/locations.ts");
+  const parsed = parseLocation(location);
+  if (!parsed) {
+    res.status(422).json({ error: "Nieprawidłowy format lokalizacji" });
+    return;
+  }
+
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+
+    // Upewnij się że lokalizacja istnieje w Postgres
+    let [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
+    if (!loc) {
+      [loc] = await db.insert(schema.locations).values({
+        code: parsed.raw, area: parsed.area, aisle: parsed.aisle,
+        rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label,
+      }).returning();
+    }
+
+    // Znajdź produkty w Subiekcie po symbolu lub EAN
+    const foundProducts: { id: number; symbol: string; name: string }[] = [];
+    const notFound: string[] = [];
+
+    for (const code of codes) {
+      const result = await pool.request().input("code", code).query(`
+        SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name
+        FROM tw__Towar
+        WHERE tw_Symbol = @code OR tw_PodstKodKresk = @code OR tw_Nazwa LIKE '%' + @code + '%'
+      `);
+      if (result.recordset.length > 0) {
+        foundProducts.push(result.recordset[0] as any);
+      } else {
+        notFound.push(code);
+      }
+    }
+
+    if (foundProducts.length === 0) {
+      res.status(404).json({ error: "Nie znaleziono żadnego towaru", notFound });
+      return;
+    }
+
+    // Sumuj duplikaty
+    const grouped = new Map<number, number>();
+    for (const p of foundProducts) {
+      grouped.set(p.id, (grouped.get(p.id) || 0) + 1);
+    }
+
+    // Zapisz do product_locations
+    const locationField = await getLocationField();
+    for (const [productId, qty] of grouped) {
+      await db
+        .insert(schema.productLocations)
+        .values({ productId, locationId: loc.id, quantity: qty })
+        .onConflictDoUpdate({
+          target: [schema.productLocations.productId, schema.productLocations.locationId],
+          set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` },
+        });
+
+      // Aktualizuj tw_Pole1 w Subiekcie
+      const current = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const existing = ((current.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      if (!existing.includes(parsed.raw)) {
+        existing.push(parsed.raw);
+        await pool.request().input("id", productId).input("val", existing.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+      }
+    }
+
+    logger.info({ productCount: grouped.size, totalQty: foundProducts.length, location: parsed.raw }, "Products assigned to location");
+    res.json({
+      ok: true,
+      assigned: grouped.size,
+      totalQuantity: foundProducts.length,
+      location: parsed.raw,
+      products: [...grouped].map(([id, qty]) => {
+        const p = foundProducts.find((fp) => fp.id === id)!;
+        return { symbol: p.symbol, name: p.name, quantity: qty };
+      }),
+      notFound,
+    });
+  } catch (err) {
+    logger.error({ err }, "Assign failed");
+    res.status(500).json({ error: "Błąd zapisu" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
