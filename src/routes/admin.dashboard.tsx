@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getStats, getCompany } from "@/lib/api";
-import { KpiCard, ConnectionStatus, StatusBadge, SectionTitle } from "@/components/pomagier/primitives";
+import { KpiCard, StatusBadge, SectionTitle } from "@/components/pomagier/primitives";
 import { useMssqlStatus } from "@/lib/use-status";
 import { Package, MapPin, Users } from "lucide-react";
 
@@ -50,8 +50,7 @@ function AdminDashboard() {
       <div>
         <SectionTitle title="Status systemu" />
         <div className="mt-2 flex gap-3">
-          <ConnectionStatus online={online} label="MSSQL" />
-          <StatusBadge tone={online ? "success" : "danger"}>API</StatusBadge>
+          <StatusBadge tone={online ? "success" : "danger"}>MSSQL {online ? "online" : "offline"}</StatusBadge>
         </div>
       </div>
     </div>
