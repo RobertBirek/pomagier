@@ -13,23 +13,13 @@ export function getCorrelationId(): string {
   return correlationStore.getStore()?.correlationId ?? "no-correlation-id";
 }
 
-const isProd = process.env.NODE_ENV === "production";
-
 export const logger = pino({
-  level: isProd ? "info" : "debug",
-  ...(isProd
-    ? {}
-    : {
-        transport: {
-          target: "pino-pretty",
-          options: { colorize: true },
-        },
-      }),
-  mixin() {
-    return { correlationId: getCorrelationId() };
-  },
+  level: process.env.NODE_ENV === "production" ? "info" : "debug",
   serializers: {
     ...pino.stdSerializers,
     secret: () => "***REDACTED***",
+  },
+  mixin() {
+    return { correlationId: getCorrelationId() };
   },
 });
