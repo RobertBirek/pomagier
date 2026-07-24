@@ -31,13 +31,11 @@ export function ScanPanel({
   onScan,
   expectedCode,
   customActions,
-  scannerSlot,
 }: {
   hint?: string;
   onScan?: (r: ScanResult) => void;
   expectedCode?: string;
   customActions?: ScanAction[];
-  scannerSlot?: React.ReactNode;
 }) {
   const [history, setHistory] = useState<ScanResult[]>([]);
   const [manual, setManual] = useState("");
@@ -71,16 +69,10 @@ export function ScanPanel({
     <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-5">
       <div className="flex flex-col items-center">
         <div className="relative flex h-40 w-full max-w-sm items-center justify-center rounded-lg bg-background/80 shadow-inner">
-          {scannerSlot ? (
-            scannerSlot
-          ) : (
-            <>
-              <ScanLine className="h-12 w-12 text-primary/50 animate-pulse" />
-              <div className="absolute inset-x-6 top-1/2 h-0.5 -translate-y-1/2 bg-primary/60" />
-              <div className="absolute inset-y-4 left-4 w-8 border-l-2 border-t-2 border-primary" />
-              <div className="absolute inset-y-4 right-4 w-8 border-r-2 border-t-2 border-primary" />
-            </>
-          )}
+          <ScanLine className="h-12 w-12 text-primary/50 animate-pulse" />
+          <div className="absolute inset-x-6 top-1/2 h-0.5 -translate-y-1/2 bg-primary/60" />
+          <div className="absolute inset-y-4 left-4 w-8 border-l-2 border-t-2 border-primary" />
+          <div className="absolute inset-y-4 right-4 w-8 border-r-2 border-t-2 border-primary" />
         </div>
         <p className="mt-3 text-sm font-medium text-foreground">{hint}</p>
         <div className="mt-4 grid w-full max-w-md grid-cols-2 gap-2">
