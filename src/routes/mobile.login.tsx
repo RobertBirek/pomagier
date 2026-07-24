@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { getUsers, getWarehouses, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { User } from "lucide-react";
 
@@ -18,14 +18,14 @@ function Login() {
   const [warehouse, setWarehouse] = useState("");
 
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: getUsers });
-  const { data: warehouses = [] } = useQuery({
-    queryKey: ["warehouses"],
-    queryFn: getWarehouses,
-    select: (data) => {
-      setWarehouse((w) => w || data.find((wh) => wh.isMain)?.symbol || data[0]?.symbol || "");
-      return data;
-    },
-  });
+  const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
+
+  // Set default warehouse when data loads
+  useEffect(() => {
+    if (warehouses.length > 0 && !warehouse) {
+      setWarehouse(warehouses.find((w) => w.isMain)?.symbol || warehouses[0]?.symbol || "");
+    }
+  }, [warehouses, warehouse]);
 
   const selected = users.find((u) => u.subiektId === selectedId);
 
