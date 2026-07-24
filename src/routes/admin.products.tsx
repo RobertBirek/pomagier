@@ -6,7 +6,7 @@ import { Package, Search, ChevronLeft, ChevronRight, Barcode, MapPin } from "luc
 
 interface ProductRow {
   id: number; symbol: string; name: string; barcode: string; unit: string;
-  description: string; location: string; stock: number; reserved: number;
+  description: string; stock: number; reserved: number; locations: string[];
 }
 
 interface ProductsResponse {
@@ -118,8 +118,14 @@ function AdminProducts() {
                     ) : "—"}
                   </td>
                   <td className="px-4 py-2 hidden md:table-cell">
-                    {row.location ? (
-                      <span className="inline-flex items-center gap-1 text-xs"><MapPin className="h-3 w-3 text-primary" />{row.location}</span>
+                    {row.locations && row.locations.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {row.locations.map((loc) => (
+                          <span key={loc} className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-mono">
+                            <MapPin className="h-3 w-3" />{loc}
+                          </span>
+                        ))}
+                      </div>
                     ) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-2 text-xs">{row.unit}</td>

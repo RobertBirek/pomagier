@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, uuid, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, uuid, varchar, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -45,3 +45,13 @@ export const locations = pgTable("locations", {
   createdBy: varchar("created_by", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const productLocations = pgTable("product_locations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  productId: integer("product_id").notNull(),       // tw__Towar.tw_Id
+  locationId: uuid("location_id").references(() => locations.id).notNull(),
+  quantity: integer("quantity").default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uniqueProductLocation: uniqueIndex("unique_product_location").on(t.productId, t.locationId),
+}));

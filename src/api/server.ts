@@ -577,7 +577,7 @@ app.get("/api/products", async (req, res) => {
       SELECT
         t.tw_Id AS id, t.tw_Symbol AS symbol, t.tw_Nazwa AS name,
         t.tw_PodstKodKresk AS barcode, t.tw_JednMiary AS unit,
-        t.tw_Opis AS description, t.tw_Pole1 AS location,
+        t.tw_Opis AS description,
         ISNULL((SELECT SUM(st_Stan) FROM tw_Stan WHERE st_TowId = t.tw_Id), 0) AS stock,
         ISNULL((SELECT SUM(st_StanRez) FROM tw_Stan WHERE st_TowId = t.tw_Id), 0) AS reserved
       FROM tw__Towar t
@@ -602,9 +602,37 @@ app.get("/api/products", async (req, res) => {
     if (warehouseId) dataReq.input("wh", warehouseId);
 
     const dataResult = await dataReq.query(dataQuery);
+    let rows: any[] = [...dataResult.recordset];
+    try {
+      const db = getDb();
+      const productIds = rows.map((r: any) => r.id);
+      if (productIds.length > 0) {
+        const plRows = await db
+          .select({ productId: schema.productLocations.productId, code: schema.locations.code })
+          .from(schema.productLocations)
+          .leftJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+        //.where(inArray(schema.productLocations.productId, productIds));
+
+        const locMap = new Map<number, string[]>();
+        for (const pl of plRows) {
+          if (pl.productId && pl.code) {
+            const list = locMap.get(pl.productId) || [];
+            list.push(pl.code);
+            locMap.set(pl.productId, list);
+          }
+        }
+        rows = rows.map((r: any) => ({
+          ...r,
+          locations: locMap.get(r.id) || [],
+        }));
+      }
+    } catch {
+      // Postgres might be down
+      rows = rows.map((r: any) => ({ ...r, locations: [] }));
+    }
 
     res.json({
-      rows: dataResult.recordset,
+      rows,
       total,
       page,
       pageSize,
@@ -654,6 +682,62 @@ app.put("/api/field-mappings", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to save field mappings");
     res.status(500).json({ error: "Błąd zapisu" });
+  }
+});
+
+// --- Synchronizuj product_locations z Subiekt GT ---
+app.post("/api/locations/sync", async (_req, res) => {
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+
+    const locationField = await getLocationField();
+    const { parseLocation } = await import("../lib/locations.ts");
+    const db = getDb();
+
+    // Pobierz wszystkie towary z lokalizacjami
+    const result = await pool.request().query(`
+      SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw
+      FROM tw__Towar
+      WHERE ${locationField} IS NOT NULL AND ${locationField} != ''
+    `);
+
+    // Pobierz wszystkie lokalizacje z Postgres
+    const allLocations = await db.select().from(schema.locations);
+
+    let inserted = 0;
+    let skipped = 0;
+
+    // Wyczyść starą tabelę
+    await db.delete(schema.productLocations);
+
+    for (const row of result.recordset) {
+      const productId = (row as any).productId;
+      const locRaw = (row as any).locRaw as string;
+      const parts = locRaw.split(";").map((s: string) => s.trim()).filter(Boolean);
+
+      for (const part of parts) {
+        const parsed = parseLocation(part);
+        if (!parsed) { skipped++; continue; }
+
+        const loc = allLocations.find((l) => l.code === parsed.raw);
+        if (!loc) { skipped++; continue; }
+
+        try {
+          await db.insert(schema.productLocations).values({
+            productId, locationId: loc.id, quantity: 1,
+          }).onConflictDoNothing();
+          inserted++;
+        } catch { skipped++; }
+      }
+    }
+
+    logger.info({ inserted, skipped }, "Product-location sync completed");
+    res.json({ ok: true, inserted, skipped });
+  } catch (err) {
+    logger.error({ err }, "Sync failed");
+    res.status(500).json({ error: "Synchronizacja nie powiodła się" });
   }
 });
 

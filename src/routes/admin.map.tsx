@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { KpiCard, SectionTitle, LoadingRow, ErrorState } from "@/components/pomagier/primitives";
-import { MapPin, Package, Layers, Download } from "lucide-react";
+import { MapPin, Package, Layers, Download, RefreshCw } from "lucide-react";
 import { groupByArea } from "@/lib/locations";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +13,12 @@ async function fetchLocations() {
 
 async function importLocations() {
   const res = await fetch("/api/locations/import", { method: "POST" });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
+async function syncProductLocations() {
+  const res = await fetch("/api/locations/sync", { method: "POST" });
   if (!res.ok) throw new Error((await res.json()).error);
   return res.json();
 }
@@ -39,6 +45,15 @@ function AdminMap() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const syncMut = useMutation({
+    mutationFn: syncProductLocations,
+    onSuccess: (data: any) => {
+      toast.success(`Zsynchronizowano: ${data.inserted} powiązań towar-lokalizacja${data.skipped ? `, pominięto ${data.skipped}` : ""}`);
+      qc.invalidateQueries({ queryKey: ["locations"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const grouped = locations ? groupByArea(locations) : new Map();
   const totalAreas = grouped.size;
   const totalLocations = locations?.length ?? 0;
@@ -57,7 +72,15 @@ function AdminMap() {
           className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
         >
           <Download className="h-4 w-4" />
-          {importMut.isPending ? "Importuję…" : "Import z Subiekt GT"}
+          {importMut.isPending ? "Importuję…" : "Import lokalizacji"}
+        </button>
+        <button
+          onClick={() => syncMut.mutate()}
+          disabled={syncMut.isPending}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+          {syncMut.isPending ? "Sync…" : "Synchronizuj towary"}
         </button>
       </div>
 
