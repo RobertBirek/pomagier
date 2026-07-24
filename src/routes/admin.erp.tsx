@@ -1,93 +1,100 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SectionTitle } from "@/components/pomagier/primitives";
+import { useQuery } from "@tanstack/react-query";
+import { getStats, getCompany, healthCheck } from "@/lib/api";
+import { KpiCard, StatusBadge, SectionTitle, ErrorState, LoadingRow } from "@/components/pomagier/primitives";
+import { Database, Server, HardDrive, Clock, Package, Users, MapPin } from "lucide-react";
 
 export const Route = createFileRoute("/admin/erp")({
-  component: ErpConfig,
+  component: AdminErp,
 });
 
-function ErpConfig() {
+function AdminErp() {
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["stats"],
+    queryFn: getStats,
+    refetchInterval: 15_000,
+  });
+  const { data: company } = useQuery({ queryKey: ["company"], queryFn: getCompany });
+  const { data: health } = useQuery({ queryKey: ["health"], queryFn: healthCheck, refetchInterval: 10_000 });
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Konfiguracja ERP</h1>
-        <p className="text-sm text-muted-foreground">Połączenie z Insert Subiekt GT</p>
+        <h1 className="text-2xl font-bold">Subiekt GT</h1>
+        <p className="text-sm text-muted-foreground">Status połączenia i dane z bazy ERP</p>
       </div>
 
-      <div className="rounded-lg border bg-card p-6 space-y-4 max-w-2xl">
-        <SectionTitle
-          title="MSSQL Subiekt GT"
-          description="Ustawienia połączenia z bazą danych Subiekta"
-        />
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-xs font-medium uppercase text-muted-foreground">Host</label>
-            <input
-              type="text"
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              placeholder="sql01.firma.local"
-              defaultValue="sql01.firma.local"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium uppercase text-muted-foreground">Port</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              placeholder="1433"
-              defaultValue={1433}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium uppercase text-muted-foreground">
-              Baza danych
-            </label>
-            <input
-              type="text"
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              placeholder="Subiekt_GT_FirmaDemo"
-              defaultValue="Subiekt_GT_FirmaDemo"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium uppercase text-muted-foreground">
-              Użytkownik
-            </label>
-            <input
-              type="text"
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              placeholder="pomagier_svc"
-              defaultValue="pomagier_svc"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-xs font-medium uppercase text-muted-foreground">Hasło</label>
-            <input
-              type="password"
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-              placeholder="••••••••"
-              defaultValue="pomagier_svc"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-            Testuj połączenie
-          </button>
-          <button className="rounded-md border px-4 py-2 text-sm">Zapisz</button>
+      {/* Connection status */}
+      <div className="rounded-lg border bg-card p-4">
+        <SectionTitle title="Połączenie MSSQL" description="Stan integracji z Insert Subiekt GT" />
+        <div className="mt-3 flex flex-wrap gap-3">
+          {health?.erp?.ok ? (
+            <StatusBadge tone="success">
+              <Server className="mr-1 h-3 w-3" />
+              Połączono ({health.erp.latencyMs} ms)
+            </StatusBadge>
+          ) : (
+            <StatusBadge tone="danger">
+              <Server className="mr-1 h-3 w-3" />
+              Rozłączono
+              {health?.erp?.error && <span className="ml-1">— {health.erp.error}</span>}
+            </StatusBadge>
+          )}
+          <StatusBadge tone="info">
+            <Clock className="mr-1 h-3 w-3" />
+            {new Date().toLocaleTimeString("pl-PL")}
+          </StatusBadge>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card p-6 space-y-4 max-w-2xl">
-        <SectionTitle
-          title="Sfera GT"
-          description="Ustawienia komunikacji z Sferą GT (operacje zapisu)"
-        />
-        <p className="text-sm text-muted-foreground">
-          Sfera GT nie jest wymagana w pierwszym MVP (tylko odczyt MSSQL). Konfiguracja zostanie
-          dodana w kolejnej iteracji.
-        </p>
+      {/* Company info */}
+      {company && (
+        <div className="rounded-lg border bg-card p-4">
+          <SectionTitle title="Firma" />
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+            <div>
+              <span className="text-muted-foreground">Nazwa:</span>{" "}
+              <span className="font-semibold">{company.name || "(bez nazwy)"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">NIP:</span>{" "}
+              <span className="font-mono">{company.nip || "—"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">REGON:</span>{" "}
+              <span className="font-mono">{company.regon || "—"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Table counts */}
+      <div>
+        <SectionTitle title="Tabele Subiekt GT" description="Liczba rekordów w kluczowych tabelach" />
+        {statsLoading && <LoadingRow />}
+        {stats && (
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <KpiCard label="tw__Towar" value={String(stats.products)} hint="Kartoteki towarowe" icon={<Package className="h-4 w-4" />} tone="primary" />
+            <KpiCard label="sl_Magazyn" value={String(stats.warehouses)} hint="Magazyny" icon={<MapPin className="h-4 w-4" />} tone="success" />
+            <KpiCard label="pd_Uzytkownik" value={String(stats.users)} hint="Operatorzy" icon={<Users className="h-4 w-4" />} tone="info" />
+          </div>
+        )}
+      </div>
+
+      {/* Server info */}
+      <div className="rounded-lg border bg-card p-4">
+        <SectionTitle title="Konfiguracja" description="Ustawienia połączenia (z pliku .env)" />
+        <div className="mt-3 grid gap-1 text-xs font-mono text-muted-foreground">
+          <div>
+            MSSQL_HOST: <span className="text-foreground">{import.meta.env.VITE_MSSQL_HOST || "***"}</span>
+          </div>
+          <div>
+            DATABASE: <span className="text-foreground">pomagier</span>
+          </div>
+          <div>
+            API: <span className="text-foreground">{window.location.protocol}//{window.location.hostname}:3000</span>
+          </div>
+        </div>
       </div>
     </div>
   );
