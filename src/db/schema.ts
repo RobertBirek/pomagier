@@ -32,3 +32,16 @@ export const config = pgTable("config", {
   value: text("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const locations = pgTable("locations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  area: varchar("area", { length: 5 }).notNull(),
+  aisle: integer("aisle").notNull(),
+  rack: integer("rack").notNull(),
+  shelf: integer("shelf").notNull(),
+  spot: integer("spot").notNull().default(1),
+  label: varchar("label", { length: 100 }).notNull(),
+  createdBy: varchar("created_by", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

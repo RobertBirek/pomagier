@@ -312,35 +312,99 @@ app.post("/api/erp-config", async (req, res) => {
   }
 });
 
-// --- Lokalizacje (z tw_Pole1) ---
+// --- Lokalizacje (tw_Pole1 + Postgres) ---
 app.get("/api/locations", async (_req, res) => {
   try {
     const adapter = getAdapter();
     const pool = await adapter.getPool?.();
-    if (!pool) return res.json([]);
-
-    const result = await pool.request().query(`
-      SELECT NULLIF(tw_Pole1, '') AS location
-      FROM tw__Towar
-      WHERE tw_Pole1 IS NOT NULL AND tw_Pole1 != ''
-      GROUP BY tw_Pole1
-      ORDER BY tw_Pole1
-    `);
-
     const { parseLocation, sortLocations } = await import("../lib/locations.ts");
-    const parsed = result.recordset
-      .map((r: any) => parseLocation(r.location))
-      .filter(Boolean) as any[];
-
     const unique = new Map<string, any>();
-    for (const loc of parsed) {
-      unique.set(loc.raw, loc);
+
+    // Z Subiekta (tw_Pole1)
+    if (pool) {
+      const result = await pool.request().query(`
+        SELECT NULLIF(tw_Pole1, '') AS location
+        FROM tw__Towar
+        WHERE tw_Pole1 IS NOT NULL AND tw_Pole1 != ''
+        GROUP BY tw_Pole1
+        ORDER BY tw_Pole1
+      `);
+      for (const row of result.recordset) {
+        const parsed = parseLocation((row as any).location);
+        if (parsed) unique.set(parsed.raw, parsed);
+      }
+    }
+
+    // Z Postgres (dodane ręcznie)
+    try {
+      const db = getDb();
+      const pgLocs = await db.select().from(schema.locations);
+      for (const loc of pgLocs) {
+        unique.set(loc.code, {
+          raw: loc.code,
+          area: loc.area,
+          aisle: loc.aisle,
+          rack: loc.rack,
+          shelf: loc.shelf,
+          spot: loc.spot,
+          label: loc.label,
+          source: "manual",
+        });
+      }
+    } catch {
+      // Postgres might be down — ignore
     }
 
     res.json(sortLocations([...unique.values()]));
-  } catch (err) {
-    logger.error({ err }, "Locations query failed");
+  } catch {
     res.json([]);
+  }
+});
+
+// --- Dodaj nową lokalizację ---
+app.post("/api/locations", async (req, res) => {
+  const { code } = req.body ?? {};
+  if (!code) {
+    res.status(400).json({ error: "Brak kodu lokalizacji" });
+    return;
+  }
+
+  const { parseLocation } = await import("../lib/locations.ts");
+  const parsed = parseLocation(code);
+  if (!parsed) {
+    res.status(422).json({ error: "Nieprawidłowy format lokalizacji. Oczekiwano: A 1-2-3-4" });
+    return;
+  }
+
+  try {
+    const db = getDb();
+
+    // Sprawdź duplikat
+    const [existing] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
+    if (existing) {
+      res.status(409).json({ error: "Lokalizacja już istnieje", location: existing });
+      return;
+    }
+
+    const [created] = await db.insert(schema.locations).values({
+      code: parsed.raw,
+      area: parsed.area,
+      aisle: parsed.aisle,
+      rack: parsed.rack,
+      shelf: parsed.shelf,
+      spot: parsed.spot,
+      label: parsed.label,
+    }).returning();
+
+    logger.info({ code: parsed.raw }, "New location added");
+    res.status(201).json({ ok: true, location: created });
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ error: "Lokalizacja już istnieje" });
+      return;
+    }
+    logger.error({ err }, "Failed to add location");
+    res.status(500).json({ error: "Błąd zapisu" });
   }
 });
 
