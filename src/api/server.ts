@@ -1626,6 +1626,10 @@ app.post("/api/wizard/import-all", async (_req, res) => {
 
 // === Backup & Restore ===
 
+function validateBackupFilename(name: unknown): name is string {
+  return typeof name === "string" && /^[a-zA-Z0-9_.-]+$/.test(name) && name.length > 0 && name.length <= 256;
+}
+
 // S3 config
 app.get("/api/backup/config", async (_req, res) => {
   try {
@@ -1711,6 +1715,7 @@ app.get("/api/backup/list", async (_req, res) => {
 // Download backup
 app.get("/api/backup/download/:name", async (req, res) => {
   const name = req.params.name;
+  if (!validateBackupFilename(name)) { res.status(400).json({ error: "Invalid filename" }); return; }
   const source = req.query.source || "local";
   try {
     if (source === "s3") {
@@ -1721,7 +1726,8 @@ app.get("/api/backup/download/:name", async (req, res) => {
       res.send(data);
     } else {
       const localPath = `/backups/local/${name}`;
-      if (!name.includes("..") && (await import("node:fs")).existsSync(localPath)) {
+      const { existsSync } = await import("node:fs");
+      if (existsSync(localPath)) {
         res.download(localPath);
       } else {
         res.status(404).json({ error: "File not found" });
@@ -1733,6 +1739,7 @@ app.get("/api/backup/download/:name", async (req, res) => {
 // Delete backup
 app.delete("/api/backup/:name", async (req, res) => {
   const name = req.params.name;
+  if (!validateBackupFilename(name)) { res.status(400).json({ error: "Invalid filename" }); return; }
   const source = req.query.source || "local";
   try {
     if (source === "s3") {
@@ -1748,20 +1755,15 @@ app.delete("/api/backup/:name", async (req, res) => {
 
 // Restore from uploaded file
 app.post("/api/backup/restore", async (req, res) => {
-  // This is a placeholder — full restore requires file upload handling
-  // which Express 5 with raw body parsing needs multipart handling
-  // For MVP: restore from local file by name
   const { filename, confirm } = req.body ?? {};
   if (confirm !== "TAK") { res.status(400).json({ error: "Wpisz TAK aby potwierdzić przywrócenie" }); return; }
-  if (!filename) { res.status(400).json({ error: "Brak nazwy pliku" }); return; }
+  if (!validateBackupFilename(filename)) { res.status(400).json({ error: "Invalid filename" }); return; }
 
   try {
     const { execSync } = await import("node:child_process");
     const localPath = `/backups/local/${filename}`;
-    // Extract
     execSync(`cd /tmp && tar -xzf "${localPath}"`, { timeout: 30000 });
     const sqlFile = filename.replace(".tar.gz", ".sql");
-    // Restore
     execSync(`docker exec -i pomagier-db psql -U pomagier pomagier < /tmp/${sqlFile}`, { timeout: 60000 });
     execSync(`rm -f /tmp/${sqlFile} /tmp/config_*.tar.gz`);
     res.json({ ok: true, message: "Baza przywrócona. Zrestartuj API aby załadować nową konfigurację." });
@@ -1771,10 +1773,11 @@ app.post("/api/backup/restore", async (req, res) => {
 // Upload local backup to S3
 app.post("/api/backup/upload-local", async (req, res) => {
   const { file } = req.body ?? {};
-  if (!file) { res.status(400).json({ error: "Brak nazwy pliku" }); return; }
+  if (!validateBackupFilename(file)) { res.status(400).json({ error: "Invalid filename" }); return; }
   try {
     const localPath = `/backups/local/${file}`;
-    const data = (await import("node:fs")).readFileSync(localPath);
+    const { readFileSync } = await import("node:fs");
+    const data = readFileSync(localPath);
     const { uploadToS3 } = await import("../lib/backup-s3.ts");
     await uploadToS3(file, data);
     res.json({ ok: true });
