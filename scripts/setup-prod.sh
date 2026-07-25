@@ -96,3 +96,8 @@ echo "    systemctl status pomagier-api"
 echo "    systemctl status pomagier-vite"
 echo "    systemctl status caddy"
 echo "    systemctl status avahi-daemon"
+
+# Cron: daily backup at 3:00 AM
+mkdir -p /backups/local
+chmod 700 /backups/local
+(crontab -l 2>/dev/null; echo "0 3 * * * /pomagier/scripts/backup.sh >> /var/log/pomagier-backup.log 2>&1") | crontab -
