@@ -1,4 +1,4 @@
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Database,
@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
 import { useDarkMode } from "@/lib/use-dark";
+import { LogOut } from "lucide-react";
 import { StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
 
@@ -145,9 +146,10 @@ function Breadcrumb() {
 }
 
 export function AppShellAdmin() {
-  const { operatorName } = useAuth();
+  const { operatorName, logout } = useAuth();
   const { online } = useMssqlStatus();
   const [dark, toggleDark] = useDarkMode();
+  const nav = useNavigate();
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -161,6 +163,9 @@ export function AppShellAdmin() {
               <StatusBadge tone={online ? "success" : "danger"}>MSSQL</StatusBadge>
               <button onClick={toggleDark} className="touch-target rounded-md p-2 hover:bg-accent" title={dark ? "Jasny motyw" : "Ciemny motyw"}>
                 {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+              <button onClick={() => { logout(); nav({ to: "/mobile/login" }); }} className="touch-target rounded-md p-2 hover:bg-accent text-muted-foreground hover:text-destructive" title="Wyloguj">
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
             <div className="ml-auto flex items-center gap-2">

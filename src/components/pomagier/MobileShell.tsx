@@ -3,6 +3,7 @@ import { Home, ScanLine, MapPin, RefreshCw, LogOut, User, Sun, Moon } from "luci
 import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
 import { useDarkMode } from "@/lib/use-dark";
+import { useAutoLogout } from "@/lib/use-auto-logout";
 import { getQueueCount } from "@/lib/offline-queue";
 import { ConnectionStatus, StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ export function MobileShell() {
   const { operatorName, warehouse, logout } = useAuth();
   const { online } = useMssqlStatus();
   const [dark, toggleDark] = useDarkMode();
+  useAutoLogout(15);
   const nav = useNavigate();
   const [queueCount, setQueueCount] = useState(0);
 
