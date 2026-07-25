@@ -16,6 +16,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAlertsRouteImport } from './routes/admin.alerts'
+import { Route as AdminBackupRouteImport } from './routes/admin.backup'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminErpRouteImport } from './routes/admin.erp'
@@ -76,6 +77,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminAlertsRoute = AdminAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBackupRoute = AdminBackupRouteImport.update({
+  id: '/backup',
+  path: '/backup',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
@@ -216,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/wizard': typeof WizardRoute
   '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/backup': typeof AdminBackupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/erp': typeof AdminErpRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/wizard': typeof WizardRoute
   '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/backup': typeof AdminBackupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/erp': typeof AdminErpRoute
@@ -285,6 +293,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/wizard': typeof WizardRoute
   '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/backup': typeof AdminBackupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/erp': typeof AdminErpRoute
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/wizard'
     | '/admin/alerts'
+    | '/admin/backup'
     | '/admin/dashboard'
     | '/admin/documents'
     | '/admin/erp'
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/wizard'
     | '/admin/alerts'
+    | '/admin/backup'
     | '/admin/dashboard'
     | '/admin/documents'
     | '/admin/erp'
@@ -390,6 +401,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/wizard'
     | '/admin/alerts'
+    | '/admin/backup'
     | '/admin/dashboard'
     | '/admin/documents'
     | '/admin/erp'
@@ -476,6 +488,13 @@ declare module '@tanstack/react-router' {
       path: '/alerts'
       fullPath: '/admin/alerts'
       preLoaderRoute: typeof AdminAlertsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/backup': {
+      id: '/admin/backup'
+      path: '/backup'
+      fullPath: '/admin/backup'
+      preLoaderRoute: typeof AdminBackupRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/dashboard': {
@@ -665,6 +684,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAlertsRoute: typeof AdminAlertsRoute
+  AdminBackupRoute: typeof AdminBackupRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminErpRoute: typeof AdminErpRoute
@@ -685,6 +705,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAlertsRoute: AdminAlertsRoute,
+  AdminBackupRoute: AdminBackupRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
   AdminErpRoute: AdminErpRoute,
