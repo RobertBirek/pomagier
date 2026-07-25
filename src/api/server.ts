@@ -1506,6 +1506,27 @@ app.post("/api/locations/fix-sync-batch", async (req, res) => {
   } catch (err) { logger.error({ err }, "Batch fix failed"); res.status(500).json({ error: "Nie udało się" }); }
 });
 
+// --- Logi: historia ruchów + audyt ---
+app.get("/api/logs", async (req, res) => {
+  try {
+    const db = getDb();
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageSize = Math.min(100, Math.max(10, parseInt(req.query.pageSize as string) || 50));
+    const offset = (page - 1) * pageSize;
+
+    const movements = await db.select().from(schema.productMovements).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(pageSize).offset(offset);
+    const [count] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.productMovements);
+
+    const rows = movements.map(m => ({
+      id: m.id, type: "movement", productId: m.productId, symbol: m.symbol, name: m.name,
+      fromCode: m.fromCode, toCode: m.toCode, quantity: m.quantity, operator: m.operator,
+      correlationId: m.correlationId, createdAt: m.createdAt,
+    }));
+
+    res.json({ rows, total: count?.cnt || 0, page, pageSize });
+  } catch (err) { logger.error({ err }, "Logs failed"); res.json({ rows: [], total: 0, page: 1, pageSize: 50 }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
