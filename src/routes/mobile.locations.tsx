@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { LocationPicker } from "@/components/pomagier/LocationPicker";
-import { MapPin, Package, X, CheckCircle2, Trash2, History, RotateCcw, ChevronDown, ArrowRightLeft, BarChart3 } from "lucide-react";
+import { MapPin, Package, X, CheckCircle2, Trash2, History, RotateCcw, ChevronDown, ArrowRightLeft, BarChart3, Lightbulb, AlertTriangle, MoveRight } from "lucide-react";
 
 async function assignProducts(codes: string[], location: string) {
   const res = await fetch("/api/locations/assign", {
@@ -60,11 +60,14 @@ function LocationsPage() {
   const [showPicker, setShowPicker] = useState(false);
   const [transferMode, setTransferMode] = useState(false);
   const [stockInfo, setStockInfo] = useState<{ location: string; assigned: number; inSubiekt: number } | null>(null);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [hasLocation, setHasLocation] = useState<{ code: string; locations: string[] } | null>(null);
   const [suggestions, setSuggestions] = useState<{ code: string; name: string; barcode: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const refocus = () => setTimeout(() => inputRef.current?.focus(), 50);
+  useEffect(() => { refocus(); fetch("/api/locations/duplicates").then(r => r.json()).then(setDuplicates).catch(() => {}); }, []);
   useEffect(() => { refocus(); }, []);
   useEffect(() => {
     const handler = () => refocus();
@@ -94,7 +97,16 @@ function LocationsPage() {
       return;
     }
 
-    // Check duplicate
+    // Check existing locations for this product
+    try {
+      const checkRes = await fetch(`/api/locations/check-product?code=${encodeURIComponent(trimmed)}`);
+      if (checkRes.ok) {
+        const { found, locations } = await checkRes.json();
+        if (found) setHasLocation({ code: trimmed, locations });
+      }
+    } catch {}
+
+    // Check duplicate in basket
     const existing = basket.find(b => b.code === trimmed);
     if (existing) {
       setBasket(b => b.map(i => i.code === trimmed ? { ...i, qty: i.qty + 1 } : i));
@@ -200,6 +212,38 @@ function LocationsPage() {
         Tryb przenoszenia
       </label>
 
+      {/* Duplicates / suggestions panel */}
+      {duplicates.length > 0 && basket.length === 0 && !pendingLocation && (
+        <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-amber-800 mb-2">
+            <Lightbulb className="h-4 w-4" />Sugestie ({duplicates.length})
+          </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {duplicates.slice(0, 3).map((d) => (
+              <div key={d.productId} className="rounded bg-white/70 p-2 text-xs">
+                <div className="flex items-center gap-1 font-semibold">
+                  <AlertTriangle className="h-3 w-3 text-amber-600" />
+                  {d.name || d.symbol || `ID ${d.productId}`}
+                </div>
+                <div className="mt-1 space-y-0.5 text-muted-foreground">
+                  {d.locations.map((l: any) => (
+                    <div key={l.code} className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />{l.code}: {l.quantity} szt.
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => { setLastLocation(d.suggestion); localStorage.setItem(LAST_LOC_KEY, d.suggestion); toast.info(`Ustawiono lokalizację: ${d.suggestion}`); }}
+                  className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-200 px-2 py-0.5 text-amber-900 hover:bg-amber-300 touch-target"
+                >
+                  <MoveRight className="h-3 w-3" />Konsoliduj do {d.suggestion}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Last location + picker buttons */}
       {basket.length > 0 && !pendingLocation && (
         <div className="flex gap-2">
@@ -259,6 +303,18 @@ function LocationsPage() {
           {mode === "scan" ? "🟢 Skanuj towary (Enter)" : `🔵 Koszyk: ${totalQty} szt. — zeskanuj lokalizację`}
         </p>
       </div>
+
+      {/* Existing location badge */}
+      {hasLocation && (
+        <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs">
+          <MapPin className="h-3.5 w-3.5 text-blue-600" />
+          <span className="text-blue-700">
+            <strong>{hasLocation.code}</strong> już w: {hasLocation.locations.slice(0, 3).join(", ")}
+            {hasLocation.locations.length > 3 ? ` +${hasLocation.locations.length - 3}` : ""}
+          </span>
+          <button onClick={() => setHasLocation(null)} className="ml-auto"><X className="h-3 w-3" /></button>
+        </div>
+      )}
 
       {/* Basket */}
       {basket.length > 0 && (

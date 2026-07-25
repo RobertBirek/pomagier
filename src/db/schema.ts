@@ -48,10 +48,25 @@ export const locations = pgTable("locations", {
 
 export const productLocations = pgTable("product_locations", {
   id: uuid("id").defaultRandom().primaryKey(),
-  productId: integer("product_id").notNull(),       // tw__Towar.tw_Id
+  productId: integer("product_id").notNull(),
   locationId: uuid("location_id").references(() => locations.id).notNull(),
   quantity: integer("quantity").default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => ({
   uniqueProductLocation: uniqueIndex("unique_product_location").on(t.productId, t.locationId),
 }));
+
+export const productMovements = pgTable("product_movements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  productId: integer("product_id").notNull(),
+  symbol: varchar("symbol", { length: 50 }),
+  name: varchar("name", { length: 100 }),
+  fromLocationId: uuid("from_location_id"),
+  toLocationId: uuid("to_location_id"),
+  fromCode: varchar("from_code", { length: 20 }),
+  toCode: varchar("to_code", { length: 20 }),
+  quantity: integer("quantity").notNull().default(1),
+  operator: varchar("operator", { length: 100 }),
+  correlationId: varchar("correlation_id", { length: 36 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

@@ -869,6 +869,17 @@ app.post("/api/locations/assign", async (req, res) => {
     }
 
     logger.info({ productCount: grouped.size, totalQty: foundProducts.length, location: parsed.raw }, "Products assigned to location");
+
+    // Log movements
+    for (const [productId, qty] of grouped) {
+      const p = foundProducts.find(fp => fp.id === productId)!;
+      await db.insert(schema.productMovements).values({
+        productId, symbol: p.symbol, name: p.name,
+        toLocationId: loc.id, toCode: parsed.raw,
+        quantity: qty, operator: "operator",
+        correlationId: crypto.randomUUID(),
+      });
+    }
     res.json({
       ok: true,
       assigned: grouped.size,
@@ -975,6 +986,19 @@ app.post("/api/locations/undo", async (req, res) => {
     }
 
     logger.info({ location: parsed.raw, undone }, "Assignment undone");
+
+    // Log undo movements
+    for (const code of [...new Set(codes)]) {
+      if (!pool) break;
+      const r = await pool.request().input("code", code).query("SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+      for (const row of r.recordset) {
+        await db.insert(schema.productMovements).values({
+          productId: (row as any).id, symbol: (row as any).symbol, name: (row as any).name,
+          fromLocationId: loc.id, fromCode: parsed.raw, quantity: 1, operator: "operator",
+          correlationId: crypto.randomUUID(),
+        });
+      }
+    }
     res.json({ ok: true, undone });
   } catch (err) {
     logger.error({ err }, "Undo failed");
@@ -1036,6 +1060,90 @@ app.get("/api/locations/verify", async (req, res) => {
   } catch {
     res.json({ comparison: null });
   }
+});
+
+// --- Duplikaty: towary w odległych lokalizacjach ---
+app.get("/api/locations/duplicates", async (_req, res) => {
+  try {
+    const db = getDb();
+    const { parseLocation } = await import("../lib/locations.ts");
+
+    const rows = await db
+      .select({
+        productId: schema.productLocations.productId,
+        quantity: schema.productLocations.quantity,
+        code: schema.locations.code,
+        area: schema.locations.area,
+        aisle: schema.locations.aisle,
+        rack: schema.locations.rack,
+      })
+      .from(schema.productLocations)
+      .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+
+    // Group by productId
+    const grouped = new Map<number, { productId: number; locations: { code: string; area: string; aisle: number; rack: number; quantity: number }[] }>();
+    for (const r of rows) {
+      const g = grouped.get(r.productId) || { productId: r.productId, locations: [] };
+      g.locations.push({ code: r.code, area: r.area, aisle: r.aisle, rack: r.rack, quantity: r.quantity || 0 });
+      grouped.set(r.productId, g);
+    }
+
+    // Find products in >1 location that are distant
+    const duplicates: any[] = [];
+    for (const [, g] of grouped) {
+      if (g.locations.length < 2) continue;
+      const hasDistant = g.locations.some(a =>
+        g.locations.some(b =>
+          a.code !== b.code && (a.area !== b.area || Math.abs(a.aisle - b.aisle) > 1)
+        )
+      );
+      if (!hasDistant) continue;
+
+      // Get product info from Subiekt if available
+      let symbol = "", name = "";
+      try {
+        const pool = await getAdapter().getPool?.();
+        if (pool) {
+          const pr = await pool.request().input("id", g.productId).query("SELECT tw_Symbol, tw_Nazwa FROM tw__Towar WHERE tw_Id = @id");
+          if (pr.recordset[0]) { symbol = (pr.recordset[0] as any).tw_Symbol; name = (pr.recordset[0] as any).tw_Nazwa; }
+        }
+      } catch {}
+
+      const best = g.locations.reduce((a, b) => a.quantity > b.quantity ? a : b);
+      duplicates.push({ productId: g.productId, symbol, name, locations: g.locations, suggestion: best.code });
+    }
+
+    res.json(duplicates);
+  } catch { res.json([]); }
+});
+
+// --- Sprawdź czy produkt istnieje już w jakiejś lokalizacji ---
+app.get("/api/locations/check-product", async (req, res) => {
+  const code = req.query.code as string;
+  if (!code) { res.json({ found: false }); return; }
+
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+
+    // Find product in Subiekt
+    if (!pool) { res.json({ found: false }); return; }
+    const pr = await pool.request().input("code", code).query(
+      "SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code"
+    );
+    if (!pr.recordset[0]) { res.json({ found: false }); return; }
+    const productId = (pr.recordset[0] as any).id;
+
+    // Check in product_locations
+    const rows = await db
+      .select({ code: schema.locations.code })
+      .from(schema.productLocations)
+      .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
+      .where(eq(schema.productLocations.productId, productId));
+
+    res.json({ found: rows.length > 0, locations: rows.map(r => r.code) });
+  } catch { res.json({ found: false }); }
 });
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
