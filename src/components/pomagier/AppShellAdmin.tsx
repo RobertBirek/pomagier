@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Konfiguracja ERP", url: "/admin/erp", icon: Database },
+  { title: "Backup", url: "/admin/backup", icon: Database },
   { title: "Towary", url: "/admin/products", icon: Package },
   { title: "Magazyny", url: "/admin/warehouses", icon: Warehouse },
   { title: "Mapa magazynu", url: "/admin/map", icon: Map },
@@ -115,6 +116,7 @@ function Breadcrumb() {
       admin: "Administracja",
       dashboard: "Dashboard",
       erp: "Konfiguracja ERP",
+      backup: "Backup",
       warehouses: "Magazyny",
       map: "Mapa magazynu",
       users: "Użytkownicy",
