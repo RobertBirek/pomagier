@@ -1004,6 +1004,40 @@ app.get("/api/products/quick-search", async (req, res) => {
   }
 });
 
+// --- Weryfikacja stanu: Postgres vs Subiekt ---
+app.get("/api/locations/verify", async (req, res) => {
+  const location = req.query.location as string;
+  if (!location) { res.status(400).json({ error: "Brak parametru location" }); return; }
+
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+
+    // Assigned quantity from Postgres
+    const [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, location));
+    if (!loc) { res.json({ comparison: null }); return; }
+
+    const plRows = await db.select({ qty: schema.productLocations.quantity })
+      .from(schema.productLocations).where(eq(schema.productLocations.locationId, loc.id));
+    const assigned = plRows.reduce((s, r) => s + (r.qty || 0), 0);
+
+    // Stock in Subiekt
+    let inSubiekt = 0;
+    if (pool) {
+      const stockResult = await pool.request().input("location", location)
+        .query(`SELECT ISNULL(SUM(s.st_Stan), 0) AS total FROM tw_Stan s
+                INNER JOIN tw__Towar t ON t.tw_Id = s.st_TowId
+                WHERE t.tw_Pole1 LIKE '%' + @location + '%'`);
+      inSubiekt = (stockResult.recordset[0] as any)?.total || 0;
+    }
+
+    res.json({ comparison: { location, assigned, inSubiekt } });
+  } catch {
+    res.json({ comparison: null });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");

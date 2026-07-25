@@ -3,7 +3,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
-import { MapPin, Package, X, CheckCircle2, Trash2, History, RotateCcw } from "lucide-react";
+import { LocationPicker } from "@/components/pomagier/LocationPicker";
+import { MapPin, Package, X, CheckCircle2, Trash2, History, RotateCcw, ChevronDown, ArrowRightLeft, BarChart3 } from "lucide-react";
 
 async function assignProducts(codes: string[], location: string) {
   const res = await fetch("/api/locations/assign", {
@@ -56,7 +57,9 @@ function LocationsPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [undoing, setUndoing] = useState(false);
   const [lastLocation, setLastLocation] = useState<string | null>(() => localStorage.getItem(LAST_LOC_KEY));
-  const [stepQty, setStepQty] = useState<{ code: string; qty: number } | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [transferMode, setTransferMode] = useState(false);
+  const [stockInfo, setStockInfo] = useState<{ location: string; assigned: number; inSubiekt: number } | null>(null);
   const [suggestions, setSuggestions] = useState<{ code: string; name: string; barcode: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +143,14 @@ function LocationsPage() {
         beep(1000, 80); setTimeout(() => beep(1200, 120), 100);
         toast.success(`Przypisano ${result.totalQuantity} towarów do ${result.location}`, { duration: 3000 });
         setHistory(h => [{ codes: codes.slice(), location: pendingLocation, timestamp: Date.now(), products: result.products || [] }, ...h].slice(0, 5));
+
+        // Stock verification: fetch comparison
+        try {
+          const stockRes = await fetch(`/api/locations/verify?location=${encodeURIComponent(pendingLocation)}`);
+          const stock = await stockRes.json();
+          if (stock.comparison) setStockInfo(stock.comparison);
+        } catch {}
+
         setBasket([]);
       } else {
         beep(200, 400);
@@ -166,6 +177,12 @@ function LocationsPage() {
     finally { setUndoing(false); refocus(); }
   };
 
+  const handleLocationPick = (code: string) => {
+    setPendingLocation(code);
+    setLastLocation(code); localStorage.setItem(LAST_LOC_KEY, code);
+    setShowPicker(false);
+  };
+
   const handleLastLocation = () => {
     if (!lastLocation) return;
     setPendingLocation(lastLocation);
@@ -175,12 +192,37 @@ function LocationsPage() {
     <div className="mx-auto max-w-md p-4 space-y-4">
       <h1 className="text-lg font-bold">Przypisz towary</h1>
 
-      {/* Last location quick button */}
-      {lastLocation && basket.length > 0 && !pendingLocation && (
-        <button onClick={handleLastLocation}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-blue-50 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 touch-target active:scale-95 transition-all">
-          <MapPin className="h-4 w-4" />Przypisz do {lastLocation}
-        </button>
+      {/* Transfer mode toggle */}
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={transferMode} onChange={e => setTransferMode(e.target.checked)}
+          className="h-4 w-4 rounded border-primary" />
+        <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+        Tryb przenoszenia
+      </label>
+
+      {/* Last location + picker buttons */}
+      {basket.length > 0 && !pendingLocation && (
+        <div className="flex gap-2">
+          {lastLocation && (
+            <button onClick={handleLastLocation}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-blue-50 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 touch-target active:scale-95 transition-all">
+              <MapPin className="h-4 w-4" />Przypisz do {lastLocation}
+            </button>
+          )}
+          <button onClick={() => setShowPicker(true)}
+            className="flex items-center justify-center gap-1 rounded-lg border px-4 py-3 text-sm hover:bg-accent touch-target">
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Location picker modal */}
+      {showPicker && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={() => setShowPicker(false)}>
+          <div className="w-full max-h-[80vh] overflow-y-auto rounded-t-xl bg-background p-4" onClick={e => e.stopPropagation()}>
+            <LocationPicker onSelect={handleLocationPick} />
+          </div>
+        </div>
       )}
 
       {/* Input */}
@@ -244,6 +286,20 @@ function LocationsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stock verification */}
+      {stockInfo && basket.length === 0 && (
+        <div className="rounded-lg border bg-card p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold mb-2"><BarChart3 className="h-4 w-4 text-primary" />Weryfikacja stanu — {stockInfo.location}</div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded bg-muted/50 p-2"><div className="text-muted-foreground">Przypisane</div><div className="font-bold text-lg">{stockInfo.assigned}</div></div>
+            <div className="rounded bg-muted/50 p-2"><div className="text-muted-foreground">W Subiekt GT</div><div className="font-bold text-lg">{stockInfo.inSubiekt}</div></div>
+          </div>
+          <div className={`mt-2 text-xs font-medium ${stockInfo.assigned === stockInfo.inSubiekt ? "text-success" : "text-warning"}`}>
+            {stockInfo.assigned === stockInfo.inSubiekt ? "✅ Stan zgodny" : `⚠️ Różnica: ${Math.abs(stockInfo.assigned - stockInfo.inSubiekt)} szt.`}
           </div>
         </div>
       )}
