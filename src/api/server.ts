@@ -10,9 +10,11 @@ import type { ErpAdapter } from "../erp/adapter.js";
 import { getDb, schema } from "../db/index.js";
 import { eq, and, sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { authMiddleware, requireAdmin } from "./auth-middleware.js";
 
 const app = express();
 app.use(helmet());
+app.use(authMiddleware);
 app.use(
   cors({
     origin: ["https://pomagier.local", "https://localhost", "http://localhost:5173"],
@@ -760,7 +762,7 @@ app.get("/api/field-mappings", async (_req, res) => {
   }
 });
 
-app.put("/api/field-mappings", async (req, res) => {
+app.put("/api/field-mappings", requireAdmin, async (req, res) => {
   const mappings = req.body as { key: string; subiektField: string }[];
   if (!Array.isArray(mappings)) {
     res.status(400).json({ error: "Oczekiwano tablicy" });
@@ -855,8 +857,8 @@ app.post("/api/locations/sync", async (_req, res) => {
 });
 
 // --- Zmiana PIN użytkownika ---
-app.put("/api/users/:subiektId/pin", async (req, res) => {
-  const subiektUzId = parseInt(req.params.subiektId);
+app.put("/api/users/:subiektId/pin", requireAdmin, async (req, res) => {
+  const subiektUzId = parseInt(req.params.subiektId as string);
   const { pin } = req.body ?? {};
 
   if (!subiektUzId || !pin || pin.length < 4 || pin.length > 8) {
@@ -2180,7 +2182,7 @@ app.get("/api/backup/config", async (_req, res) => {
   }
 });
 
-app.put("/api/backup/config", async (req, res) => {
+app.put("/api/backup/config", requireAdmin, async (req, res) => {
   const { endpoint, bucket, region, accessKey, secretKey } = req.body ?? {};
   if (!endpoint || !bucket || !accessKey) {
     res.status(400).json({ error: "Brak wymaganych pól" });
@@ -2210,7 +2212,7 @@ app.put("/api/backup/config", async (req, res) => {
   }
 });
 
-app.post("/api/backup/test-s3", async (req, res) => {
+app.post("/api/backup/test-s3", requireAdmin, async (req, res) => {
   const { endpoint, bucket, region, accessKey, secretKey } = req.body ?? {};
   if (!endpoint || !bucket || !accessKey) {
     res.status(400).json({ error: "Brak wymaganych pól" });
@@ -2226,7 +2228,7 @@ app.post("/api/backup/test-s3", async (req, res) => {
 });
 
 // Run backup now
-app.post("/api/backup/run", async (_req, res) => {
+app.post("/api/backup/run", requireAdmin, async (_req, res) => {
   try {
     const { execSync } = await import("node:child_process");
     const output = execSync("bash /pomagier/scripts/backup.sh 2>&1", {
@@ -2265,7 +2267,7 @@ app.get("/api/backup/list", async (_req, res) => {
 });
 
 // Download backup
-app.get("/api/backup/download/:name", async (req, res) => {
+app.get("/api/backup/download/:name", requireAdmin, async (req, res) => {
   const name = req.params.name;
   if (!validateBackupFilename(name)) {
     res.status(400).json({ error: "Invalid filename" });
@@ -2294,7 +2296,7 @@ app.get("/api/backup/download/:name", async (req, res) => {
 });
 
 // Delete backup
-app.delete("/api/backup/:name", async (req, res) => {
+app.delete("/api/backup/:name", requireAdmin, async (req, res) => {
   const name = req.params.name;
   if (!validateBackupFilename(name)) {
     res.status(400).json({ error: "Invalid filename" });
@@ -2316,7 +2318,7 @@ app.delete("/api/backup/:name", async (req, res) => {
 });
 
 // Restore from uploaded file
-app.post("/api/backup/restore", async (req, res) => {
+app.post("/api/backup/restore", requireAdmin, async (req, res) => {
   const { filename, confirm } = req.body ?? {};
   if (confirm !== "TAK") {
     res.status(400).json({ error: "Wpisz TAK aby potwierdzić przywrócenie" });
@@ -2346,7 +2348,7 @@ app.post("/api/backup/restore", async (req, res) => {
 });
 
 // Upload local backup to S3
-app.post("/api/backup/upload-local", async (req, res) => {
+app.post("/api/backup/upload-local", requireAdmin, async (req, res) => {
   const { file } = req.body ?? {};
   if (!validateBackupFilename(file)) {
     res.status(400).json({ error: "Invalid filename" });

@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShellAdmin } from "@/components/pomagier/AppShellAdmin";
 import { AuthProvider } from "@/lib/auth";
 import { useAutoLogout } from "@/lib/use-auto-logout";
@@ -9,6 +9,14 @@ function AdminWithLogout() {
 }
 
 export const Route = createFileRoute("/admin")({
+  beforeLoad: () => {
+    const data = localStorage.getItem("pomagier_auth");
+    if (data) {
+      const { token, user } = JSON.parse(data);
+      if (token && user?.role === "admin") return;
+    }
+    throw redirect({ to: "/mobile/login" });
+  },
   component: AdminLayout,
 });
 
