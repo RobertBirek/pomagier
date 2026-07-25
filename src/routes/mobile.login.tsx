@@ -57,7 +57,7 @@ function Login() {
           Wybierz operatora
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {users.filter((u) => u.active).map((u) => (
+          {operators.map((u) => (
             <button
               key={u.subiektId}
               onClick={() => setSelectedId(u.subiektId)}
@@ -75,8 +75,8 @@ function Login() {
               )}
             </button>
           ))}
-          {users.length === 0 && (
-            <p className="text-muted-foreground col-span-2 text-xs">Brak użytkowników (Subiekt niedostępny)</p>
+          {operators.length === 0 && (
+            <p className="text-muted-foreground col-span-2 text-xs">Brak operatorów (Subiekt niedostępny)</p>
           )}
         </div>
       </div>
