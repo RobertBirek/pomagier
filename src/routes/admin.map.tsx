@@ -15,6 +15,7 @@ async function importLocations() { const r = await fetch("/api/locations/import"
 async function syncProductLocations() { const r = await fetch("/api/locations/sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 async function verifySync() { const r = await fetch("/api/locations/verify-sync"); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 async function fixSync() { const r = await fetch("/api/locations/fix-sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
+async function syncFromSubiekt() { const r = await fetch("/api/locations/sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 
 function heatColor(totalQuantity: number, maxQty: number): string {
   if (totalQuantity === 0) return "bg-muted/30 hover:bg-muted/50";
@@ -49,7 +50,13 @@ function AdminMap() {
 
   const fixMut = useMutation({
     mutationFn: fixSync,
-    onSuccess: (data: any) => { toast.success(`✅ Zsynchronizowano ${data.fixed} produktów`); setVerifyResult(null); qc.invalidateQueries(); },
+    onSuccess: (data: any) => { toast.success(`✅ Subiekt zaktualizowany — ${data.fixed} produktów`); setVerifyResult(null); qc.invalidateQueries(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const subiektMut = useMutation({
+    mutationFn: syncFromSubiekt,
+    onSuccess: (data: any) => { toast.success(`✅ Postgres zaktualizowany — ${data.inserted} powiązań`); setVerifyResult(null); qc.invalidateQueries(); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -233,14 +240,25 @@ function AdminMap() {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => { setFixing(true); fixMut.mutate(null as any); }}
-                  disabled={fixMut.isPending}
-                  className="w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {fixMut.isPending ? "Synchronizuję…" : "Synchronizuj Subiekt ← Postgres"}
-                </button>
-                <p className="text-xs text-muted-foreground mt-1 text-center">Aktualizuje tw_PoleX w Subiekcie na podstawie danych z PomagierGT</p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button
+                    onClick={() => fixMut.mutate(null as any)}
+                    disabled={fixMut.isPending}
+                    className="rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {fixMut.isPending ? "…" : "Subiekt ← Postgres"}
+                  </button>
+                  <button
+                    onClick={() => subiektMut.mutate(null as any)}
+                    disabled={subiektMut.isPending}
+                    className="rounded-md border py-2.5 text-sm hover:bg-accent disabled:opacity-50"
+                  >
+                    {subiektMut.isPending ? "…" : "Postgres ← Subiekt"}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Wybierz źródło prawdy: Postgres (dane z PomagierGT) lub Subiekt GT (dane z ERP)
+                </p>
               </>
             )}
 
