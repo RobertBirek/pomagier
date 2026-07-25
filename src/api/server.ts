@@ -13,11 +13,22 @@ import { logger } from "../lib/logger.ts";
 
 const app = express();
 app.use(helmet());
-app.use(cors({ origin: ["https://pomagier.local", "https://localhost", "http://localhost:5173"], credentials: true }));
+app.use(
+  cors({
+    origin: ["https://pomagier.local", "https://localhost", "http://localhost:5173"],
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "1mb" }));
 app.set("trust proxy", 1);
 
-const globalLimiter = rateLimit({ windowMs: 60000, max: 100, standardHeaders: true, legacyHeaders: false });
+const globalLimiter = rateLimit({
+  windowMs: 60000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === "/api/health",
+});
 app.use("/api/login", rateLimit({ windowMs: 60000, max: 20 }));
 app.use("/api/scan", globalLimiter);
 app.use("/api/locations", globalLimiter);
@@ -101,7 +112,9 @@ app.get("/api/company", async (_req, res) => {
       shortName: row?.shortName || "",
       nip: row?.nip || "",
       regon: row?.regon || "",
-      street: row?.street ? `${row.street} ${row.houseNo || ""}${row.aptNo ? `/${row.aptNo}` : ""}` : "",
+      street: row?.street
+        ? `${row.street} ${row.houseNo || ""}${row.aptNo ? `/${row.aptNo}` : ""}`
+        : "",
       postalCode: row?.postalCode || "",
       city: row?.city || "",
       phone: row?.phone || "",
@@ -186,13 +199,30 @@ app.post("/api/login", async (req, res) => {
       .where(and(eq(schema.users.subiektUzId, subiektUzId), eq(schema.users.active, true)));
 
     if (!user) {
-      try { await db.insert(schema.auditLog).values({ correlationId: crypto.randomUUID(), action: "login_failed", details: JSON.stringify({ subiektUzId, reason: "no_user" }) }); } catch {}
+      try {
+        await db
+          .insert(schema.auditLog)
+          .values({
+            correlationId: crypto.randomUUID(),
+            action: "login_failed",
+            details: JSON.stringify({ subiektUzId, reason: "no_user" }),
+          });
+      } catch {}
       res.status(401).json({ error: "Użytkownik nie skonfigurowany w PomagierGT" });
       return;
     }
 
     if (user.pin !== hashPin(pin)) {
-      try { await db.insert(schema.auditLog).values({ correlationId: crypto.randomUUID(), userId: user.id, action: "login_failed", details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }) }); } catch {}
+      try {
+        await db
+          .insert(schema.auditLog)
+          .values({
+            correlationId: crypto.randomUUID(),
+            userId: user.id,
+            action: "login_failed",
+            details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }),
+          });
+      } catch {}
       res.status(401).json({ error: "Nieprawidłowy PIN" });
       return;
     }
@@ -207,8 +237,10 @@ app.post("/api/login", async (req, res) => {
     });
 
     await db.insert(schema.auditLog).values({
-      correlationId: crypto.randomUUID(), userId: user.id,
-      action: "login", details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
+      correlationId: crypto.randomUUID(),
+      userId: user.id,
+      action: "login",
+      details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
     });
 
     res.json({ token, user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
@@ -223,7 +255,9 @@ app.post("/api/scan", async (req, res) => {
   const { code } = req.body ?? {};
 
   if (!code || typeof code !== "string" || code.length > 50) {
-    res.status(422).json({ error: "Invalid code", found: false, barcode: code ?? "", products: [] });
+    res
+      .status(422)
+      .json({ error: "Invalid code", found: false, barcode: code ?? "", products: [] });
     return;
   }
 
@@ -264,7 +298,9 @@ app.get("/api/stats", async (_req, res) => {
 app.post("/api/test-connection", async (req, res) => {
   const { host, port, database, user, password } = req.body ?? {};
   if (!host || !database || !user || !password) {
-    res.status(400).json({ ok: false, error: "Brak wymaganych parametrów (host, database, user, password)" });
+    res
+      .status(400)
+      .json({ ok: false, error: "Brak wymaganych parametrów (host, database, user, password)" });
     return;
   }
   try {
@@ -330,10 +366,20 @@ app.post("/api/erp-config", async (req, res) => {
 
     // Reconnect adapter with new config
     const adapter = getAdapter();
-    const storedPwd = password && password !== "••••••••"
-      ? password
-      : (await db.select().from(schema.config).where(eq(schema.config.key, "mssql_password")))[0]?.value || process.env.MSSQL_PASSWORD || "";
-    await adapter.reconnect?.({ host, port: parseInt(String(port)) || 1433, database, user, password: storedPwd });
+    const storedPwd =
+      password && password !== "••••••••"
+        ? password
+        : (await db.select().from(schema.config).where(eq(schema.config.key, "mssql_password")))[0]
+            ?.value ||
+          process.env.MSSQL_PASSWORD ||
+          "";
+    await adapter.reconnect?.({
+      host,
+      port: parseInt(String(port)) || 1433,
+      database,
+      user,
+      password: storedPwd,
+    });
 
     logger.info("ERP config saved and reconnected");
     res.json({ ok: true });
@@ -393,11 +439,21 @@ app.post("/api/locations/import", async (_req, res) => {
         // Delete old malformed, insert corrected
         await db.delete(schema.locations).where(eq(schema.locations.id, loc.id));
         try {
-          await db.insert(schema.locations).values({
-            code: parsed.raw, area: parsed.area, aisle: parsed.aisle,
-            rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label,
-          }).onConflictDoNothing();
-        } catch { /* skip if already exists */ }
+          await db
+            .insert(schema.locations)
+            .values({
+              code: parsed.raw,
+              area: parsed.area,
+              aisle: parsed.aisle,
+              rack: parsed.rack,
+              shelf: parsed.shelf,
+              spot: parsed.spot,
+              label: parsed.label,
+            })
+            .onConflictDoNothing();
+        } catch {
+          /* skip if already exists */
+        }
       }
     }
 
@@ -407,22 +463,33 @@ app.post("/api/locations/import", async (_req, res) => {
     for (const row of result.recordset) {
       const raw = (row as any).location as string;
       // Obsługa wielu lokalizacji oddzielonych średnikiem
-      const parts = raw.split(";").map((s: string) => s.trim()).filter(Boolean);
+      const parts = raw
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       for (const part of parts) {
         const parsed = parseLocation(part);
-        if (!parsed) { skipped++; continue; }
+        if (!parsed) {
+          skipped++;
+          continue;
+        }
         try {
-          await db.insert(schema.locations).values({
-            code: parsed.raw,
-            area: parsed.area,
-            aisle: parsed.aisle,
-            rack: parsed.rack,
-            shelf: parsed.shelf,
-            spot: parsed.spot,
-            label: parsed.label,
-          }).onConflictDoNothing();
+          await db
+            .insert(schema.locations)
+            .values({
+              code: parsed.raw,
+              area: parsed.area,
+              aisle: parsed.aisle,
+              rack: parsed.rack,
+              shelf: parsed.shelf,
+              spot: parsed.spot,
+              label: parsed.label,
+            })
+            .onConflictDoNothing();
           imported++;
-        } catch { skipped++; }
+        } catch {
+          skipped++;
+        }
       }
     }
 
@@ -453,21 +520,27 @@ app.post("/api/locations", async (req, res) => {
     const db = getDb();
 
     // Sprawdź duplikat
-    const [existing] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
+    const [existing] = await db
+      .select()
+      .from(schema.locations)
+      .where(eq(schema.locations.code, parsed.raw));
     if (existing) {
       res.status(409).json({ error: "Lokalizacja już istnieje", location: existing });
       return;
     }
 
-    const [created] = await db.insert(schema.locations).values({
-      code: parsed.raw,
-      area: parsed.area,
-      aisle: parsed.aisle,
-      rack: parsed.rack,
-      shelf: parsed.shelf,
-      spot: parsed.spot,
-      label: parsed.label,
-    }).returning();
+    const [created] = await db
+      .insert(schema.locations)
+      .values({
+        code: parsed.raw,
+        area: parsed.area,
+        aisle: parsed.aisle,
+        rack: parsed.rack,
+        shelf: parsed.shelf,
+        spot: parsed.spot,
+        label: parsed.label,
+      })
+      .returning();
 
     logger.info({ code: parsed.raw }, "New location added");
     res.status(201).json({ ok: true, location: created });
@@ -493,10 +566,7 @@ app.get("/api/products-by-location", async (req, res) => {
     const pool = await adapter.getPool?.();
     if (!pool) return res.json([]);
 
-    const result = await pool
-      .request()
-      .input("location", location)
-      .query(`
+    const result = await pool.request().input("location", location).query(`
         SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_Pole1 AS location,
                tw_JednMiary AS unit, tw_PodstKodKresk AS barcode
         FROM tw__Towar
@@ -536,7 +606,8 @@ app.put("/api/products/:id/location", async (req, res) => {
     const locationField = await getLocationField();
 
     // Pobierz aktualną wartość pola
-    const current = await pool.request()
+    const current = await pool
+      .request()
       .input("id", parseInt(productId as any))
       .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
 
@@ -556,12 +627,16 @@ app.put("/api/products/:id/location", async (req, res) => {
     locations.push(parsed.raw);
     const newValue = locations.join(";");
 
-    await pool.request()
+    await pool
+      .request()
       .input("id", parseInt(productId as any))
       .input("val", newValue)
       .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
 
-    logger.info({ productId, location: parsed.raw, field: locationField, value: newValue }, "Product location updated in Subiekt");
+    logger.info(
+      { productId, location: parsed.raw, field: locationField, value: newValue },
+      "Product location updated in Subiekt",
+    );
     res.json({ ok: true, location: parsed.raw, field: locationField, value: newValue });
   } catch (err) {
     logger.error({ err, productId, location }, "Failed to update product location");
@@ -578,7 +653,7 @@ app.get("/api/products", async (req, res) => {
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const pageSize = Math.min(200, Math.max(5, parseInt(req.query.pageSize as string) || 50));
-    const search = (req.query.search as string || "").trim();
+    const search = ((req.query.search as string) || "").trim();
     const warehouseId = parseInt(req.query.warehouseId as string) || 0;
     const offset = (page - 1) * pageSize;
 
@@ -586,7 +661,8 @@ app.get("/api/products", async (req, res) => {
     const params: { name: string; value: any }[] = [];
 
     if (search) {
-      whereClause += " AND (t.tw_Symbol LIKE @search OR t.tw_Nazwa LIKE @search OR t.tw_PodstKodKresk LIKE @search)";
+      whereClause +=
+        " AND (t.tw_Symbol LIKE @search OR t.tw_Nazwa LIKE @search OR t.tw_PodstKodKresk LIKE @search)";
       params.push({ name: "search", value: `%${search}%` });
     }
 
@@ -666,7 +742,10 @@ app.get("/api/products", async (req, res) => {
 app.get("/api/field-mappings", async (_req, res) => {
   try {
     const db = getDb();
-    const rows = await db.select().from(schema.config).where(sql`${schema.config.key} LIKE 'fieldmap_%'`);
+    const rows = await db
+      .select()
+      .from(schema.config)
+      .where(sql`${schema.config.key} LIKE 'fieldmap_%'`);
     const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.ts");
 
     const map = new Map(rows.map((r) => [r.key.replace("fieldmap_", ""), r.value]));
@@ -733,21 +812,37 @@ app.post("/api/locations/sync", async (_req, res) => {
     for (const row of result.recordset) {
       const productId = (row as any).productId;
       const locRaw = (row as any).locRaw as string;
-      const parts = locRaw.split(";").map((s: string) => s.trim()).filter(Boolean);
+      const parts = locRaw
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
 
       for (const part of parts) {
         const parsed = parseLocation(part);
-        if (!parsed) { skipped++; continue; }
+        if (!parsed) {
+          skipped++;
+          continue;
+        }
 
         const loc = allLocations.find((l) => l.code === parsed.raw);
-        if (!loc) { skipped++; continue; }
+        if (!loc) {
+          skipped++;
+          continue;
+        }
 
         try {
-          await db.insert(schema.productLocations).values({
-            productId, locationId: loc.id, quantity: 1,
-          }).onConflictDoNothing();
+          await db
+            .insert(schema.productLocations)
+            .values({
+              productId,
+              locationId: loc.id,
+              quantity: 1,
+            })
+            .onConflictDoNothing();
           inserted++;
-        } catch { skipped++; }
+        } catch {
+          skipped++;
+        }
       }
     }
 
@@ -830,12 +925,23 @@ app.post("/api/locations/assign", async (req, res) => {
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
 
     // Upewnij się że lokalizacja istnieje w Postgres
-    let [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
+    let [loc] = await db
+      .select()
+      .from(schema.locations)
+      .where(eq(schema.locations.code, parsed.raw));
     if (!loc) {
-      [loc] = await db.insert(schema.locations).values({
-        code: parsed.raw, area: parsed.area, aisle: parsed.aisle,
-        rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label,
-      }).returning();
+      [loc] = await db
+        .insert(schema.locations)
+        .values({
+          code: parsed.raw,
+          area: parsed.area,
+          aisle: parsed.aisle,
+          rack: parsed.rack,
+          shelf: parsed.shelf,
+          spot: parsed.spot,
+          label: parsed.label,
+        })
+        .returning();
     }
 
     // Znajdź produkty w Subiekcie po symbolu lub EAN
@@ -878,23 +984,40 @@ app.post("/api/locations/assign", async (req, res) => {
         });
 
       // Aktualizuj tw_Pole1 w Subiekcie
-      const current = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-      const existing = ((current.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      const current = await pool
+        .request()
+        .input("id", productId)
+        .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const existing = ((current.recordset[0] as any)?.val || "")
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       if (!existing.includes(parsed.raw)) {
         existing.push(parsed.raw);
-        await pool.request().input("id", productId).input("val", existing.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        await pool
+          .request()
+          .input("id", productId)
+          .input("val", existing.join(";"))
+          .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
       }
     }
 
-    logger.info({ productCount: grouped.size, totalQty: foundProducts.length, location: parsed.raw }, "Products assigned to location");
+    logger.info(
+      { productCount: grouped.size, totalQty: foundProducts.length, location: parsed.raw },
+      "Products assigned to location",
+    );
 
     // Log movements
     for (const [productId, qty] of grouped) {
-      const p = foundProducts.find(fp => fp.id === productId)!;
+      const p = foundProducts.find((fp) => fp.id === productId)!;
       await db.insert(schema.productMovements).values({
-        productId, symbol: p.symbol, name: p.name,
-        toLocationId: loc.id, toCode: parsed.raw,
-        quantity: qty, operator: "operator",
+        productId,
+        symbol: p.symbol,
+        name: p.name,
+        toLocationId: loc.id,
+        toCode: parsed.raw,
+        quantity: qty,
+        operator: "operator",
         correlationId: crypto.randomUUID(),
       });
     }
@@ -931,7 +1054,10 @@ app.get("/api/locations/stats", async (_req, res) => {
         totalQuantity: sql<number>`COALESCE(SUM(${schema.productLocations.quantity}), 0)::int`,
       })
       .from(schema.locations)
-      .leftJoin(schema.productLocations, eq(schema.locations.id, schema.productLocations.locationId))
+      .leftJoin(
+        schema.productLocations,
+        eq(schema.locations.id, schema.productLocations.locationId),
+      )
       .groupBy(schema.locations.id)
       .orderBy(schema.locations.code);
 
@@ -950,7 +1076,10 @@ app.get("/api/ca", async (_req, res) => {
   try {
     const cert = fs.readFileSync(caPath, "utf-8");
     res.setHeader("Content-Type", "application/x-pem-file");
-    res.setHeader("Content-Disposition", `attachment; filename=rootCA.${_req.query.format === "crt" ? "crt" : "pem"}`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=rootCA.${_req.query.format === "crt" ? "crt" : "pem"}`,
+    );
     res.send(cert);
   } catch {
     res.status(404).json({ error: "CA cert not found" });
@@ -967,7 +1096,10 @@ app.post("/api/locations/undo", async (req, res) => {
 
   const { parseLocation } = await import("../lib/locations.ts");
   const parsed = parseLocation(location);
-  if (!parsed) { res.status(422).json({ error: "Nieprawidłowa lokalizacja" }); return; }
+  if (!parsed) {
+    res.status(422).json({ error: "Nieprawidłowa lokalizacja" });
+    return;
+  }
 
   try {
     const db = getDb();
@@ -975,28 +1107,50 @@ app.post("/api/locations/undo", async (req, res) => {
     const pool = await adapter.getPool?.();
 
     // Find location in Postgres
-    const [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
-    if (!loc) { res.status(404).json({ error: "Lokalizacja nie istnieje" }); return; }
+    const [loc] = await db
+      .select()
+      .from(schema.locations)
+      .where(eq(schema.locations.code, parsed.raw));
+    if (!loc) {
+      res.status(404).json({ error: "Lokalizacja nie istnieje" });
+      return;
+    }
 
     let undone = 0;
     for (const code of codes) {
       if (!pool) break;
-      const result = await pool.request().input("code", code).query(
-        "SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code"
-      );
+      const result = await pool
+        .request()
+        .input("code", code)
+        .query("SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code");
       for (const row of result.recordset) {
         const productId = (row as any).id;
         // Decrease quantity in product_locations (or remove if quantity gets to 0)
-        await db.delete(schema.productLocations)
-          .where(and(eq(schema.productLocations.productId, productId), eq(schema.productLocations.locationId, loc.id)));
+        await db
+          .delete(schema.productLocations)
+          .where(
+            and(
+              eq(schema.productLocations.productId, productId),
+              eq(schema.productLocations.locationId, loc.id),
+            ),
+          );
 
         // Remove location from tw_Pole1 in Subiekt
         const locationField = await getLocationField();
-        const current = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const existing = ((current.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+        const current = await pool
+          .request()
+          .input("id", productId)
+          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+        const existing = ((current.recordset[0] as any)?.val || "")
+          .split(";")
+          .map((s: string) => s.trim())
+          .filter(Boolean);
         const updated = existing.filter((s: string) => s !== parsed.raw);
         if (updated.length !== existing.length) {
-          await pool.request().input("id", productId).input("val", updated.join(";") || null)
+          await pool
+            .request()
+            .input("id", productId)
+            .input("val", updated.join(";") || null)
             .query(`UPDATE tw__Towar SET ${locationField} = NULLIF(@val, '') WHERE tw_Id = @id`);
         }
         undone++;
@@ -1008,11 +1162,21 @@ app.post("/api/locations/undo", async (req, res) => {
     // Log undo movements
     for (const code of [...new Set(codes)]) {
       if (!pool) break;
-      const r = await pool.request().input("code", code).query("SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+      const r = await pool
+        .request()
+        .input("code", code)
+        .query(
+          "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
+        );
       for (const row of r.recordset) {
         await db.insert(schema.productMovements).values({
-          productId: (row as any).id, symbol: (row as any).symbol, name: (row as any).name,
-          fromLocationId: loc.id, fromCode: parsed.raw, quantity: 1, operator: "operator",
+          productId: (row as any).id,
+          symbol: (row as any).symbol,
+          name: (row as any).name,
+          fromLocationId: loc.id,
+          fromCode: parsed.raw,
+          quantity: 1,
+          operator: "operator",
           correlationId: crypto.randomUUID(),
         });
       }
@@ -1026,8 +1190,11 @@ app.post("/api/locations/undo", async (req, res) => {
 
 // --- Szybkie wyszukiwanie towarów (do auto-complete) ---
 app.get("/api/products/quick-search", async (req, res) => {
-  const q = (req.query.q as string || "").trim();
-  if (!q || q.length < 2) { res.json([]); return; }
+  const q = ((req.query.q as string) || "").trim();
+  if (!q || q.length < 2) {
+    res.json([]);
+    return;
+  }
 
   try {
     const adapter = getAdapter();
@@ -1049,7 +1216,10 @@ app.get("/api/products/quick-search", async (req, res) => {
 // --- Weryfikacja stanu: Postgres vs Subiekt ---
 app.get("/api/locations/verify", async (req, res) => {
   const location = req.query.location as string;
-  if (!location) { res.status(400).json({ error: "Brak parametru location" }); return; }
+  if (!location) {
+    res.status(400).json({ error: "Brak parametru location" });
+    return;
+  }
 
   try {
     const db = getDb();
@@ -1057,11 +1227,19 @@ app.get("/api/locations/verify", async (req, res) => {
     const pool = await adapter.getPool?.();
 
     // Assigned quantity from Postgres
-    const [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, location));
-    if (!loc) { res.json({ comparison: null }); return; }
+    const [loc] = await db
+      .select()
+      .from(schema.locations)
+      .where(eq(schema.locations.code, location));
+    if (!loc) {
+      res.json({ comparison: null });
+      return;
+    }
 
-    const plRows = await db.select({ qty: schema.productLocations.quantity })
-      .from(schema.productLocations).where(eq(schema.productLocations.locationId, loc.id));
+    const plRows = await db
+      .select({ qty: schema.productLocations.quantity })
+      .from(schema.productLocations)
+      .where(eq(schema.productLocations.locationId, loc.id));
     const assigned = plRows.reduce((s, r) => s + (r.qty || 0), 0);
 
     // Stock in Subiekt
@@ -1099,10 +1277,22 @@ app.get("/api/locations/duplicates", async (_req, res) => {
       .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
 
     // Group by productId
-    const grouped = new Map<number, { productId: number; locations: { code: string; area: string; aisle: number; rack: number; quantity: number }[] }>();
+    const grouped = new Map<
+      number,
+      {
+        productId: number;
+        locations: { code: string; area: string; aisle: number; rack: number; quantity: number }[];
+      }
+    >();
     for (const r of rows) {
       const g = grouped.get(r.productId) || { productId: r.productId, locations: [] };
-      g.locations.push({ code: r.code, area: r.area, aisle: r.aisle, rack: r.rack, quantity: r.quantity || 0 });
+      g.locations.push({
+        code: r.code,
+        area: r.area,
+        aisle: r.aisle,
+        rack: r.rack,
+        quantity: r.quantity || 0,
+      });
       grouped.set(r.productId, g);
     }
 
@@ -1110,35 +1300,53 @@ app.get("/api/locations/duplicates", async (_req, res) => {
     const duplicates: any[] = [];
     for (const [, g] of grouped) {
       if (g.locations.length < 2) continue;
-      const hasDistant = g.locations.some(a =>
-        g.locations.some(b =>
-          a.code !== b.code && (a.area !== b.area || Math.abs(a.aisle - b.aisle) > 1)
-        )
+      const hasDistant = g.locations.some((a) =>
+        g.locations.some(
+          (b) => a.code !== b.code && (a.area !== b.area || Math.abs(a.aisle - b.aisle) > 1),
+        ),
       );
       if (!hasDistant) continue;
 
       // Get product info from Subiekt if available
-      let symbol = "", name = "";
+      let symbol = "",
+        name = "";
       try {
         const pool = await getAdapter().getPool?.();
         if (pool) {
-          const pr = await pool.request().input("id", g.productId).query("SELECT tw_Symbol, tw_Nazwa FROM tw__Towar WHERE tw_Id = @id");
-          if (pr.recordset[0]) { symbol = (pr.recordset[0] as any).tw_Symbol; name = (pr.recordset[0] as any).tw_Nazwa; }
+          const pr = await pool
+            .request()
+            .input("id", g.productId)
+            .query("SELECT tw_Symbol, tw_Nazwa FROM tw__Towar WHERE tw_Id = @id");
+          if (pr.recordset[0]) {
+            symbol = (pr.recordset[0] as any).tw_Symbol;
+            name = (pr.recordset[0] as any).tw_Nazwa;
+          }
         }
       } catch {}
 
-      const best = g.locations.reduce((a, b) => a.quantity > b.quantity ? a : b);
-      duplicates.push({ productId: g.productId, symbol, name, locations: g.locations, suggestion: best.code });
+      const best = g.locations.reduce((a, b) => (a.quantity > b.quantity ? a : b));
+      duplicates.push({
+        productId: g.productId,
+        symbol,
+        name,
+        locations: g.locations,
+        suggestion: best.code,
+      });
     }
 
     res.json(duplicates);
-  } catch { res.json([]); }
+  } catch {
+    res.json([]);
+  }
 });
 
 // --- Sprawdź czy produkt istnieje już w jakiejś lokalizacji ---
 app.get("/api/locations/check-product", async (req, res) => {
   const code = req.query.code as string;
-  if (!code) { res.json({ found: false }); return; }
+  if (!code) {
+    res.json({ found: false });
+    return;
+  }
 
   try {
     const db = getDb();
@@ -1146,11 +1354,18 @@ app.get("/api/locations/check-product", async (req, res) => {
     const pool = await adapter.getPool?.();
 
     // Find product in Subiekt
-    if (!pool) { res.json({ found: false }); return; }
-    const pr = await pool.request().input("code", code).query(
-      "SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code"
-    );
-    if (!pr.recordset[0]) { res.json({ found: false }); return; }
+    if (!pool) {
+      res.json({ found: false });
+      return;
+    }
+    const pr = await pool
+      .request()
+      .input("code", code)
+      .query("SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+    if (!pr.recordset[0]) {
+      res.json({ found: false });
+      return;
+    }
     const productId = (pr.recordset[0] as any).id;
 
     // Check in product_locations
@@ -1160,8 +1375,10 @@ app.get("/api/locations/check-product", async (req, res) => {
       .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
       .where(eq(schema.productLocations.productId, productId));
 
-    res.json({ found: rows.length > 0, locations: rows.map(r => r.code) });
-  } catch { res.json({ found: false }); }
+    res.json({ found: rows.length > 0, locations: rows.map((r) => r.code) });
+  } catch {
+    res.json({ found: false });
+  }
 });
 
 // --- Przenieś towary między lokalizacjami ---
@@ -1175,7 +1392,10 @@ app.post("/api/locations/transfer", async (req, res) => {
   const { parseLocation } = await import("../lib/locations.ts");
   const fromParsed = parseLocation(fromLocation);
   const toParsed = parseLocation(toLocation);
-  if (!fromParsed || !toParsed) { res.status(422).json({ error: "Nieprawidłowy format lokalizacji" }); return; }
+  if (!fromParsed || !toParsed) {
+    res.status(422).json({ error: "Nieprawidłowy format lokalizacji" });
+    return;
+  }
 
   try {
     const db = getDb();
@@ -1185,17 +1405,52 @@ app.post("/api/locations/transfer", async (req, res) => {
     const locationField = await getLocationField();
 
     // Ensure both locations exist
-    let [fromLoc] = await db.select().from(schema.locations).where(eq(schema.locations.code, fromParsed.raw));
-    if (!fromLoc) { [fromLoc] = await db.insert(schema.locations).values({ code: fromParsed.raw, area: fromParsed.area, aisle: fromParsed.aisle, rack: fromParsed.rack, shelf: fromParsed.shelf, spot: fromParsed.spot, label: fromParsed.label }).returning(); }
-    let [toLoc] = await db.select().from(schema.locations).where(eq(schema.locations.code, toParsed.raw));
-    if (!toLoc) { [toLoc] = await db.insert(schema.locations).values({ code: toParsed.raw, area: toParsed.area, aisle: toParsed.aisle, rack: toParsed.rack, shelf: toParsed.shelf, spot: toParsed.spot, label: toParsed.label }).returning(); }
+    let [fromLoc] = await db
+      .select()
+      .from(schema.locations)
+      .where(eq(schema.locations.code, fromParsed.raw));
+    if (!fromLoc) {
+      [fromLoc] = await db
+        .insert(schema.locations)
+        .values({
+          code: fromParsed.raw,
+          area: fromParsed.area,
+          aisle: fromParsed.aisle,
+          rack: fromParsed.rack,
+          shelf: fromParsed.shelf,
+          spot: fromParsed.spot,
+          label: fromParsed.label,
+        })
+        .returning();
+    }
+    let [toLoc] = await db
+      .select()
+      .from(schema.locations)
+      .where(eq(schema.locations.code, toParsed.raw));
+    if (!toLoc) {
+      [toLoc] = await db
+        .insert(schema.locations)
+        .values({
+          code: toParsed.raw,
+          area: toParsed.area,
+          aisle: toParsed.aisle,
+          rack: toParsed.rack,
+          shelf: toParsed.shelf,
+          spot: toParsed.spot,
+          label: toParsed.label,
+        })
+        .returning();
+    }
 
     // Find products
     const foundProducts: { id: number; symbol: string; name: string }[] = [];
     for (const code of codes) {
-      const r = await pool.request().input("code", code).query(
-        "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code"
-      );
+      const r = await pool
+        .request()
+        .input("code", code)
+        .query(
+          "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
+        );
       for (const row of r.recordset) foundProducts.push(row as any);
     }
 
@@ -1205,32 +1460,57 @@ app.post("/api/locations/transfer", async (req, res) => {
 
     let moved = 0;
     for (const [productId, qty] of grouped) {
-      const p = foundProducts.find(fp => fp.id === productId)!;
+      const p = foundProducts.find((fp) => fp.id === productId)!;
 
       // Remove from source location
-      await db.delete(schema.productLocations).where(and(
-        eq(schema.productLocations.productId, productId),
-        eq(schema.productLocations.locationId, fromLoc.id)
-      ));
+      await db
+        .delete(schema.productLocations)
+        .where(
+          and(
+            eq(schema.productLocations.productId, productId),
+            eq(schema.productLocations.locationId, fromLoc.id),
+          ),
+        );
 
       // Add to target location
-      await db.insert(schema.productLocations).values({ productId, locationId: toLoc.id, quantity: qty })
-        .onConflictDoUpdate({ target: [schema.productLocations.productId, schema.productLocations.locationId], set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` } });
+      await db
+        .insert(schema.productLocations)
+        .values({ productId, locationId: toLoc.id, quantity: qty })
+        .onConflictDoUpdate({
+          target: [schema.productLocations.productId, schema.productLocations.locationId],
+          set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` },
+        });
 
       // Update Subiekt: remove from source, add to target
-      const currentSourceRes = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const currentSourceRes = await pool
+        .request()
+        .input("id", productId)
+        .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
       const currentSourceVal = (currentSourceRes.recordset[0] as any)?.val || "";
-      const locations = currentSourceVal.split(";").map((s: string) => s.trim()).filter(Boolean);
+      const locations = currentSourceVal
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       const updated = locations.filter((s: string) => s !== fromParsed.raw);
       if (!updated.includes(toParsed.raw)) updated.push(toParsed.raw);
-      await pool.request().input("id", productId).input("val", updated.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+      await pool
+        .request()
+        .input("id", productId)
+        .input("val", updated.join(";"))
+        .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
 
       // Log movement
       await db.insert(schema.productMovements).values({
-        productId, symbol: p.symbol, name: p.name,
-        fromLocationId: fromLoc.id, toLocationId: toLoc.id,
-        fromCode: fromParsed.raw, toCode: toParsed.raw,
-        quantity: qty, operator: "operator", correlationId: crypto.randomUUID(),
+        productId,
+        symbol: p.symbol,
+        name: p.name,
+        fromLocationId: fromLoc.id,
+        toLocationId: toLoc.id,
+        fromCode: fromParsed.raw,
+        toCode: toParsed.raw,
+        quantity: qty,
+        operator: "operator",
+        correlationId: crypto.randomUUID(),
       });
 
       moved += qty;
@@ -1261,16 +1541,25 @@ app.get("/api/locations/verify-sync", async (_req, res) => {
 
     // Group by productId
     const postgresMap = new Map<number, Set<string>>();
-    for (const r of plRows) { const s = postgresMap.get(r.productId) || new Set(); s.add(r.code); postgresMap.set(r.productId, s); }
+    for (const r of plRows) {
+      const s = postgresMap.get(r.productId) || new Set();
+      s.add(r.code);
+      postgresMap.set(r.productId, s);
+    }
 
     // Get Subiekt data
-    const subiektRows = await pool.request().query(
-      `SELECT tw_Id AS id, NULLIF(${locationField}, '') AS val FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`
-    );
+    const subiektRows = await pool
+      .request()
+      .query(
+        `SELECT tw_Id AS id, NULLIF(${locationField}, '') AS val FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
+      );
 
     const subiektMap = new Map<number, Set<string>>();
     for (const r of subiektRows.recordset) {
-      const codes = ((r as any).val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      const codes = ((r as any).val || "")
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       subiektMap.set((r as any).id, new Set(codes));
     }
 
@@ -1312,18 +1601,37 @@ app.get("/api/locations/grid", async (_req, res) => {
         totalQuantity: sql<number>`COALESCE(SUM(${schema.productLocations.quantity}), 0)::int`,
       })
       .from(schema.locations)
-      .leftJoin(schema.productLocations, eq(schema.locations.id, schema.productLocations.locationId))
+      .leftJoin(
+        schema.productLocations,
+        eq(schema.locations.id, schema.productLocations.locationId),
+      )
       .groupBy(schema.locations.area, schema.locations.aisle, schema.locations.shelf)
       .orderBy(schema.locations.area, schema.locations.aisle, schema.locations.shelf);
 
     // Build grid structure
-    const areas = new Map<string, { aisles: Map<number, Map<number, { code: string; productCount: number; totalQuantity: number }>>; maxAisle: number; maxShelf: number }>();
+    const areas = new Map<
+      string,
+      {
+        aisles: Map<
+          number,
+          Map<number, { code: string; productCount: number; totalQuantity: number }>
+        >;
+        maxAisle: number;
+        maxShelf: number;
+      }
+    >();
 
     for (const r of rows) {
       if (!areas.has(r.area)) areas.set(r.area, { aisles: new Map(), maxAisle: 0, maxShelf: 0 });
       const area = areas.get(r.area)!;
       if (!area.aisles.has(r.aisle)) area.aisles.set(r.aisle, new Map());
-      area.aisles.get(r.aisle)!.set(r.shelf, { code: r.sampleCode, productCount: r.productCount, totalQuantity: r.totalQuantity });
+      area.aisles
+        .get(r.aisle)!
+        .set(r.shelf, {
+          code: r.sampleCode,
+          productCount: r.productCount,
+          totalQuantity: r.totalQuantity,
+        });
       if (r.aisle > area.maxAisle) area.maxAisle = r.aisle;
       if (r.shelf > area.maxShelf) area.maxShelf = r.shelf;
     }
@@ -1334,13 +1642,19 @@ app.get("/api/locations/grid", async (_req, res) => {
       for (const [aisle, shelves] of area.aisles) {
         result[areaName].grid[aisle] = {};
         for (const [shelf, cell] of shelves) {
-          result[areaName].grid[aisle][shelf] = { code: cell.code, productCount: cell.productCount, totalQuantity: cell.totalQuantity };
+          result[areaName].grid[aisle][shelf] = {
+            code: cell.code,
+            productCount: cell.productCount,
+            totalQuantity: cell.totalQuantity,
+          };
         }
       }
     }
 
     res.json(result);
-  } catch { res.json({}); }
+  } catch {
+    res.json({});
+  }
 });
 
 // --- Puste lokalizacje ---
@@ -1348,36 +1662,57 @@ app.get("/api/locations/empty", async (_req, res) => {
   try {
     const db = getDb();
     const rows = await db
-      .select({ code: schema.locations.code, area: schema.locations.area, aisle: schema.locations.aisle, rack: schema.locations.rack, shelf: schema.locations.shelf, label: schema.locations.label })
+      .select({
+        code: schema.locations.code,
+        area: schema.locations.area,
+        aisle: schema.locations.aisle,
+        rack: schema.locations.rack,
+        shelf: schema.locations.shelf,
+        label: schema.locations.label,
+      })
       .from(schema.locations)
-      .leftJoin(schema.productLocations, eq(schema.locations.id, schema.productLocations.locationId))
+      .leftJoin(
+        schema.productLocations,
+        eq(schema.locations.id, schema.productLocations.locationId),
+      )
       .where(sql`${schema.productLocations.productId} IS NULL`)
       .orderBy(schema.locations.area, schema.locations.aisle, schema.locations.rack);
 
     res.json(rows);
-  } catch { res.json([]); }
+  } catch {
+    res.json([]);
+  }
 });
 
 // --- Eksport etykiet PDF z kodami Code 128 ---
 app.get("/api/locations/export-pdf", async (req, res) => {
-  const codes = (req.query.codes as string || "").split(",").filter(Boolean);
-  if (codes.length === 0) { res.status(400).json({ error: "Brak kodów" }); return; }
+  const codes = ((req.query.codes as string) || "").split(",").filter(Boolean);
+  if (codes.length === 0) {
+    res.status(400).json({ error: "Brak kodów" });
+    return;
+  }
 
   try {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    const cols = 3; const rows = 8;
-    const cellW = 60; const cellH = 30;
-    const marginX = 12; const marginY = 15;
+    const cols = 3;
+    const rows = 8;
+    const cellW = 60;
+    const cellH = 30;
+    const marginX = 12;
+    const marginY = 15;
     const fontSize = 8;
 
     codes.slice(0, cols * rows).forEach((code, i) => {
-      const col = i % cols; const row = Math.floor(i / cols);
-      const x = marginX + col * cellW; const y = marginY + row * cellH;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = marginX + col * cellW;
+      const y = marginY + row * cellH;
 
       // Border
-      doc.setDrawColor(200); doc.setLineWidth(0.2);
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.2);
       doc.rect(x, y, cellW - 2, cellH - 2);
 
       // Barcode placeholder (Code 128 text)
@@ -1411,7 +1746,11 @@ app.get("/api/activity", async (_req, res) => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Last 20 movements
-    const movements = await db.select().from(schema.productMovements).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(20);
+    const movements = await db
+      .select()
+      .from(schema.productMovements)
+      .orderBy(sql`${schema.productMovements.createdAt} DESC`)
+      .limit(20);
 
     // Last 20 scans (from audit log if used, fallback to movements)
     const scans = movements.slice(0, 10);
@@ -1426,7 +1765,9 @@ app.get("/api/activity", async (_req, res) => {
       const [result] = await db
         .select({ count: sql<number>`COUNT(*)::int` })
         .from(schema.productMovements)
-        .where(sql`${schema.productMovements.createdAt} >= ${dayStart.toISOString()} AND ${schema.productMovements.createdAt} < ${dayEnd.toISOString()}`);
+        .where(
+          sql`${schema.productMovements.createdAt} >= ${dayStart.toISOString()} AND ${schema.productMovements.createdAt} < ${dayEnd.toISOString()}`,
+        );
 
       dailyStats.push({ date: d.toISOString().slice(0, 10), count: result?.count || 0 });
     }
@@ -1447,22 +1788,41 @@ app.post("/api/locations/fix-sync", async (_req, res) => {
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
     const locationField = await getLocationField();
 
-    const plRows = await db.select({ productId: schema.productLocations.productId, code: schema.locations.code })
-      .from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+    const plRows = await db
+      .select({ productId: schema.productLocations.productId, code: schema.locations.code })
+      .from(schema.productLocations)
+      .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
     const postgresMap = new Map<number, string[]>();
-    for (const r of plRows) { const list = postgresMap.get(r.productId) || []; list.push(r.code); postgresMap.set(r.productId, list); }
+    for (const r of plRows) {
+      const list = postgresMap.get(r.productId) || [];
+      list.push(r.code);
+      postgresMap.set(r.productId, list);
+    }
 
     let fixed = 0;
     for (const [productId, codes] of postgresMap) {
-      const current = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-      const existing = ((current.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      const current = await pool
+        .request()
+        .input("id", productId)
+        .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const existing = ((current.recordset[0] as any)?.val || "")
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       if ([...codes].sort().join(";") !== [...existing].sort().join(";")) {
-        await pool.request().input("id", productId).input("val", codes.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        await pool
+          .request()
+          .input("id", productId)
+          .input("val", codes.join(";"))
+          .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
         fixed++;
       }
     }
     res.json({ ok: true, fixed });
-  } catch (err) { logger.error({ err }, "Fix sync failed"); res.status(500).json({ error: "Naprawa nie powiodła się" }); }
+  } catch (err) {
+    logger.error({ err }, "Fix sync failed");
+    res.status(500).json({ error: "Naprawa nie powiodła się" });
+  }
 });
 
 // --- Wyczyść pole lokalizacji w Subiekcie ---
@@ -1472,15 +1832,23 @@ app.post("/api/locations/clear-field", async (_req, res) => {
     const pool = await adapter.getPool?.();
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
     const locationField = await getLocationField();
-    const result = await pool.request().query(`UPDATE tw__Towar SET ${locationField} = '' WHERE ${locationField} IS NOT NULL`);
+    const result = await pool
+      .request()
+      .query(`UPDATE tw__Towar SET ${locationField} = '' WHERE ${locationField} IS NOT NULL`);
     res.json({ ok: true, rowsAffected: result.rowsAffected?.[0] || 0 });
-  } catch (err) { logger.error({ err }, "Clear field failed"); res.status(500).json({ error: "Nie udało się" }); }
+  } catch (err) {
+    logger.error({ err }, "Clear field failed");
+    res.status(500).json({ error: "Nie udało się" });
+  }
 });
 
 // --- Fix sync per selected products ---
 app.post("/api/locations/fix-sync-batch", async (req, res) => {
   const { productIds, direction } = req.body ?? {};
-  if (!Array.isArray(productIds) || productIds.length === 0) { res.status(400).json({ error: "Brak productIds" }); return; }
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    res.status(400).json({ error: "Brak productIds" });
+    return;
+  }
 
   try {
     const db = getDb();
@@ -1490,13 +1858,25 @@ app.post("/api/locations/fix-sync-batch", async (req, res) => {
     const locationField = await getLocationField();
 
     if (direction === "postgres-to-subiekt") {
-      const plRows = await db.select({ productId: schema.productLocations.productId, code: schema.locations.code })
-        .from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+      const plRows = await db
+        .select({ productId: schema.productLocations.productId, code: schema.locations.code })
+        .from(schema.productLocations)
+        .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
       const map = new Map<number, string[]>();
-      for (const r of plRows) { if (productIds.includes(r.productId)) { const list = map.get(r.productId) || []; list.push(r.code); map.set(r.productId, list); } }
+      for (const r of plRows) {
+        if (productIds.includes(r.productId)) {
+          const list = map.get(r.productId) || [];
+          list.push(r.code);
+          map.set(r.productId, list);
+        }
+      }
       let fixed = 0;
       for (const [id, codes] of map) {
-        await pool.request().input("id", id).input("val", codes.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        await pool
+          .request()
+          .input("id", id)
+          .input("val", codes.join(";"))
+          .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
         fixed++;
       }
       res.json({ ok: true, fixed });
@@ -1504,24 +1884,49 @@ app.post("/api/locations/fix-sync-batch", async (req, res) => {
       // Re-sync from Subiekt for selected products
       let imported = 0;
       for (const id of productIds) {
-        const [current] = await db.select().from(schema.productLocations).where(eq(schema.productLocations.productId, id));
-        const subiektRow = await pool.request().input("id", id).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const codes = ((subiektRow.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
-        if (current) await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
+        const [current] = await db
+          .select()
+          .from(schema.productLocations)
+          .where(eq(schema.productLocations.productId, id));
+        const subiektRow = await pool
+          .request()
+          .input("id", id)
+          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+        const codes = ((subiektRow.recordset[0] as any)?.val || "")
+          .split(";")
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+        if (current)
+          await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
         for (const code of codes) {
-          const [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, code));
-          if (loc) { await db.insert(schema.productLocations).values({ productId: id, locationId: loc.id, quantity: 1 }).onConflictDoNothing(); imported++; }
+          const [loc] = await db
+            .select()
+            .from(schema.locations)
+            .where(eq(schema.locations.code, code));
+          if (loc) {
+            await db
+              .insert(schema.productLocations)
+              .values({ productId: id, locationId: loc.id, quantity: 1 })
+              .onConflictDoNothing();
+            imported++;
+          }
         }
       }
       res.json({ ok: true, imported });
     } else if (direction === "clear") {
       for (const id of productIds) {
-        await pool.request().input("id", id).query(`UPDATE tw__Towar SET ${locationField} = '' WHERE tw_Id = @id`);
+        await pool
+          .request()
+          .input("id", id)
+          .query(`UPDATE tw__Towar SET ${locationField} = '' WHERE tw_Id = @id`);
         await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
       }
       res.json({ ok: true, cleared: productIds.length });
     }
-  } catch (err) { logger.error({ err }, "Batch fix failed"); res.status(500).json({ error: "Nie udało się" }); }
+  } catch (err) {
+    logger.error({ err }, "Batch fix failed");
+    res.status(500).json({ error: "Nie udało się" });
+  }
 });
 
 // --- Logi: historia ruchów + audyt ---
@@ -1532,19 +1937,55 @@ app.get("/api/logs", async (req, res) => {
     const pageSize = Math.min(100, Math.max(10, parseInt(req.query.pageSize as string) || 50));
     const offset = (page - 1) * pageSize;
 
-    const movements = await db.select().from(schema.productMovements).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(pageSize).offset(offset);
-    const [movCount] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.productMovements);
+    const movements = await db
+      .select()
+      .from(schema.productMovements)
+      .orderBy(sql`${schema.productMovements.createdAt} DESC`)
+      .limit(pageSize)
+      .offset(offset);
+    const [movCount] = await db
+      .select({ cnt: sql<number>`COUNT(*)::int` })
+      .from(schema.productMovements);
 
-    const audits = await db.select().from(schema.auditLog).orderBy(sql`${schema.auditLog.createdAt} DESC`).limit(pageSize);
+    const audits = await db
+      .select()
+      .from(schema.auditLog)
+      .orderBy(sql`${schema.auditLog.createdAt} DESC`)
+      .limit(pageSize);
     const [audCount] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.auditLog);
 
     const rows = [
-      ...movements.map(m => ({ id: m.id, type: "movement", productId: m.productId, symbol: m.symbol, name: m.name, fromCode: m.fromCode, toCode: m.toCode, quantity: m.quantity, operator: m.operator, correlationId: m.correlationId, createdAt: m.createdAt })),
-      ...audits.map(a => ({ id: a.id, type: "audit", action: a.action, details: a.details, correlationId: a.correlationId, userId: a.userId, createdAt: a.createdAt })),
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, pageSize);
+      ...movements.map((m) => ({
+        id: m.id,
+        type: "movement",
+        productId: m.productId,
+        symbol: m.symbol,
+        name: m.name,
+        fromCode: m.fromCode,
+        toCode: m.toCode,
+        quantity: m.quantity,
+        operator: m.operator,
+        correlationId: m.correlationId,
+        createdAt: m.createdAt,
+      })),
+      ...audits.map((a) => ({
+        id: a.id,
+        type: "audit",
+        action: a.action,
+        details: a.details,
+        correlationId: a.correlationId,
+        userId: a.userId,
+        createdAt: a.createdAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, pageSize);
 
     res.json({ rows, total: (movCount?.cnt || 0) + (audCount?.cnt || 0), page, pageSize });
-  } catch (err) { logger.error({ err }, "Logs failed"); res.json({ rows: [], total: 0, page: 1, pageSize: 50 }); }
+  } catch (err) {
+    logger.error({ err }, "Logs failed");
+    res.json({ rows: [], total: 0, page: 1, pageSize: 50 });
+  }
 });
 
 // === Wizard wdrożeniowy ===
@@ -1553,16 +1994,27 @@ app.get("/api/logs", async (req, res) => {
 app.get("/api/wizard/status", async (_req, res) => {
   try {
     const db = getDb();
-    const [mssqlConfig] = await db.select().from(schema.config).where(eq(schema.config.key, "mssql_host"));
+    const [mssqlConfig] = await db
+      .select()
+      .from(schema.config)
+      .where(eq(schema.config.key, "mssql_host"));
     const configured = !!mssqlConfig?.value;
-    res.json({ configured, hasEnv: !!process.env.MSSQL_HOST && process.env.MSSQL_HOST !== "{{MSSQL_HOST}}" });
-  } catch { res.json({ configured: false, hasEnv: false }); }
+    res.json({
+      configured,
+      hasEnv: !!process.env.MSSQL_HOST && process.env.MSSQL_HOST !== "{{MSSQL_HOST}}",
+    });
+  } catch {
+    res.json({ configured: false, hasEnv: false });
+  }
 });
 
 // Wyczyść tabele
 app.post("/api/wizard/clear", async (req, res) => {
   const { tables } = req.body ?? {};
-  if (!Array.isArray(tables)) { res.status(400).json({ error: "Brak listy tabel" }); return; }
+  if (!Array.isArray(tables)) {
+    res.status(400).json({ error: "Brak listy tabel" });
+    return;
+  }
   try {
     const db = getDb();
     if (tables.includes("locations")) await db.delete(schema.locations);
@@ -1570,7 +2022,9 @@ app.post("/api/wizard/clear", async (req, res) => {
     if (tables.includes("product_movements")) await db.delete(schema.productMovements);
     if (tables.includes("users")) await db.delete(schema.users);
     res.json({ ok: true, cleared: tables });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Import wszystkiego
@@ -1580,65 +2034,131 @@ app.post("/api/wizard/import-all", async (_req, res) => {
     // Step 1: Import locations
     const adapter = getAdapter();
     const pool = await adapter.getPool?.();
-    if (!pool) { res.status(503).json({ error: "MSSQL niedostępny" }); return; }
+    if (!pool) {
+      res.status(503).json({ error: "MSSQL niedostępny" });
+      return;
+    }
 
     const locationField = await getLocationField();
     const db = getDb();
 
     // Import locations
-    const locResult = await pool.request().query(`SELECT NULLIF(${locationField}, '') AS location FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != '' GROUP BY ${locationField}`);
+    const locResult = await pool
+      .request()
+      .query(
+        `SELECT NULLIF(${locationField}, '') AS location FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != '' GROUP BY ${locationField}`,
+      );
     const { parseLocation } = await import("../lib/locations.ts");
-    let imported = 0, skipped = 0;
+    let imported = 0,
+      skipped = 0;
     for (const row of locResult.recordset) {
-      const parts = ((row as any).location as string).split(";").map((s: string) => s.trim()).filter(Boolean);
+      const parts = ((row as any).location as string)
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       for (const part of parts) {
         const parsed = parseLocation(part);
-        if (!parsed) { skipped++; continue; }
+        if (!parsed) {
+          skipped++;
+          continue;
+        }
         try {
-          await db.insert(schema.locations).values({ code: parsed.raw, area: parsed.area, aisle: parsed.aisle, rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label }).onConflictDoNothing();
+          await db
+            .insert(schema.locations)
+            .values({
+              code: parsed.raw,
+              area: parsed.area,
+              aisle: parsed.aisle,
+              rack: parsed.rack,
+              shelf: parsed.shelf,
+              spot: parsed.spot,
+              label: parsed.label,
+            })
+            .onConflictDoNothing();
           imported++;
-        } catch { skipped++; }
+        } catch {
+          skipped++;
+        }
       }
     }
     results.locations = { imported, skipped };
 
     // Step 2: Sync product locations
     await db.delete(schema.productLocations);
-    let plInserted = 0, plSkipped = 0;
+    let plInserted = 0,
+      plSkipped = 0;
     const allLocs = await db.select().from(schema.locations);
-    const allProducts = await pool.request().query(`SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`);
+    const allProducts = await pool
+      .request()
+      .query(
+        `SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
+      );
     for (const row of allProducts.recordset) {
       const productId = (row as any).productId;
-      const parts = ((row as any).locRaw as string).split(";").map((s: string) => s.trim()).filter(Boolean);
+      const parts = ((row as any).locRaw as string)
+        .split(";")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
       for (const part of parts) {
         const parsed = parseLocation(part);
-        if (!parsed) { plSkipped++; continue; }
-        const loc = allLocs.find(l => l.code === parsed.raw);
-        if (!loc) { plSkipped++; continue; }
-        try { await db.insert(schema.productLocations).values({ productId, locationId: loc.id, quantity: 1 }).onConflictDoNothing(); plInserted++; } catch { plSkipped++; }
+        if (!parsed) {
+          plSkipped++;
+          continue;
+        }
+        const loc = allLocs.find((l) => l.code === parsed.raw);
+        if (!loc) {
+          plSkipped++;
+          continue;
+        }
+        try {
+          await db
+            .insert(schema.productLocations)
+            .values({ productId, locationId: loc.id, quantity: 1 })
+            .onConflictDoNothing();
+          plInserted++;
+        } catch {
+          plSkipped++;
+        }
       }
     }
     results.productLocations = { inserted: plInserted, skipped: plSkipped };
 
     // Step 3: Seed users
-    const userResult = await pool.request().query("SELECT uz_Id AS id FROM pd_Uzytkownik WHERE uz_Status = 1");
+    const userResult = await pool
+      .request()
+      .query("SELECT uz_Id AS id FROM pd_Uzytkownik WHERE uz_Status = 1");
     let usersSeeded = 0;
     const crypto = await import("node:crypto");
     for (const row of userResult.recordset) {
       const subiektUzId = (row as any).id;
-      await db.insert(schema.users).values({ subiektUzId, pin: crypto.createHash("sha256").update("0000").digest("hex"), role: subiektUzId === 1 ? "admin" : "operator" }).onConflictDoNothing();
+      await db
+        .insert(schema.users)
+        .values({
+          subiektUzId,
+          pin: crypto.createHash("sha256").update("0000").digest("hex"),
+          role: subiektUzId === 1 ? "admin" : "operator",
+        })
+        .onConflictDoNothing();
       usersSeeded++;
     }
     results.users = { seeded: usersSeeded };
 
     res.json({ ok: true, results });
-  } catch (err) { logger.error({ err }, "Import all failed"); res.status(500).json({ error: "Import nie powiódł się" }); }
+  } catch (err) {
+    logger.error({ err }, "Import all failed");
+    res.status(500).json({ error: "Import nie powiódł się" });
+  }
 });
 
 // === Backup & Restore ===
 
 function validateBackupFilename(name: unknown): name is string {
-  return typeof name === "string" && /^[a-zA-Z0-9_.-]+$/.test(name) && name.length > 0 && name.length <= 256;
+  return (
+    typeof name === "string" &&
+    /^[a-zA-Z0-9_.-]+$/.test(name) &&
+    name.length > 0 &&
+    name.length <= 256
+  );
 }
 
 // S3 config
@@ -1655,12 +2175,17 @@ app.get("/api/backup/config", async (_req, res) => {
       accessKey: map.s3_access_key || "",
       secretKey: map.s3_secret_key ? "••••••••" : "",
     });
-  } catch { res.json({}); }
+  } catch {
+    res.json({});
+  }
 });
 
 app.put("/api/backup/config", async (req, res) => {
   const { endpoint, bucket, region, accessKey, secretKey } = req.body ?? {};
-  if (!endpoint || !bucket || !accessKey) { res.status(400).json({ error: "Brak wymaganych pól" }); return; }
+  if (!endpoint || !bucket || !accessKey) {
+    res.status(400).json({ error: "Brak wymaganych pól" });
+    return;
+  }
   try {
     const db = getDb();
     const { encryptSecret } = await import("../lib/backup-crypto.ts");
@@ -1674,30 +2199,44 @@ app.put("/api/backup/config", async (req, res) => {
       entries.push({ key: "s3_secret_key", value: encryptSecret(secretKey) });
     }
     for (const e of entries) {
-      await db.insert(schema.config).values(e).onConflictDoUpdate({ target: schema.config.key, set: { value: e.value } });
+      await db
+        .insert(schema.config)
+        .values(e)
+        .onConflictDoUpdate({ target: schema.config.key, set: { value: e.value } });
     }
     res.json({ ok: true });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/backup/test-s3", async (req, res) => {
   const { endpoint, bucket, region, accessKey, secretKey } = req.body ?? {};
-  if (!endpoint || !bucket || !accessKey) { res.status(400).json({ error: "Brak wymaganych pól" }); return; }
+  if (!endpoint || !bucket || !accessKey) {
+    res.status(400).json({ error: "Brak wymaganych pól" });
+    return;
+  }
   try {
     const { testS3Connection } = await import("../lib/backup-s3.ts");
     const result = await testS3Connection({ endpoint, bucket, region, accessKey, secretKey });
     res.json(result);
-  } catch (err: any) { res.json({ ok: false, error: err.message }); }
+  } catch (err: any) {
+    res.json({ ok: false, error: err.message });
+  }
 });
 
 // Run backup now
 app.post("/api/backup/run", async (_req, res) => {
   try {
     const { execSync } = await import("node:child_process");
-    const output = execSync("bash /pomagier/scripts/backup.sh 2>&1", { timeout: 120000 }).toString();
+    const output = execSync("bash /pomagier/scripts/backup.sh 2>&1", {
+      timeout: 120000,
+    }).toString();
     const match = output.match(/pomagier_backup_\d{4}-\d{2}-\d{2}_\d{4}\.tar\.gz/);
     res.json({ ok: true, filename: match?.[0] || "unknown", output: output.slice(-200) });
-  } catch (err: any) { res.status(500).json({ error: err.message || err.stderr?.toString() }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || err.stderr?.toString() });
+  }
 });
 
 // List backups
@@ -1717,16 +2256,21 @@ app.get("/api/backup/list", async (_req, res) => {
   try {
     const { listS3Files } = await import("../lib/backup-s3.ts");
     const files = await listS3Files();
-    s3 = files.map(f => ({ name: f, size: 0, date: new Date().toISOString(), source: "s3" }));
+    s3 = files.map((f) => ({ name: f, size: 0, date: new Date().toISOString(), source: "s3" }));
   } catch {}
 
-  res.json([...local, ...s3].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  res.json(
+    [...local, ...s3].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+  );
 });
 
 // Download backup
 app.get("/api/backup/download/:name", async (req, res) => {
   const name = req.params.name;
-  if (!validateBackupFilename(name)) { res.status(400).json({ error: "Invalid filename" }); return; }
+  if (!validateBackupFilename(name)) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
   const source = req.query.source || "local";
   try {
     if (source === "s3") {
@@ -1744,13 +2288,18 @@ app.get("/api/backup/download/:name", async (req, res) => {
         res.status(404).json({ error: "File not found" });
       }
     }
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Delete backup
 app.delete("/api/backup/:name", async (req, res) => {
   const name = req.params.name;
-  if (!validateBackupFilename(name)) { res.status(400).json({ error: "Invalid filename" }); return; }
+  if (!validateBackupFilename(name)) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
   const source = req.query.source || "local";
   try {
     if (source === "s3") {
@@ -1761,30 +2310,48 @@ app.delete("/api/backup/:name", async (req, res) => {
     const { unlinkSync, existsSync } = await import("node:fs");
     if (existsSync(localPath)) unlinkSync(localPath);
     res.json({ ok: true });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Restore from uploaded file
 app.post("/api/backup/restore", async (req, res) => {
   const { filename, confirm } = req.body ?? {};
-  if (confirm !== "TAK") { res.status(400).json({ error: "Wpisz TAK aby potwierdzić przywrócenie" }); return; }
-  if (!validateBackupFilename(filename)) { res.status(400).json({ error: "Invalid filename" }); return; }
+  if (confirm !== "TAK") {
+    res.status(400).json({ error: "Wpisz TAK aby potwierdzić przywrócenie" });
+    return;
+  }
+  if (!validateBackupFilename(filename)) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
 
   try {
     const { execSync } = await import("node:child_process");
     const localPath = `/backups/local/${filename}`;
     execSync(`cd /tmp && tar -xzf "${localPath}"`, { timeout: 30000 });
     const sqlFile = filename.replace(".tar.gz", ".sql");
-    execSync(`docker exec -i pomagier-db psql -U pomagier pomagier < /tmp/${sqlFile}`, { timeout: 60000 });
+    execSync(`docker exec -i pomagier-db psql -U pomagier pomagier < /tmp/${sqlFile}`, {
+      timeout: 60000,
+    });
     execSync(`rm -f /tmp/${sqlFile} /tmp/config_*.tar.gz`);
-    res.json({ ok: true, message: "Baza przywrócona. Zrestartuj API aby załadować nową konfigurację." });
-  } catch (err: any) { res.status(500).json({ error: err.message || err.stderr?.toString() }); }
+    res.json({
+      ok: true,
+      message: "Baza przywrócona. Zrestartuj API aby załadować nową konfigurację.",
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || err.stderr?.toString() });
+  }
 });
 
 // Upload local backup to S3
 app.post("/api/backup/upload-local", async (req, res) => {
   const { file } = req.body ?? {};
-  if (!validateBackupFilename(file)) { res.status(400).json({ error: "Invalid filename" }); return; }
+  if (!validateBackupFilename(file)) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
   try {
     const localPath = `/backups/local/${file}`;
     const { readFileSync } = await import("node:fs");
@@ -1792,7 +2359,9 @@ app.post("/api/backup/upload-local", async (req, res) => {
     const { uploadToS3 } = await import("../lib/backup-s3.ts");
     await uploadToS3(file, data);
     res.json({ ok: true });
-  } catch (err: any) { res.status(200).json({ ok: false, error: err.message }); }
+  } catch (err: any) {
+    res.status(200).json({ ok: false, error: err.message });
+  }
 });
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
