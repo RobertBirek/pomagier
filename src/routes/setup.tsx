@@ -88,8 +88,24 @@ function SetupPage() {
           </ol>
         </Section>
 
-        {/* Step 5: Open app */}
-        <Section number={5} title="Otwórz aplikację" icon={<Globe className="h-5 w-5" />}>
+        {/* Firefox */}
+        <Section number="5" title="Firefox (Windows/Linux)" icon={<Monitor className="h-5 w-5" />}>
+          <ol className="list-decimal space-y-2 pl-5 text-sm">
+            <li>
+              Pobierz certyfikat:{" "}
+              <a href="/api/ca?format=crt" className="text-primary underline font-medium">rootCA.crt</a>
+            </li>
+            <li>Otwórz Firefox → <strong>☰ Menu → Ustawienia</strong></li>
+            <li><strong>Prywatność i bezpieczeństwo</strong> → przewiń do "Certyfikaty"</li>
+            <li>Kliknij <strong>"Wyświetl certyfikaty"</strong></li>
+            <li>Zakładka <strong>"Urzędy certyfikacji"</strong> → <strong>"Importuj"</strong></li>
+            <li>Wybierz pobrany plik <code className="rounded bg-muted px-1 font-mono text-xs">rootCA.crt</code></li>
+            <li>Zaznacz <strong>"Zaufanie przy identyfikacji stron internetowych"</strong> → OK</li>
+          </ol>
+        </Section>
+
+        {/* Step: Open app */}
+        <Section number={6} title="Otwórz aplikację" icon={<Globe className="h-5 w-5" />}>
           <p className="text-sm mb-3">Po zainstalowaniu certyfikatu, otwórz aplikację przez domenę lokalną:</p>
           <div className="rounded-lg bg-primary/10 p-4 text-center">
             <code className="text-lg font-bold font-mono text-primary">https://pomagier.local</code>
@@ -100,7 +116,7 @@ function SetupPage() {
         </Section>
 
         {/* Step 6: Install PWA */}
-        <Section number={6} title="Zainstaluj jako aplikację (PWA)" icon={<Download className="h-5 w-5" />}>
+        <Section number={7} title="Zainstaluj jako aplikację (PWA)" icon={<Download className="h-5 w-5" />}>
           <ol className="list-decimal space-y-2 pl-5 text-sm">
             <li>
               W <strong>Chrome</strong> otwórz <code className="rounded bg-muted px-1 font-mono text-xs">https://pomagier.local</code>
