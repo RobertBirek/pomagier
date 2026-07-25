@@ -144,7 +144,7 @@ function AdminMap() {
                             <button
                               onClick={() => cell && handleCellClick(cell.code)}
                               disabled={empty}
-                              title={cell ? `${cell.code} — ${cell.totalQuantity} szt.` : `A ${aisle}-${rack}-?-1 (pusta)`}
+                              title={cell ? `${cell.code} — ${cell.totalQuantity} szt.` : `A ${aisle}-?-${shelf}-1 (pusta)`}
                               className={`w-full rounded py-1.5 text-center font-mono font-semibold transition-colors touch-target ${empty ? "bg-muted/30 text-muted-foreground/30 cursor-default" : heatColor(cell!.totalQuantity, maxQty)} ${highlight ? "ring-2 ring-primary ring-offset-1" : ""}`}
                             >
                               {cell?.totalQuantity || ""}

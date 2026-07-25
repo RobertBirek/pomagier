@@ -1385,6 +1385,41 @@ app.get("/api/locations/export-pdf", async (req, res) => {
   }
 });
 
+// --- Aktywność: ostatnie ruchy, skany, wykres dzienny ---
+app.get("/api/activity", async (_req, res) => {
+  try {
+    const db = getDb();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Last 20 movements
+    const movements = await db.select().from(schema.productMovements).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(20);
+
+    // Last 20 scans (from audit log if used, fallback to movements)
+    const scans = movements.slice(0, 10);
+
+    // Daily chart: last 7 days
+    const dailyStats: { date: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 86400000);
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayEnd = new Date(dayStart.getTime() + 86400000);
+
+      const [result] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(schema.productMovements)
+        .where(sql`${schema.productMovements.createdAt} >= ${dayStart.toISOString()} AND ${schema.productMovements.createdAt} < ${dayEnd.toISOString()}`);
+
+      dailyStats.push({ date: d.toISOString().slice(0, 10), count: result?.count || 0 });
+    }
+
+    res.json({ movements, scans: scans.slice(0, 10), dailyStats });
+  } catch (err) {
+    logger.error({ err }, "Activity query failed");
+    res.json({ movements: [], scans: [], dailyStats: [] });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
