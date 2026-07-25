@@ -175,11 +175,13 @@ app.post("/api/login", async (req, res) => {
       .where(and(eq(schema.users.subiektUzId, subiektUzId), eq(schema.users.active, true)));
 
     if (!user) {
+      try { await db.insert(schema.auditLog).values({ correlationId: crypto.randomUUID(), action: "login_failed", details: JSON.stringify({ subiektUzId, reason: "no_user" }) }); } catch {}
       res.status(401).json({ error: "Użytkownik nie skonfigurowany w PomagierGT" });
       return;
     }
 
     if (user.pin !== hashPin(pin)) {
+      try { await db.insert(schema.auditLog).values({ correlationId: crypto.randomUUID(), userId: user.id, action: "login_failed", details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }) }); } catch {}
       res.status(401).json({ error: "Nieprawidłowy PIN" });
       return;
     }
@@ -191,6 +193,11 @@ app.post("/api/login", async (req, res) => {
       userId: user.id,
       token,
       expiresAt,
+    });
+
+    await db.insert(schema.auditLog).values({
+      correlationId: crypto.randomUUID(), userId: user.id,
+      action: "login", details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
     });
 
     res.json({ token, user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
@@ -1515,15 +1522,17 @@ app.get("/api/logs", async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     const movements = await db.select().from(schema.productMovements).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(pageSize).offset(offset);
-    const [count] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.productMovements);
+    const [movCount] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.productMovements);
 
-    const rows = movements.map(m => ({
-      id: m.id, type: "movement", productId: m.productId, symbol: m.symbol, name: m.name,
-      fromCode: m.fromCode, toCode: m.toCode, quantity: m.quantity, operator: m.operator,
-      correlationId: m.correlationId, createdAt: m.createdAt,
-    }));
+    const audits = await db.select().from(schema.auditLog).orderBy(sql`${schema.auditLog.createdAt} DESC`).limit(pageSize);
+    const [audCount] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.auditLog);
 
-    res.json({ rows, total: count?.cnt || 0, page, pageSize });
+    const rows = [
+      ...movements.map(m => ({ id: m.id, type: "movement", productId: m.productId, symbol: m.symbol, name: m.name, fromCode: m.fromCode, toCode: m.toCode, quantity: m.quantity, operator: m.operator, correlationId: m.correlationId, createdAt: m.createdAt })),
+      ...audits.map(a => ({ id: a.id, type: "audit", action: a.action, details: a.details, correlationId: a.correlationId, userId: a.userId, createdAt: a.createdAt })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, pageSize);
+
+    res.json({ rows, total: (movCount?.cnt || 0) + (audCount?.cnt || 0), page, pageSize });
   } catch (err) { logger.error({ err }, "Logs failed"); res.json({ rows: [], total: 0, page: 1, pageSize: 50 }); }
 });
 
