@@ -46,3 +46,15 @@
 | 2026-07-25 | Fix: allowedHosts for pomagier.local | ✅ | `3f2a195` |
 | 2026-07-25 | Fix: /api/ca?format=crt for Windows | ✅ | `9d0c1fc` |
 | 2026-07-25 | Fix: setup page Windows .crt download link | ✅ | `3303064` |
+| 2026-07-25 | Firefox certificate instructions in /setup | ✅ | `b2244d3` |
+| 2026-07-25 | Visual warehouse grid — aisle×shelf heatmap | ✅ | `e01248e` |
+| 2026-07-25 | Admin dashboard activity — daily chart + recent movements | ✅ | `be2865d` |
+| 2026-07-25 | Interactive sync — verify with fix button, bidirectional | ✅ | `722c3ff` |
+| 2026-07-25 | Clear field option in sync modal | ✅ | `9e52013` |
+| 2026-07-25 | Per-product checkboxes + batch sync actions | ✅ | `6ce49d2` |
+| 2026-07-25 | Fix: clear field with empty string (NOT NULL constraint) | ✅ | `6d91f36` |
+| 2026-07-25 | /admin/logs — real data from product_movements | ✅ | `11f61bf` |
+| 2026-07-25 | Login audit logging to audit_log | ✅ | `7fe6d0f` |
+| 2026-07-25 | Auto-logout (15min mobile, 30min admin) + logout button | ✅ | `c6e5029` |
+| 2026-07-25 | Deployment wizard — 5-step setup with auto-detect | ✅ | `de401e4` |
+| 2026-07-25 | Documentation update: CHANGELOG, TASKS, AGENTS, DB_SCHEMA | ✅ | _current_ |

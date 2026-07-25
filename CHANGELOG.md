@@ -3,21 +3,18 @@
 ## [0.2.0] — 2026-07-25
 
 ### Added
-- **PWA**: manifest.json, Service Worker (vite-plugin-pwa), offline queue (IndexedDB)
-- **HTTPS + domena**: Caddy reverse proxy, mkcert CA, `pomagier.local` (avahi mDNS), systemd services
-- **/setup**: pełna instrukcja instalacji CA na Android/iOS/Windows
-- **/mobile/locations**: przypisywanie towarów do lokalizacji z pełnym UX
-  - Nazwy towarów z Subiekta, dźwięki, tryb wizualny, ostatnia lokalizacja
-  - Quantity stepper, auto-complete EAN, historia + undo
-  - Szybki wybór lokalizacji (LocationPicker)
-  - Weryfikacja stanu (Postgres vs Subiekt)
-  - Tryb przenoszenia między lokalizacjami
-- **Audyt ruchów**: `product_movements` table, logowanie każdego assign/transfer/undo
-- **Duplikaty + sugestie**: wykrywanie towarów w odległych lokalizacjach, propozycje konsolidacji
-- **Weryfikacja spójności**: `/api/locations/verify-sync` — porównanie Postgres ↔ Subiekt
-- **Dark mode**: ☀️/🌙 toggle, localStorage, prefers-color-scheme
-- **Camera scanner**: html5-qrcode z dynamicznym importem, inline + fullscreen
-- **HTTPS cert**: `/api/ca?format=crt` dla Windows
+- **Wizard wdrożeniowy**: 5 kroków (MSSQL→Mapowanie→Czyszczenie→Import→Start), auto-detect przy pierwszym uruchomieniu
+- **Auto-logout**: 15min mobile, 30min admin bezczynności
+- **Login audit**: każde logowanie/nieudana próba w `audit_log`
+- **Mapa magazynu 2.0**: wizualna siatka alejka×półka (72 komórki), heatmapa, wyszukiwarka, puste lokalizacje
+- **Szczegóły lokalizacji**: modal z produktami, historią, stock verification
+- **Eksport etykiet PDF**: jspdf, kody Code 128 do druku
+- **Weryfikacja spójności**: modal z rozbieżnościami, checkboxy per produkt, bidirectional sync + clear
+- **Dashboard aktywności**: wykres dzienny 7 dni, ostatnie ruchy
+- **Firefox CA**: instrukcja instalacji certyfikatu
+- **/admin/logs**: realne dane z `product_movements` + `audit_log`
+- **Logowanie do /admin**: przycisk wylogowania w nagłówku
+- **Domyślny PIN**: 0000 dla nowych operatorów (seed)
 
 ### Changed
 - **SSR → SPA**: TanStack Start usunięty, czysty React + Vite + TanStack Router
