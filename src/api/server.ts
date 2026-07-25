@@ -2364,6 +2364,19 @@ app.post("/api/backup/upload-local", async (req, res) => {
   }
 });
 
+// Auto-migrate on startup
+try {
+  import("drizzle-orm/postgres-js/migrator").then(async ({ migrate }) => {
+    const db = getDb();
+    await migrate(db, { migrationsFolder: "./src/db/migrations" });
+    logger.info("Database migrations completed");
+  }).catch((err) => {
+    logger.warn({ err }, "Migration execution failed");
+  });
+} catch (err) {
+  logger.warn({ err }, "Migration skipped");
+}
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
