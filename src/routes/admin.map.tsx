@@ -17,6 +17,10 @@ async function verifySync() { const r = await fetch("/api/locations/verify-sync"
 async function fixSync() { const r = await fetch("/api/locations/fix-sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 async function syncFromSubiekt() { const r = await fetch("/api/locations/sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 async function clearField() { const r = await fetch("/api/locations/clear-field", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
+async function batchFix(productIds: number[], direction: string) {
+  const r = await fetch("/api/locations/fix-sync-batch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productIds, direction }) });
+  if (!r.ok) throw new Error((await r.json()).error); return r.json();
+}
 
 function heatColor(totalQuantity: number, maxQty: number): string {
   if (totalQuantity === 0) return "bg-muted/30 hover:bg-muted/50";
@@ -38,7 +42,7 @@ function AdminMap() {
   const [search, setSearch] = useState("");
   const [cellDetail, setCellDetail] = useState<{ code: string; products: any[] } | null>(null);
   const [verifyResult, setVerifyResult] = useState<any>(null);
-  const [fixing, setFixing] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [loadingCell, setLoadingCell] = useState(false);
 
   const importMut = useMutation({ mutationFn: importLocations, onSuccess: (d: any) => { toast.success(`Import: ${d.imported} lokalizacji`); qc.invalidateQueries(); }, onError: (e: any) => toast.error(e.message) });
@@ -63,7 +67,13 @@ function AdminMap() {
 
   const clearMut = useMutation({
     mutationFn: clearField,
-    onSuccess: (data: any) => { toast.success(`✅ Wyzerowano pole — ${data.rowsAffected} wierszy`); setVerifyResult(null); qc.invalidateQueries(); },
+    onSuccess: (data: any) => { toast.success(`✅ Wyzerowano — ${data.rowsAffected} wierszy`); setVerifyResult(null); qc.invalidateQueries(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const batchMut = useMutation({
+    mutationFn: ({ ids, dir }: { ids: number[]; dir: string }) => batchFix(ids, dir),
+    onSuccess: () => { toast.success("✅ Wykonano"); setVerifyResult(null); setSelectedProducts(new Set()); qc.invalidateQueries(); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -224,7 +234,7 @@ function AdminMap() {
                 <h2 className="text-lg font-bold">Weryfikacja spójności</h2>
                 <p className="text-xs text-muted-foreground">Postgres vs Subiekt GT (tw_Pole1)</p>
               </div>
-              <button onClick={() => setVerifyResult(null)} className="rounded p-1 hover:bg-accent"><X className="h-5 w-5" /></button>
+              <button onClick={() => { setVerifyResult(null); setSelectedProducts(new Set()); }} className="rounded p-1 hover:bg-accent"><X className="h-5 w-5" /></button>
             </div>
 
             <div className="grid grid-cols-3 gap-3 mb-4">
@@ -235,31 +245,61 @@ function AdminMap() {
 
             {verifyResult.mismatches > 0 && (
               <>
-                <div className="text-sm font-semibold mb-2">Szczegóły rozbieżności (pierwsze 20):</div>
-                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
-                  {verifyResult.details.map((d: any) => (
-                    <div key={d.productId} className="rounded border bg-muted/20 p-2 text-xs">
-                      <div className="font-semibold">ID {d.productId}</div>
-                      <div className="flex gap-4 mt-1">
-                        <div><span className="text-muted-foreground">Postgres:</span> <span className="font-mono">{d.postgres.length > 0 ? d.postgres.join(", ") : "—"}</span></div>
-                        <div><span className="text-muted-foreground">Subiekt:</span> <span className="font-mono">{d.subiekt.length > 0 ? d.subiekt.join(", ") : "—"}</span></div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-sm font-semibold mb-2 flex items-center justify-between">
+                  <span>Szczegóły ({verifyResult.details.length})</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => setSelectedProducts(new Set(verifyResult.details.map((d: any) => d.productId)))} className="text-xs underline">Zaznacz wszystkie</button>
+                    <button onClick={() => setSelectedProducts(new Set())} className="text-xs underline">Odznacz</button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="space-y-1 max-h-48 overflow-y-auto mb-4">
+                  {verifyResult.details.map((d: any) => {
+                    const sel = selectedProducts.has(d.productId);
+                    return (
+                      <label key={d.productId} className={`flex items-start gap-2 rounded border p-2 text-xs cursor-pointer hover:bg-muted/30 ${sel ? "border-primary bg-primary/5" : "bg-muted/20"}`}>
+                        <input type="checkbox" checked={sel} onChange={() => { const s = new Set(selectedProducts); sel ? s.delete(d.productId) : s.add(d.productId); setSelectedProducts(s); }} className="mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold">ID {d.productId}</div>
+                          <div className="flex gap-4 mt-0.5">
+                            <div><span className="text-muted-foreground">Postgres:</span> <span className="font-mono">{d.postgres.length > 0 ? d.postgres.join(", ") : "—"}</span></div>
+                            <div><span className="text-muted-foreground">Subiekt:</span> <span className="font-mono">{d.subiekt.length > 0 ? d.subiekt.join(", ") : "—"}</span></div>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* Batch actions for selected */}
+                {selectedProducts.size > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <button onClick={() => batchMut.mutate({ ids: [...selectedProducts], dir: "postgres-to-subiekt" })} disabled={batchMut.isPending}
+                      className="rounded-md bg-primary py-2 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                      Subiekt ← Postgres
+                    </button>
+                    <button onClick={() => batchMut.mutate({ ids: [...selectedProducts], dir: "subiekt-to-postgres" })} disabled={batchMut.isPending}
+                      className="rounded-md border py-2 text-xs disabled:opacity-50">
+                      Postgres ← Subiekt
+                    </button>
+                    <button onClick={() => batchMut.mutate({ ids: [...selectedProducts], dir: "clear" })} disabled={batchMut.isPending}
+                      className="rounded-md border border-destructive/30 py-2 text-xs text-destructive disabled:opacity-50">
+                      ✕ Wyczyść ({selectedProducts.size})
+                    </button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2">
                   <button onClick={() => fixMut.mutate(null as any)} disabled={fixMut.isPending}
                     className="rounded-md bg-primary py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                    {fixMut.isPending ? "…" : "Subiekt ← Postgres"}
+                    {fixMut.isPending ? "…" : "Subiekt ← Postgres (all)"}
                   </button>
                   <button onClick={() => subiektMut.mutate(null as any)} disabled={subiektMut.isPending}
                     className="rounded-md border py-2 text-xs hover:bg-accent disabled:opacity-50">
-                    {subiektMut.isPending ? "…" : "Postgres ← Subiekt"}
+                    {subiektMut.isPending ? "…" : "Postgres ← Subiekt (all)"}
                   </button>
-                  <button onClick={() => { if (confirm("Wyzerować pole lokalizacji w Subiekt GT?")) clearMut.mutate(null as any); }}
-                    disabled={clearMut.isPending}
+                  <button onClick={() => { if (confirm("Wyzerować pole lokalizacji w Subiekt GT?")) clearMut.mutate(null as any); }} disabled={clearMut.isPending}
                     className="rounded-md border border-destructive/30 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50">
-                    {clearMut.isPending ? "…" : "✕ Wyczyść"}
+                    {clearMut.isPending ? "…" : "✕ Wyczyść (all)"}
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground text-center">

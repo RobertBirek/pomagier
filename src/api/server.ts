@@ -1459,6 +1459,53 @@ app.post("/api/locations/clear-field", async (_req, res) => {
   } catch (err) { logger.error({ err }, "Clear field failed"); res.status(500).json({ error: "Nie udało się" }); }
 });
 
+// --- Fix sync per selected products ---
+app.post("/api/locations/fix-sync-batch", async (req, res) => {
+  const { productIds, direction } = req.body ?? {};
+  if (!Array.isArray(productIds) || productIds.length === 0) { res.status(400).json({ error: "Brak productIds" }); return; }
+
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+    const locationField = await getLocationField();
+
+    if (direction === "postgres-to-subiekt") {
+      const plRows = await db.select({ productId: schema.productLocations.productId, code: schema.locations.code })
+        .from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+      const map = new Map<number, string[]>();
+      for (const r of plRows) { if (productIds.includes(r.productId)) { const list = map.get(r.productId) || []; list.push(r.code); map.set(r.productId, list); } }
+      let fixed = 0;
+      for (const [id, codes] of map) {
+        await pool.request().input("id", id).input("val", codes.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        fixed++;
+      }
+      res.json({ ok: true, fixed });
+    } else if (direction === "subiekt-to-postgres") {
+      // Re-sync from Subiekt for selected products
+      let imported = 0;
+      for (const id of productIds) {
+        const [current] = await db.select().from(schema.productLocations).where(eq(schema.productLocations.productId, id));
+        const subiektRow = await pool.request().input("id", id).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+        const codes = ((subiektRow.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+        if (current) await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
+        for (const code of codes) {
+          const [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, code));
+          if (loc) { await db.insert(schema.productLocations).values({ productId: id, locationId: loc.id, quantity: 1 }).onConflictDoNothing(); imported++; }
+        }
+      }
+      res.json({ ok: true, imported });
+    } else if (direction === "clear") {
+      for (const id of productIds) {
+        await pool.request().input("id", id).query(`UPDATE tw__Towar SET ${locationField} = NULL WHERE tw_Id = @id`);
+        await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
+      }
+      res.json({ ok: true, cleared: productIds.length });
+    }
+  } catch (err) { logger.error({ err }, "Batch fix failed"); res.status(500).json({ error: "Nie udało się" }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
