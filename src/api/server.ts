@@ -928,6 +928,60 @@ app.get("/api/ca", async (_req, res) => {
   }
 });
 
+// --- Cofnij ostatnią operację przypisania ---
+app.post("/api/locations/undo", async (req, res) => {
+  const { location, codes } = req.body ?? {};
+  if (!location || !Array.isArray(codes) || codes.length === 0) {
+    res.status(400).json({ error: "Brak lokalizacji lub kodów" });
+    return;
+  }
+
+  const { parseLocation } = await import("../lib/locations.ts");
+  const parsed = parseLocation(location);
+  if (!parsed) { res.status(422).json({ error: "Nieprawidłowa lokalizacja" }); return; }
+
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+
+    // Find location in Postgres
+    const [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
+    if (!loc) { res.status(404).json({ error: "Lokalizacja nie istnieje" }); return; }
+
+    let undone = 0;
+    for (const code of codes) {
+      if (!pool) break;
+      const result = await pool.request().input("code", code).query(
+        "SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code"
+      );
+      for (const row of result.recordset) {
+        const productId = (row as any).id;
+        // Decrease quantity in product_locations (or remove if quantity gets to 0)
+        await db.delete(schema.productLocations)
+          .where(and(eq(schema.productLocations.productId, productId), eq(schema.productLocations.locationId, loc.id)));
+
+        // Remove location from tw_Pole1 in Subiekt
+        const locationField = await getLocationField();
+        const current = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+        const existing = ((current.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+        const updated = existing.filter((s: string) => s !== parsed.raw);
+        if (updated.length !== existing.length) {
+          await pool.request().input("id", productId).input("val", updated.join(";") || null)
+            .query(`UPDATE tw__Towar SET ${locationField} = NULLIF(@val, '') WHERE tw_Id = @id`);
+        }
+        undone++;
+      }
+    }
+
+    logger.info({ location: parsed.raw, undone }, "Assignment undone");
+    res.json({ ok: true, undone });
+  } catch (err) {
+    logger.error({ err }, "Undo failed");
+    res.status(500).json({ error: "Nie udało się cofnąć" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
