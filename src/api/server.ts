@@ -1420,6 +1420,33 @@ app.get("/api/activity", async (_req, res) => {
   }
 });
 
+// --- Napraw rozbieżności: zsynchronizuj Subiekt z Postgres ---
+app.post("/api/locations/fix-sync", async (_req, res) => {
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+    const locationField = await getLocationField();
+
+    const plRows = await db.select({ productId: schema.productLocations.productId, code: schema.locations.code })
+      .from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+    const postgresMap = new Map<number, string[]>();
+    for (const r of plRows) { const list = postgresMap.get(r.productId) || []; list.push(r.code); postgresMap.set(r.productId, list); }
+
+    let fixed = 0;
+    for (const [productId, codes] of postgresMap) {
+      const current = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const existing = ((current.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      if ([...codes].sort().join(";") !== [...existing].sort().join(";")) {
+        await pool.request().input("id", productId).input("val", codes.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        fixed++;
+      }
+    }
+    res.json({ ok: true, fixed });
+  } catch (err) { logger.error({ err }, "Fix sync failed"); res.status(500).json({ error: "Naprawa nie powiodła się" }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");

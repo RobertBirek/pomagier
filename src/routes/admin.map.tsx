@@ -14,6 +14,7 @@ async function fetchCellProducts(location: string) { const r = await fetch(`/api
 async function importLocations() { const r = await fetch("/api/locations/import", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 async function syncProductLocations() { const r = await fetch("/api/locations/sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 async function verifySync() { const r = await fetch("/api/locations/verify-sync"); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
+async function fixSync() { const r = await fetch("/api/locations/fix-sync", { method: "POST" }); if (!r.ok) throw new Error((await r.json()).error); return r.json(); }
 
 function heatColor(totalQuantity: number, maxQty: number): string {
   if (totalQuantity === 0) return "bg-muted/30 hover:bg-muted/50";
@@ -34,11 +35,23 @@ function AdminMap() {
   const [area, setArea] = useState("A");
   const [search, setSearch] = useState("");
   const [cellDetail, setCellDetail] = useState<{ code: string; products: any[] } | null>(null);
+  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [fixing, setFixing] = useState(false);
   const [loadingCell, setLoadingCell] = useState(false);
 
   const importMut = useMutation({ mutationFn: importLocations, onSuccess: (d: any) => { toast.success(`Import: ${d.imported} lokalizacji`); qc.invalidateQueries(); }, onError: (e: any) => toast.error(e.message) });
   const syncMut = useMutation({ mutationFn: syncProductLocations, onSuccess: (d: any) => toast.success(`Sync: ${d.inserted} powiązań`), onError: (e: any) => toast.error(e.message) });
-  const verifyMut = useMutation({ mutationFn: verifySync, onSuccess: (d: any) => { d.mismatches === 0 ? toast.success("✅ Spójność OK") : toast.warning(`⚠️ ${d.mismatches} rozbieżności`); }, onError: (e: any) => toast.error(e.message) });
+  const verifyMut = useMutation({
+    mutationFn: verifySync,
+    onSuccess: (data: any) => { setVerifyResult(data); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const fixMut = useMutation({
+    mutationFn: fixSync,
+    onSuccess: (data: any) => { toast.success(`✅ Zsynchronizowano ${data.fixed} produktów`); setVerifyResult(null); qc.invalidateQueries(); },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const areaData = grid?.[area];
   const areas = grid ? Object.keys(grid).sort() : [];
@@ -187,6 +200,56 @@ function AdminMap() {
         <KpiCard label="Towarów" value={String(totalProducts)} icon={<Package className="h-4 w-4" />} tone="info" />
         <KpiCard label="Sztuk" value={String(totalQty)} icon={<Package className="h-4 w-4" />} tone="warning" />
       </div>
+
+      {/* Verify result modal */}
+      {verifyResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setVerifyResult(null)}>
+          <div className="w-full max-w-lg rounded-lg border bg-card p-6 shadow-xl mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold">Weryfikacja spójności</h2>
+                <p className="text-xs text-muted-foreground">Postgres vs Subiekt GT (tw_Pole1)</p>
+              </div>
+              <button onClick={() => setVerifyResult(null)} className="rounded p-1 hover:bg-accent"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="rounded bg-muted/50 p-3 text-center"><div className="text-2xl font-bold">{verifyResult.totalProducts}</div><div className="text-xs text-muted-foreground">Produktów</div></div>
+              <div className="rounded bg-green-50 p-3 text-center"><div className="text-2xl font-bold text-green-700">{verifyResult.synced}</div><div className="text-xs text-green-600">Zgodnych</div></div>
+              <div className="rounded bg-amber-50 p-3 text-center"><div className="text-2xl font-bold text-amber-700">{verifyResult.mismatches}</div><div className="text-xs text-amber-600">Rozbieżności</div></div>
+            </div>
+
+            {verifyResult.mismatches > 0 && (
+              <>
+                <div className="text-sm font-semibold mb-2">Szczegóły rozbieżności (pierwsze 20):</div>
+                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
+                  {verifyResult.details.map((d: any) => (
+                    <div key={d.productId} className="rounded border bg-muted/20 p-2 text-xs">
+                      <div className="font-semibold">ID {d.productId}</div>
+                      <div className="flex gap-4 mt-1">
+                        <div><span className="text-muted-foreground">Postgres:</span> <span className="font-mono">{d.postgres.length > 0 ? d.postgres.join(", ") : "—"}</span></div>
+                        <div><span className="text-muted-foreground">Subiekt:</span> <span className="font-mono">{d.subiekt.length > 0 ? d.subiekt.join(", ") : "—"}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => { setFixing(true); fixMut.mutate(null as any); }}
+                  disabled={fixMut.isPending}
+                  className="w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {fixMut.isPending ? "Synchronizuję…" : "Synchronizuj Subiekt ← Postgres"}
+                </button>
+                <p className="text-xs text-muted-foreground mt-1 text-center">Aktualizuje tw_PoleX w Subiekcie na podstawie danych z PomagierGT</p>
+              </>
+            )}
+
+            {verifyResult.mismatches === 0 && (
+              <div className="text-center py-4 text-green-600 font-semibold">✅ Wszystkie produkty zgodne — synchronizacja OK</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Cell detail modal */}
       {cellDetail && (
