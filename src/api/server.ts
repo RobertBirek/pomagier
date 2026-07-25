@@ -932,7 +932,7 @@ app.get("/api/ca", async (_req, res) => {
   try {
     const cert = fs.readFileSync(caPath, "utf-8");
     res.setHeader("Content-Type", "application/x-pem-file");
-    res.setHeader("Content-Disposition", "attachment; filename=rootCA.pem");
+    res.setHeader("Content-Disposition", `attachment; filename=rootCA.${_req.query.format === "crt" ? "crt" : "pem"}`);
     res.send(cert);
   } catch {
     res.status(404).json({ error: "CA cert not found" });
