@@ -912,6 +912,22 @@ app.get("/api/locations/stats", async (_req, res) => {
   }
 });
 
+// --- Pobierz root CA do instalacji na urządzeniach ---
+app.get("/api/ca", async (_req, res) => {
+  const fs = await import("node:fs");
+  const caPath = process.env.MKCERT_CAROOT
+    ? `${process.env.MKCERT_CAROOT}/rootCA.pem`
+    : "/root/.local/share/mkcert/rootCA.pem";
+  try {
+    const cert = fs.readFileSync(caPath, "utf-8");
+    res.setHeader("Content-Type", "application/x-pem-file");
+    res.setHeader("Content-Disposition", "attachment; filename=rootCA.pem");
+    res.send(cert);
+  } catch {
+    res.status(404).json({ error: "CA cert not found" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
