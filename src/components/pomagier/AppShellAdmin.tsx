@@ -166,7 +166,7 @@ export function AppShellAdmin() {
               <button onClick={toggleDark} className="touch-target rounded-md p-2 hover:bg-accent" title={dark ? "Jasny motyw" : "Ciemny motyw"}>
                 {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
-              <button onClick={() => { logout(); nav({ to: "/mobile/login" }); }} className="touch-target rounded-md p-2 hover:bg-accent text-muted-foreground hover:text-destructive" title="Wyloguj">
+              <button onClick={() => { logout(); nav({ to: "/admin/login" }); }} className="touch-target rounded-md p-2 hover:bg-accent text-muted-foreground hover:text-destructive" title="Wyloguj">
                 <LogOut className="h-4 w-4" />
               </button>
             </div>

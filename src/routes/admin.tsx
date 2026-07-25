@@ -2,9 +2,12 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShellAdmin } from "@/components/pomagier/AppShellAdmin";
 import { AuthProvider } from "@/lib/auth";
 import { useAutoLogout } from "@/lib/use-auto-logout";
+import { useRouterState } from "@tanstack/react-router";
 
 function AdminWithLogout() {
   useAutoLogout(30);
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  if (pathname === "/admin/login") return <Outlet />;
   return <AppShellAdmin />;
 }
 
