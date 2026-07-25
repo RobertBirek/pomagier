@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { KpiCard, SectionTitle, LoadingRow, ErrorState } from "@/components/pomagier/primitives";
-import { MapPin, Package, Layers, Download, RefreshCw } from "lucide-react";
+import { MapPin, Package, Layers, Download, RefreshCw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -20,6 +20,12 @@ async function importLocations() {
 
 async function syncProductLocations() {
   const res = await fetch("/api/locations/sync", { method: "POST" });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
+async function verifySync() {
+  const res = await fetch("/api/locations/verify-sync");
   if (!res.ok) throw new Error((await res.json()).error);
   return res.json();
 }
@@ -51,6 +57,15 @@ function AdminMap() {
     onSuccess: (data: any) => {
       toast.success(`Zsynchronizowano: ${data.inserted} powiązań towar-lokalizacja${data.skipped ? `, pominięto ${data.skipped}` : ""}`);
       qc.invalidateQueries({ queryKey: ["locations"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const verifyMut = useMutation({
+    mutationFn: verifySync,
+    onSuccess: (data: any) => {
+      if (data.mismatches === 0) toast.success("✅ Spójność OK — Postgres i Subiekt zgodne");
+      else toast.warning(`⚠️ ${data.mismatches} rozbieżności z ${data.totalProducts} produktów`);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -91,6 +106,14 @@ function AdminMap() {
         >
           <RefreshCw className="h-4 w-4" />
           {syncMut.isPending ? "Sync…" : "Synchronizuj towary"}
+        </button>
+        <button
+          onClick={() => verifyMut.mutate()}
+          disabled={verifyMut.isPending}
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+        >
+          <ShieldCheck className="h-4 w-4" />
+          {verifyMut.isPending ? "Weryfikuję…" : "Weryfikuj spójność"}
         </button>
       </div>
 

@@ -1200,8 +1200,9 @@ app.post("/api/locations/transfer", async (req, res) => {
         .onConflictDoUpdate({ target: [schema.productLocations.productId, schema.productLocations.locationId], set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` } });
 
       // Update Subiekt: remove from source, add to target
-      const [currentSource] = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-      const locations = ((currentSource.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      const currentSourceRes = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const currentSourceVal = (currentSourceRes.recordset[0] as any)?.val || "";
+      const locations = currentSourceVal.split(";").map((s: string) => s.trim()).filter(Boolean);
       const updated = locations.filter((s: string) => s !== fromParsed.raw);
       if (!updated.includes(toParsed.raw)) updated.push(toParsed.raw);
       await pool.request().input("id", productId).input("val", updated.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
@@ -1222,6 +1223,60 @@ app.post("/api/locations/transfer", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Transfer failed");
     res.status(500).json({ error: "Transfer nie powiódł się" });
+  }
+});
+
+// --- Weryfikacja spójności Postgres ↔ Subiekt tw_PoleX ---
+app.get("/api/locations/verify-sync", async (_req, res) => {
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+    const locationField = await getLocationField();
+
+    // Get all products with their Postgres locations
+    const plRows = await db
+      .select({ productId: schema.productLocations.productId, code: schema.locations.code })
+      .from(schema.productLocations)
+      .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+
+    // Group by productId
+    const postgresMap = new Map<number, Set<string>>();
+    for (const r of plRows) { const s = postgresMap.get(r.productId) || new Set(); s.add(r.code); postgresMap.set(r.productId, s); }
+
+    // Get Subiekt data
+    const subiektRows = await pool.request().query(
+      `SELECT tw_Id AS id, NULLIF(${locationField}, '') AS val FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`
+    );
+
+    const subiektMap = new Map<number, Set<string>>();
+    for (const r of subiektRows.recordset) {
+      const codes = ((r as any).val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      subiektMap.set((r as any).id, new Set(codes));
+    }
+
+    // Compare
+    const allIds = new Set([...postgresMap.keys(), ...subiektMap.keys()]);
+    const mismatches: { productId: number; postgres: string[]; subiekt: string[] }[] = [];
+
+    for (const id of allIds) {
+      const pg = [...(postgresMap.get(id) || new Set())].sort();
+      const sub = [...(subiektMap.get(id) || new Set())].sort();
+      if (pg.join(",") !== sub.join(",")) {
+        mismatches.push({ productId: id, postgres: pg, subiekt: sub });
+      }
+    }
+
+    res.json({
+      totalProducts: allIds.size,
+      synced: allIds.size - mismatches.length,
+      mismatches: mismatches.length,
+      details: mismatches.slice(0, 20),
+    });
+  } catch (err) {
+    logger.error({ err }, "Verify sync failed");
+    res.status(500).json({ error: "Weryfikacja nie powiodła się" });
   }
 });
 
