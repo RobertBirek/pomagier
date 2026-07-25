@@ -89,7 +89,7 @@ function SetupPage() {
         </Section>
 
         {/* Firefox */}
-        <Section number="5" title="Firefox (Windows/Linux)" icon={<Monitor className="h-5 w-5" />}>
+        <Section number={5} title="Firefox (Windows/Linux)" icon={<Monitor className="h-5 w-5" />}>
           <ol className="list-decimal space-y-2 pl-5 text-sm">
             <li>
               Pobierz certyfikat:{" "}

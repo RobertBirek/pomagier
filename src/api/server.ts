@@ -1280,6 +1280,111 @@ app.get("/api/locations/verify-sync", async (_req, res) => {
   }
 });
 
+// --- Siatka magazynu (grid data) ---
+app.get("/api/locations/grid", async (_req, res) => {
+  try {
+    const db = getDb();
+    const rows = await db
+      .select({
+        area: schema.locations.area,
+        aisle: schema.locations.aisle,
+        shelf: schema.locations.shelf,
+        sampleCode: sql<string>`MIN(${schema.locations.code})`,
+        productCount: sql<number>`COUNT(${schema.productLocations.productId})::int`,
+        totalQuantity: sql<number>`COALESCE(SUM(${schema.productLocations.quantity}), 0)::int`,
+      })
+      .from(schema.locations)
+      .leftJoin(schema.productLocations, eq(schema.locations.id, schema.productLocations.locationId))
+      .groupBy(schema.locations.area, schema.locations.aisle, schema.locations.shelf)
+      .orderBy(schema.locations.area, schema.locations.aisle, schema.locations.shelf);
+
+    // Build grid structure
+    const areas = new Map<string, { aisles: Map<number, Map<number, { code: string; productCount: number; totalQuantity: number }>>; maxAisle: number; maxShelf: number }>();
+
+    for (const r of rows) {
+      if (!areas.has(r.area)) areas.set(r.area, { aisles: new Map(), maxAisle: 0, maxShelf: 0 });
+      const area = areas.get(r.area)!;
+      if (!area.aisles.has(r.aisle)) area.aisles.set(r.aisle, new Map());
+      area.aisles.get(r.aisle)!.set(r.shelf, { code: r.sampleCode, productCount: r.productCount, totalQuantity: r.totalQuantity });
+      if (r.aisle > area.maxAisle) area.maxAisle = r.aisle;
+      if (r.shelf > area.maxShelf) area.maxShelf = r.shelf;
+    }
+
+    const result: any = {};
+    for (const [areaName, area] of areas) {
+      result[areaName] = { maxAisle: area.maxAisle, maxShelf: area.maxShelf, grid: {} };
+      for (const [aisle, shelves] of area.aisles) {
+        result[areaName].grid[aisle] = {};
+        for (const [shelf, cell] of shelves) {
+          result[areaName].grid[aisle][shelf] = { code: cell.code, productCount: cell.productCount, totalQuantity: cell.totalQuantity };
+        }
+      }
+    }
+
+    res.json(result);
+  } catch { res.json({}); }
+});
+
+// --- Puste lokalizacje ---
+app.get("/api/locations/empty", async (_req, res) => {
+  try {
+    const db = getDb();
+    const rows = await db
+      .select({ code: schema.locations.code, area: schema.locations.area, aisle: schema.locations.aisle, rack: schema.locations.rack, shelf: schema.locations.shelf, label: schema.locations.label })
+      .from(schema.locations)
+      .leftJoin(schema.productLocations, eq(schema.locations.id, schema.productLocations.locationId))
+      .where(sql`${schema.productLocations.productId} IS NULL`)
+      .orderBy(schema.locations.area, schema.locations.aisle, schema.locations.rack);
+
+    res.json(rows);
+  } catch { res.json([]); }
+});
+
+// --- Eksport etykiet PDF z kodami Code 128 ---
+app.get("/api/locations/export-pdf", async (req, res) => {
+  const codes = (req.query.codes as string || "").split(",").filter(Boolean);
+  if (codes.length === 0) { res.status(400).json({ error: "Brak kodów" }); return; }
+
+  try {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    const cols = 3; const rows = 8;
+    const cellW = 60; const cellH = 30;
+    const marginX = 12; const marginY = 15;
+    const fontSize = 8;
+
+    codes.slice(0, cols * rows).forEach((code, i) => {
+      const col = i % cols; const row = Math.floor(i / cols);
+      const x = marginX + col * cellW; const y = marginY + row * cellH;
+
+      // Border
+      doc.setDrawColor(200); doc.setLineWidth(0.2);
+      doc.rect(x, y, cellW - 2, cellH - 2);
+
+      // Barcode placeholder (Code 128 text)
+      doc.setFontSize(fontSize + 2);
+      doc.text(code, x + (cellW - 2) / 2, y + 8, { align: "center" });
+
+      // Label
+      doc.setFontSize(fontSize - 2);
+      doc.setTextColor(100);
+      const loc = code.match(/^([A-Z])\s*(\d+)-(\d+)-(\d+)-(\d+)$/);
+      const label = loc ? `A:${loc[1]} | Rząd:${loc[2]} | Regał:${loc[3]} | Półka:${loc[4]}` : code;
+      doc.text(label, x + (cellW - 2) / 2, y + 14, { align: "center" });
+      doc.text("PomagierGT", x + (cellW - 2) / 2, y + 20, { align: "center" });
+      doc.setTextColor(0);
+    });
+
+    const pdf = Buffer.from(doc.output("arraybuffer"));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=labels.pdf");
+    res.send(pdf);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "PDF generation failed" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
