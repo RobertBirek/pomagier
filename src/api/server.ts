@@ -1447,6 +1447,18 @@ app.post("/api/locations/fix-sync", async (_req, res) => {
   } catch (err) { logger.error({ err }, "Fix sync failed"); res.status(500).json({ error: "Naprawa nie powiodła się" }); }
 });
 
+// --- Wyczyść pole lokalizacji w Subiekcie ---
+app.post("/api/locations/clear-field", async (_req, res) => {
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+    const locationField = await getLocationField();
+    const result = await pool.request().query(`UPDATE tw__Towar SET ${locationField} = NULL WHERE ${locationField} IS NOT NULL`);
+    res.json({ ok: true, rowsAffected: result.rowsAffected?.[0] || 0 });
+  } catch (err) { logger.error({ err }, "Clear field failed"); res.status(500).json({ error: "Nie udało się" }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
