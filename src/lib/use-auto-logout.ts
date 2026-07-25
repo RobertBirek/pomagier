@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 export function useAutoLogout(minutes = 15) {
   const auth = useAuth();
   const nav = useNavigate();
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const resetTimer = () => {
     clearTimeout(timerRef.current);

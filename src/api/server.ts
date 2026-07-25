@@ -1536,6 +1536,94 @@ app.get("/api/logs", async (req, res) => {
   } catch (err) { logger.error({ err }, "Logs failed"); res.json({ rows: [], total: 0, page: 1, pageSize: 50 }); }
 });
 
+// === Wizard wdrożeniowy ===
+
+// Status: czy system jest skonfigurowany?
+app.get("/api/wizard/status", async (_req, res) => {
+  try {
+    const db = getDb();
+    const [mssqlConfig] = await db.select().from(schema.config).where(eq(schema.config.key, "mssql_host"));
+    const configured = !!mssqlConfig?.value;
+    res.json({ configured, hasEnv: !!process.env.MSSQL_HOST && process.env.MSSQL_HOST !== "{{MSSQL_HOST}}" });
+  } catch { res.json({ configured: false, hasEnv: false }); }
+});
+
+// Wyczyść tabele
+app.post("/api/wizard/clear", async (req, res) => {
+  const { tables } = req.body ?? {};
+  if (!Array.isArray(tables)) { res.status(400).json({ error: "Brak listy tabel" }); return; }
+  try {
+    const db = getDb();
+    if (tables.includes("locations")) await db.delete(schema.locations);
+    if (tables.includes("product_locations")) await db.delete(schema.productLocations);
+    if (tables.includes("product_movements")) await db.delete(schema.productMovements);
+    if (tables.includes("users")) await db.delete(schema.users);
+    res.json({ ok: true, cleared: tables });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Import wszystkiego
+app.post("/api/wizard/import-all", async (_req, res) => {
+  const results: any = {};
+  try {
+    // Step 1: Import locations
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) { res.status(503).json({ error: "MSSQL niedostępny" }); return; }
+
+    const locationField = await getLocationField();
+    const db = getDb();
+
+    // Import locations
+    const locResult = await pool.request().query(`SELECT NULLIF(${locationField}, '') AS location FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != '' GROUP BY ${locationField}`);
+    const { parseLocation } = await import("../lib/locations.ts");
+    let imported = 0, skipped = 0;
+    for (const row of locResult.recordset) {
+      const parts = ((row as any).location as string).split(";").map((s: string) => s.trim()).filter(Boolean);
+      for (const part of parts) {
+        const parsed = parseLocation(part);
+        if (!parsed) { skipped++; continue; }
+        try {
+          await db.insert(schema.locations).values({ code: parsed.raw, area: parsed.area, aisle: parsed.aisle, rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label }).onConflictDoNothing();
+          imported++;
+        } catch { skipped++; }
+      }
+    }
+    results.locations = { imported, skipped };
+
+    // Step 2: Sync product locations
+    await db.delete(schema.productLocations);
+    let plInserted = 0, plSkipped = 0;
+    const allLocs = await db.select().from(schema.locations);
+    const allProducts = await pool.request().query(`SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`);
+    for (const row of allProducts.recordset) {
+      const productId = (row as any).productId;
+      const parts = ((row as any).locRaw as string).split(";").map((s: string) => s.trim()).filter(Boolean);
+      for (const part of parts) {
+        const parsed = parseLocation(part);
+        if (!parsed) { plSkipped++; continue; }
+        const loc = allLocs.find(l => l.code === parsed.raw);
+        if (!loc) { plSkipped++; continue; }
+        try { await db.insert(schema.productLocations).values({ productId, locationId: loc.id, quantity: 1 }).onConflictDoNothing(); plInserted++; } catch { plSkipped++; }
+      }
+    }
+    results.productLocations = { inserted: plInserted, skipped: plSkipped };
+
+    // Step 3: Seed users
+    const userResult = await pool.request().query("SELECT uz_Id AS id FROM pd_Uzytkownik WHERE uz_Status = 1");
+    let usersSeeded = 0;
+    const crypto = await import("node:crypto");
+    for (const row of userResult.recordset) {
+      const subiektUzId = (row as any).id;
+      await db.insert(schema.users).values({ subiektUzId, pin: crypto.createHash("sha256").update("0000").digest("hex"), role: subiektUzId === 1 ? "admin" : "operator" }).onConflictDoNothing();
+      usersSeeded++;
+    }
+    results.users = { seeded: usersSeeded };
+
+    res.json({ ok: true, results });
+  } catch (err) { logger.error({ err }, "Import all failed"); res.status(500).json({ error: "Import nie powiódł się" }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
