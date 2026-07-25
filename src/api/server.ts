@@ -1454,7 +1454,7 @@ app.post("/api/locations/clear-field", async (_req, res) => {
     const pool = await adapter.getPool?.();
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
     const locationField = await getLocationField();
-    const result = await pool.request().query(`UPDATE tw__Towar SET ${locationField} = NULL WHERE ${locationField} IS NOT NULL`);
+    const result = await pool.request().query(`UPDATE tw__Towar SET ${locationField} = '' WHERE ${locationField} IS NOT NULL`);
     res.json({ ok: true, rowsAffected: result.rowsAffected?.[0] || 0 });
   } catch (err) { logger.error({ err }, "Clear field failed"); res.status(500).json({ error: "Nie udało się" }); }
 });
@@ -1498,7 +1498,7 @@ app.post("/api/locations/fix-sync-batch", async (req, res) => {
       res.json({ ok: true, imported });
     } else if (direction === "clear") {
       for (const id of productIds) {
-        await pool.request().input("id", id).query(`UPDATE tw__Towar SET ${locationField} = NULL WHERE tw_Id = @id`);
+        await pool.request().input("id", id).query(`UPDATE tw__Towar SET ${locationField} = '' WHERE tw_Id = @id`);
         await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
       }
       res.json({ ok: true, cleared: productIds.length });
