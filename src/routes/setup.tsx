@@ -66,7 +66,13 @@ function SetupPage() {
         {/* Step 4: Windows */}
         <Section number={4} title="Windows" icon={<Monitor className="h-5 w-5" />}>
           <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Kliknij dwukrotnie pobrany plik <code className="rounded bg-muted px-1 font-mono text-xs">rootCA.pem</code></li>
+            <li>
+              Pobierz certyfikat w formacie CRT:{" "}
+              <a href="/api/ca?format=crt" className="text-primary underline font-medium">
+                rootCA.crt
+              </a>
+            </li>
+            <li>Kliknij dwukrotnie pobrany plik</li>
             <li>Kliknij <strong>"Zainstaluj certyfikat"</strong></li>
             <li>Wybierz <strong>"Komputer lokalny"</strong> → Dalej</li>
             <li>
