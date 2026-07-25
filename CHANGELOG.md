@@ -1,26 +1,57 @@
 # Changelog
 
-Wszystkie istotne zmiany w projekcie PomagierGT.
+## [0.2.0] — 2026-07-25
 
-Format oparty na [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+### Added
+- **PWA**: manifest.json, Service Worker (vite-plugin-pwa), offline queue (IndexedDB)
+- **HTTPS + domena**: Caddy reverse proxy, mkcert CA, `pomagier.local` (avahi mDNS), systemd services
+- **/setup**: pełna instrukcja instalacji CA na Android/iOS/Windows
+- **/mobile/locations**: przypisywanie towarów do lokalizacji z pełnym UX
+  - Nazwy towarów z Subiekta, dźwięki, tryb wizualny, ostatnia lokalizacja
+  - Quantity stepper, auto-complete EAN, historia + undo
+  - Szybki wybór lokalizacji (LocationPicker)
+  - Weryfikacja stanu (Postgres vs Subiekt)
+  - Tryb przenoszenia między lokalizacjami
+- **Audyt ruchów**: `product_movements` table, logowanie każdego assign/transfer/undo
+- **Duplikaty + sugestie**: wykrywanie towarów w odległych lokalizacjach, propozycje konsolidacji
+- **Weryfikacja spójności**: `/api/locations/verify-sync` — porównanie Postgres ↔ Subiekt
+- **Dark mode**: ☀️/🌙 toggle, localStorage, prefers-color-scheme
+- **Camera scanner**: html5-qrcode z dynamicznym importem, inline + fullscreen
+- **HTTPS cert**: `/api/ca?format=crt` dla Windows
+
+### Changed
+- **SSR → SPA**: TanStack Start usunięty, czysty React + Vite + TanStack Router
+- **Express API**: wydzielony serwer (port 3000), Vite proxy `/api`
+- **Lokalizacje w Postgres**: source of truth, import z Subiekta jednorazowy
+- **Field mapping**: konfigurowalne mapowanie pól Pomagier ↔ Subiekt (`fieldmap_location`)
+- **Status MSSQL**: live wskaźnik online (useMssqlStatus hook)
+- **Mobile shell**: "Lokaliz." tab zamiast "Zadania"
+- **Admin panel**: live dane z MSSQL (users, warehouses, ERP config, stats)
+- **Safe area**: CSS `env(safe-area-inset-*)` dla PWA notch
+
+### Fixed
+- Pino-pretty crash w SSR
+- Named instance MSSQL (`host\instance`)
+- Product list deduplication (subquery SUM)
+- Login infinite re-render (setState in select)
+- Vite allowedHosts dla pomagier.local
+- Caddy cert permissions
 
 ---
 
-## [0.0.1] — 2026-07-24
+## [0.1.0] — 2026-07-24
 
 ### Added
-- Konfiguracja opencode: `default_agent: pomagier`, `instructions: ["AGENTS.md"]`
-- Agent główny `pomagier` (primary) z pełną rolą, zasadami workflow, standardami i zakazami
-- Subagent `pomagier-reviewer` — code review i QA
-- Subagent `pomagier-security` — audyty bezpieczeństwa
-- Subagent `pomagier-devops` — Docker, VPS, deployment
-- Subagent `pomagier-erp` — integracja Subiekt GT / MSSQL / Sfera GT
-- Szkielet skilla `subiekt-gt` — bezpieczne wzorce pracy z MSSQL Subiekta
-- Szkielet skilla `pwa-warehouse` — wzorce PWA dla terminali magazynowych
-- Pliki wiedzy projektu: README, PRD, ARCHITECTURE, SECURITY, TESTING, PLAN, DECISIONS, DB_SCHEMA, API, DEPLOYMENT, CHANGELOG, TASKS
-- AGENTS.md zaktualizowany o stack, workflow, konwencje i zakazy
-- Custom commands: `/audyt`, `/review`, `/deploy`
-- Reference `lovable-ui` do repozytorium prototypu (RobertBirek/pomagier-magazyn-smart)
-- `.env.example` z placeholderami sekretów
-- Permisje: `edit: ask`, bash per-operation, docker/rm/push ograniczone
-- Kompakcja: `auto: true`, `tail_turns: 20`
+- **MVP foundation**: React 19 + Vite 8 + TanStack Router + Tailwind CSS 4 + shadcn/ui
+- **Docker stack**: postgres:16, Dockerfile multi-stage
+- **ERP adapter**: MssqlErpAdapter (parametryzowane zapytania), MockErpAdapter
+- **Mobile flow**: login (PIN + JWT), dashboard, scan page, product card
+- **Admin panel**: 16 routes, live KPI, ERP config form
+- **Postgres schema**: users (subiekt_uz_id + PIN), sessions, audit_log, config, locations, product_locations
+- **Express API**: health, scan, company, users, warehouses, login, stats, products (paginated)
+- **Field mapping**: konfigurowalne `tw_PoleX` per feature
+- **Location system**: Code 128 parser (`A 1-2-3-4`), 88 locations imported
+- **Product list**: 577 towarów, paginacja, search, filtrowanie
+- **Seed script**: PIN-y dla operatorów Subiekta
+- **Testy**: Vitest (8/8), ERP adapter + auth unit tests
+- **Documentation**: AGENTS.md, README, PRD, ARCHITECTURE, PLAN, TASKS, SECURITY
