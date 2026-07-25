@@ -1,11 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { getUsers, getWarehouses, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { User } from "lucide-react";
+import { User, Shield } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/login")({
   component: Login,
@@ -102,6 +102,10 @@ function Login() {
           <PinPad onSubmit={submit} />
         </div>
       )}
+
+      <Link to="/admin/login" className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2">
+        <Shield className="h-3 w-3" />Panel administratora
+      </Link>
     </div>
   );
 }
