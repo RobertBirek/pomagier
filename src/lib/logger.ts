@@ -13,13 +13,41 @@ export function getCorrelationId(): string {
   return correlationStore.getStore()?.correlationId ?? "no-correlation-id";
 }
 
-export const logger = pino({
-  level: process.env.NODE_ENV === "production" ? "info" : "debug",
-  serializers: {
-    ...pino.stdSerializers,
-    secret: () => "***REDACTED***",
-  },
-  mixin() {
-    return { correlationId: getCorrelationId() };
-  },
-});
+const isProd = process.env.NODE_ENV === "production";
+
+const serializers = {
+  ...pino.stdSerializers,
+  secret: () => "***REDACTED***",
+};
+
+const mixin = () => {
+  return { correlationId: getCorrelationId() };
+};
+
+export const logger = pino(
+  isProd
+    ? {
+        ...pino.transport({
+          targets: [
+            { target: "pino/file", options: { destination: 1 } },
+            {
+              target: "pino-roll",
+              options: {
+                file: "/var/log/pomagier/api",
+                frequency: "daily",
+                mkdir: true,
+                limit: { count: 7 },
+              },
+            },
+          ],
+        }),
+        serializers,
+        mixin,
+      }
+    : {
+        level: "debug",
+        transport: { target: "pino-pretty", options: { colorize: true } },
+        serializers,
+        mixin,
+      }
+);
