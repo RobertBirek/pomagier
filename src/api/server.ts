@@ -1146,6 +1146,85 @@ app.get("/api/locations/check-product", async (req, res) => {
   } catch { res.json({ found: false }); }
 });
 
+// --- Przenieś towary między lokalizacjami ---
+app.post("/api/locations/transfer", async (req, res) => {
+  const { codes, fromLocation, toLocation } = req.body ?? {};
+  if (!Array.isArray(codes) || codes.length === 0 || !fromLocation || !toLocation) {
+    res.status(400).json({ error: "Brak kodów, źródła lub celu" });
+    return;
+  }
+
+  const { parseLocation } = await import("../lib/locations.ts");
+  const fromParsed = parseLocation(fromLocation);
+  const toParsed = parseLocation(toLocation);
+  if (!fromParsed || !toParsed) { res.status(422).json({ error: "Nieprawidłowy format lokalizacji" }); return; }
+
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+    const locationField = await getLocationField();
+
+    // Ensure both locations exist
+    let [fromLoc] = await db.select().from(schema.locations).where(eq(schema.locations.code, fromParsed.raw));
+    if (!fromLoc) { [fromLoc] = await db.insert(schema.locations).values({ code: fromParsed.raw, area: fromParsed.area, aisle: fromParsed.aisle, rack: fromParsed.rack, shelf: fromParsed.shelf, spot: fromParsed.spot, label: fromParsed.label }).returning(); }
+    let [toLoc] = await db.select().from(schema.locations).where(eq(schema.locations.code, toParsed.raw));
+    if (!toLoc) { [toLoc] = await db.insert(schema.locations).values({ code: toParsed.raw, area: toParsed.area, aisle: toParsed.aisle, rack: toParsed.rack, shelf: toParsed.shelf, spot: toParsed.spot, label: toParsed.label }).returning(); }
+
+    // Find products
+    const foundProducts: { id: number; symbol: string; name: string }[] = [];
+    for (const code of codes) {
+      const r = await pool.request().input("code", code).query(
+        "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code"
+      );
+      for (const row of r.recordset) foundProducts.push(row as any);
+    }
+
+    // Group quantities
+    const grouped = new Map<number, number>();
+    for (const p of foundProducts) grouped.set(p.id, (grouped.get(p.id) || 0) + 1);
+
+    let moved = 0;
+    for (const [productId, qty] of grouped) {
+      const p = foundProducts.find(fp => fp.id === productId)!;
+
+      // Remove from source location
+      await db.delete(schema.productLocations).where(and(
+        eq(schema.productLocations.productId, productId),
+        eq(schema.productLocations.locationId, fromLoc.id)
+      ));
+
+      // Add to target location
+      await db.insert(schema.productLocations).values({ productId, locationId: toLoc.id, quantity: qty })
+        .onConflictDoUpdate({ target: [schema.productLocations.productId, schema.productLocations.locationId], set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` } });
+
+      // Update Subiekt: remove from source, add to target
+      const [currentSource] = await pool.request().input("id", productId).query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+      const locations = ((currentSource.recordset[0] as any)?.val || "").split(";").map((s: string) => s.trim()).filter(Boolean);
+      const updated = locations.filter((s: string) => s !== fromParsed.raw);
+      if (!updated.includes(toParsed.raw)) updated.push(toParsed.raw);
+      await pool.request().input("id", productId).input("val", updated.join(";")).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+
+      // Log movement
+      await db.insert(schema.productMovements).values({
+        productId, symbol: p.symbol, name: p.name,
+        fromLocationId: fromLoc.id, toLocationId: toLoc.id,
+        fromCode: fromParsed.raw, toCode: toParsed.raw,
+        quantity: qty, operator: "operator", correlationId: crypto.randomUUID(),
+      });
+
+      moved += qty;
+    }
+
+    logger.info({ from: fromParsed.raw, to: toParsed.raw, moved }, "Transfer completed");
+    res.json({ ok: true, moved, from: fromParsed.raw, to: toParsed.raw });
+  } catch (err) {
+    logger.error({ err }, "Transfer failed");
+    res.status(500).json({ error: "Transfer nie powiódł się" });
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");

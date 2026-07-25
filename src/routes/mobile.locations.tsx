@@ -62,6 +62,9 @@ function LocationsPage() {
   const [stockInfo, setStockInfo] = useState<{ location: string; assigned: number; inSubiekt: number } | null>(null);
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [hasLocation, setHasLocation] = useState<{ code: string; locations: string[] } | null>(null);
+  const [transferSource, setTransferSource] = useState<string | null>(null);
+  const [transferTarget, setTransferTarget] = useState<string | null>(null);
+  const [transferring, setTransferring] = useState(false);
   const [suggestions, setSuggestions] = useState<{ code: string; name: string; barcode: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,8 +79,15 @@ function LocationsPage() {
     return () => { document.removeEventListener("click", handler); document.removeEventListener("touchstart", handler); };
   }, []);
 
-  // Visual mode: green = scanning products, blue = waiting for location
-  const mode: "scan" | "locate" = basket.length > 0 && !pendingLocation ? "locate" : "scan";
+  // Visual mode
+  const mode: "scan" | "locate" = basket.length > 0 && !pendingLocation && !(transferMode && transferTarget) ? "locate" : "scan";
+  const getPlaceholder = () => {
+    if (transferMode && !transferSource) return "Zeskanuj lokalizację źródłową...";
+    if (transferMode && transferSource && !transferTarget) return "Skanuj towary, potem lokalizację celu...";
+    if (transferMode && transferSource && transferTarget) return "Zeskanuj więcej towarów...";
+    return mode === "scan" ? "Zeskanuj EAN towaru..." : "Teraz zeskanuj lokalizację";
+  };
+  const placeholder = getPlaceholder();
   const inputBorderClass = mode === "locate"
     ? "border-blue-400 focus:border-blue-500 focus:ring-blue-500/20"
     : "border-primary/40 focus:border-primary focus:ring-primary/20";
@@ -91,6 +101,11 @@ function LocationsPage() {
 
     const loc = parseLocation(trimmed);
     if (loc) {
+      if (transferMode) {
+        if (!transferSource) { setTransferSource(loc.raw); toast.success(`Źródło: ${loc.raw}`); setInputValue(""); refocus(); return; }
+        if (!transferTarget && basket.length > 0) { setTransferTarget(loc.raw); toast.success(`Cel: ${loc.raw}`); setInputValue(""); refocus(); return; }
+        toast.error("Najpierw zeskanuj towary"); beep(200, 300); return;
+      }
       if (basket.length === 0) { toast.error("Najpierw zeskanuj towary"); beep(200, 300); return; }
       setPendingLocation(loc.raw);
       setLastLocation(loc.raw); localStorage.setItem(LAST_LOC_KEY, loc.raw);
@@ -143,6 +158,27 @@ function LocationsPage() {
       const newQty = Math.max(0, i.qty + delta);
       return newQty === 0 ? null : { ...i, qty: newQty };
     }).filter(Boolean) as BasketItem[]);
+  };
+
+  const handleTransfer = async () => {
+    if (!transferSource || !transferTarget || basket.length === 0) return;
+    setTransferring(true);
+    try {
+      const codes = basket.flatMap(b => Array(b.qty).fill(b.code));
+      const res = await fetch("/api/locations/transfer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codes, fromLocation: transferSource, toLocation: transferTarget }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        beep(1000, 80); setTimeout(() => beep(1200, 120), 100);
+        toast.success(`Przeniesiono ${data.moved} szt. ${transferSource} → ${transferTarget}`);
+        setBasket([]); setTransferSource(null); setTransferTarget(null);
+      } else {
+        beep(200, 400); toast.error((await res.json()).error);
+      }
+    } catch (e: any) { beep(200, 400); toast.error(e.message); }
+    finally { setTransferring(false); refocus(); }
   };
 
   const handleSave = async () => {
@@ -212,6 +248,21 @@ function LocationsPage() {
         Tryb przenoszenia
       </label>
 
+      {/* Transfer status */}
+      {transferMode && (
+        <div className="flex gap-2 text-xs">
+          <div className={`flex-1 rounded-lg border px-3 py-2 ${transferSource ? "border-green-300 bg-green-50" : "border-dashed border-muted-foreground/30"}`}>
+            <div className="text-muted-foreground">Źródło</div>
+            <div className="font-mono font-bold">{transferSource || "—"}</div>
+          </div>
+          <div className="flex items-center text-muted-foreground">→</div>
+          <div className={`flex-1 rounded-lg border px-3 py-2 ${transferTarget ? "border-blue-300 bg-blue-50" : "border-dashed border-muted-foreground/30"}`}>
+            <div className="text-muted-foreground">Cel</div>
+            <div className="font-mono font-bold">{transferTarget || "—"}</div>
+          </div>
+        </div>
+      )}
+
       {/* Duplicates / suggestions panel */}
       {duplicates.length > 0 && basket.length === 0 && !pendingLocation && (
         <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
@@ -276,7 +327,7 @@ function LocationsPage() {
           onKeyDown={e => { if (e.key === "Enter") { setShowSuggestions(false); handleSubmit(); } }}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          placeholder={mode === "scan" ? "Zeskanuj EAN towaru..." : "Teraz zeskanuj lokalizację"}
+          placeholder={placeholder}
           autoComplete="off"
           className={`w-full rounded-lg border-2 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none transition-colors ${inputBorderClass}`}
         />
@@ -356,6 +407,31 @@ function LocationsPage() {
           </div>
           <div className={`mt-2 text-xs font-medium ${stockInfo.assigned === stockInfo.inSubiekt ? "text-success" : "text-warning"}`}>
             {stockInfo.assigned === stockInfo.inSubiekt ? "✅ Stan zgodny" : `⚠️ Różnica: ${Math.abs(stockInfo.assigned - stockInfo.inSubiekt)} szt.`}
+          </div>
+        </div>
+      )}
+
+      {/* Transfer confirmation */}
+      {transferMode && transferSource && transferTarget && basket.length > 0 && (
+        <div className="rounded-lg border-2 border-success bg-success/5 p-4 animate-in slide-in-from-bottom-2">
+          <div className="flex items-start gap-3">
+            <ArrowRightLeft className="mt-0.5 h-5 w-5 text-success shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm">Potwierdź przeniesienie</div>
+              <div className="mt-1 font-mono text-sm">
+                <span className="text-muted-foreground">{transferSource}</span>
+                <span className="mx-1">→</span>
+                <span className="font-bold">{transferTarget}</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">{totalQty} towarów</div>
+              <div className="mt-3 flex gap-2">
+                <button onClick={handleTransfer} disabled={transferring}
+                  className="touch-target inline-flex items-center gap-1.5 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50 flex-1 justify-center">
+                  <CheckCircle2 className="h-4 w-4" />{transferring ? "Przenoszę…" : "Wykonaj"}
+                </button>
+                <button onClick={() => { setTransferSource(null); setTransferTarget(null); refocus(); }} className="touch-target rounded-md border px-4 py-2.5 text-sm"><X className="h-4 w-4" /></button>
+              </div>
+            </div>
           </div>
         </div>
       )}
