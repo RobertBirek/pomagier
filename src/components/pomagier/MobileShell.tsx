@@ -1,7 +1,8 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Home, ScanLine, MapPin, RefreshCw, LogOut, User } from "lucide-react";
+import { Home, ScanLine, MapPin, RefreshCw, LogOut, User, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
+import { useDarkMode } from "@/lib/use-dark";
 import { getQueueCount } from "@/lib/offline-queue";
 import { ConnectionStatus, StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ export function MobileShell() {
   const hideChrome = pathname === "/mobile/login";
   const { operatorName, warehouse, logout } = useAuth();
   const { online } = useMssqlStatus();
+  const [dark, toggleDark] = useDarkMode();
   const nav = useNavigate();
   const [queueCount, setQueueCount] = useState(0);
 
@@ -46,6 +48,9 @@ export function MobileShell() {
             </div>
             <div className="flex items-center gap-2">
               <ConnectionStatus online={online} />
+              <button onClick={toggleDark} className="touch-target rounded p-1 hover:bg-accent" title={dark ? "Jasny" : "Ciemny"}>
+                {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              </button>
               {queueCount > 0 && (
                 <StatusBadge tone="warning">{queueCount}</StatusBadge>
               )}

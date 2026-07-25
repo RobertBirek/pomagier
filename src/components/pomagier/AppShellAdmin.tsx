@@ -21,6 +21,8 @@ import {
   Package,
   Plus,
   Menu,
+  Sun,
+  Moon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,6 +39,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
+import { useDarkMode } from "@/lib/use-dark";
 import { StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
 
@@ -144,6 +147,7 @@ function Breadcrumb() {
 export function AppShellAdmin() {
   const { operatorName } = useAuth();
   const { online } = useMssqlStatus();
+  const [dark, toggleDark] = useDarkMode();
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -155,6 +159,9 @@ export function AppShellAdmin() {
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-semibold">PomagierGT</span>
               <StatusBadge tone={online ? "success" : "danger"}>MSSQL</StatusBadge>
+              <button onClick={toggleDark} className="touch-target rounded-md p-2 hover:bg-accent" title={dark ? "Jasny motyw" : "Ciemny motyw"}>
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
             </div>
             <div className="ml-auto flex items-center gap-2">
               <StatusBadge tone="success">API: OK</StatusBadge>
