@@ -4,12 +4,14 @@
 
 | Warstwa | Technologia | Stan |
 |---|---|---|
-| Frontend/PWA | React, TypeScript, TanStack Router, Tailwind CSS | [Do weryfikacji — klon Lovable] |
-| Backend API | [Wymaga decyzji] | Nie wybrany |
-| Baza aplikacyjna | [Wymaga decyzji — Postgres?] | Nie wybrana |
-| ERP | Insert Subiekt GT (MSSQL + Sfera GT) | Dostępny (MSSQL MCP) |
-| Deployment | VPS Linux + Docker | [Do weryfikacji] |
-| Testy | [Wymaga decyzji — Vitest? Playwright?] | Nie skonfigurowane |
+| Frontend/PWA | React 19, TypeScript, TanStack Router, Tailwind CSS 4, shadcn/ui | ✓ Produkcyjny |
+| Backend API | Express 5 (port 3000) | ✓ Produkcyjny |
+| Baza aplikacyjna | Postgres 16 (Drizzle ORM) | ✓ Produkcyjny |
+| ERP | Insert Subiekt GT (MSSQL read-only) | ✓ Produkcyjny |
+| Reverse proxy | Caddy (HTTPS, port 443) | ✓ Produkcyjny |
+| mDNS | avahi-daemon (pomagier.local) | ✓ Produkcyjny |
+| Testy | Vitest (8/8) | ✓ Aktywne |
+| Deployment | systemd (pomagier-api, pomagier-vite) | ✓ Produkcyjny |
 
 ## Workflow projektu
 
@@ -17,6 +19,7 @@
 2. **Plan v0** — po odpowiedziach, przed kodem
 3. **Iteracje** — małe pionowe wycinki: implementacja → testy → demonstracja
 4. **Git** — branch `feat/*`, małe commity, PR przed mergem, zakaz force push, zakaz merge do `main`
+5. **Dokumentacja** — po każdej skończonej iteracji aktualizuj: CHANGELOG.md, TASKS.md, DB_SCHEMA.md (jeśli zmiany w bazie), AGENTS.md (jeśli zmiany w stacku)
 
 ## Agenci projektu
 
@@ -32,8 +35,8 @@
 
 | Skill | Plik | Stan |
 |---|---|---|
-| `subiekt-gt` | `.opencode/skills/subiekt-gt/SKILL.md` | Szkielet |
-| `pwa-warehouse` | `.opencode/skills/pwa-warehouse/SKILL.md` | Szkielet |
+| `subiekt-gt` | `.opencode/skills/subiekt-gt/SKILL.md` | Aktywny — MSSQL read-only, tw__Towar, vwFeniksFirmaSync |
+| `pwa-warehouse` | `.opencode/skills/pwa-warehouse/SKILL.md` | Aktywny — PWA, kamera, offline queue |
 
 ## Pliki wiedzy
 
@@ -61,4 +64,5 @@
 - **Bez `any`** w TypeScript jeśli można określić typ
 - **Bez generowania wszystkich modułów naraz** — pionowe przyrosty
 - **Bez ignorowania błędów** buildu, lintowania, testów
+- **Aktualizuj dokumentację** po każdej iteracji (CHANGELOG, TASKS, DB_SCHEMA)
 - Pisz **po polsku** do użytkownika, kod i technikalia **po angielsku**
