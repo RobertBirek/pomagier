@@ -885,6 +885,23 @@ app.put("/api/users/:subiektId/pin", requireAdmin, async (req, res) => {
   }
 });
 
+// --- Zmiana roli użytkownika ---
+app.put("/api/users/:subiektId/role", requireAdmin, async (req, res) => {
+  const subiektUzId = parseInt(req.params.subiektId as string);
+  const { role } = req.body ?? {};
+  if (!subiektUzId || !["admin", "operator"].includes(role)) { res.status(400).json({ error: "Nieprawidłowa rola" }); return; }
+  try {
+    const db = getDb();
+    if (role !== "admin") {
+      const admins = await db.select().from(schema.users).where(and(eq(schema.users.role, "admin"), eq(schema.users.active, true)));
+      if (admins.length === 1 && admins[0].subiektUzId === subiektUzId) { res.status(400).json({ error: "Nie można usunąć ostatniego administratora" }); return; }
+    }
+    await db.update(schema.users).set({ role }).where(eq(schema.users.subiektUzId, subiektUzId));
+    logger.info({ subiektUzId, role }, "User role updated");
+    res.json({ ok: true, role });
+  } catch (err) { logger.error({ err }, "Role update failed"); res.status(500).json({ error: "Błąd" }); }
+});
+
 // --- Losowy kod towaru z Subiekta ---
 app.get("/api/products/random", async (_req, res) => {
   try {

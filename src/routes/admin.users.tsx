@@ -17,6 +17,14 @@ async function setPin(subiektUzId: number, pin: string) {
   return res.json();
 }
 
+async function setRole(subiektUzId: number, role: string) {
+  const res = await fetch(`/api/users/${subiektUzId}/role`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
 });
@@ -34,6 +42,12 @@ function AdminUsers() {
       qc.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (e: any) => toast.error(e.message),
+  });
+
+  const setRoleMut = useMutation({
+    mutationFn: ({ id, role }: { id: number; role: string }) => setRole(id, role),
+    onSuccess: () => { toast.success("Rola zmieniona"); qc.invalidateQueries({ queryKey: ["users"] }); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const activeUsers = users?.filter((u) => u.active).length ?? 0;
@@ -94,7 +108,14 @@ function AdminUsers() {
                   <td className="px-4 py-2">{u.firstName || <span className="text-muted-foreground italic">—</span>}</td>
                   <td className="px-4 py-2 font-semibold">{u.lastName}</td>
                   <td className="px-4 py-2">
-                    <StatusBadge tone={u.role === "admin" ? "warning" : "info"}>{u.role}</StatusBadge>
+                    <select
+                      value={u.role}
+                      onChange={(e) => setRoleMut.mutate({ id: u.subiektId, role: e.target.value })}
+                      className="rounded border bg-background px-2 py-1 text-xs"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="operator">Operator</option>
+                    </select>
                   </td>
                   <td className="px-4 py-2">
                     {u.active ? <StatusBadge tone="success">Aktywny</StatusBadge> : <StatusBadge tone="muted">Nieaktywny</StatusBadge>}

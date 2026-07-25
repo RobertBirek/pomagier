@@ -20,6 +20,7 @@ import { Route as AdminBackupRouteImport } from './routes/admin.backup'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminErpRouteImport } from './routes/admin.erp'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMapRouteImport } from './routes/admin.map'
 import { Route as AdminMobilePreviewRouteImport } from './routes/admin.mobile-preview'
@@ -97,6 +98,11 @@ const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
 const AdminErpRoute = AdminErpRouteImport.update({
   id: '/erp',
   path: '/erp',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLogsRoute = AdminLogsRouteImport.update({
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/erp': typeof AdminErpRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/map': typeof AdminMapRoute
   '/admin/mobile-preview': typeof AdminMobilePreviewRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/erp': typeof AdminErpRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/map': typeof AdminMapRoute
   '/admin/mobile-preview': typeof AdminMobilePreviewRoute
@@ -297,6 +305,7 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/erp': typeof AdminErpRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/map': typeof AdminMapRoute
   '/admin/mobile-preview': typeof AdminMobilePreviewRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/documents'
     | '/admin/erp'
+    | '/admin/login'
     | '/admin/logs'
     | '/admin/map'
     | '/admin/mobile-preview'
@@ -369,6 +379,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/documents'
     | '/admin/erp'
+    | '/admin/login'
     | '/admin/logs'
     | '/admin/map'
     | '/admin/mobile-preview'
@@ -405,6 +416,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/documents'
     | '/admin/erp'
+    | '/admin/login'
     | '/admin/logs'
     | '/admin/map'
     | '/admin/mobile-preview'
@@ -516,6 +528,13 @@ declare module '@tanstack/react-router' {
       path: '/erp'
       fullPath: '/admin/erp'
       preLoaderRoute: typeof AdminErpRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/logs': {
@@ -688,6 +707,7 @@ interface AdminRouteChildren {
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminErpRoute: typeof AdminErpRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMapRoute: typeof AdminMapRoute
   AdminMobilePreviewRoute: typeof AdminMobilePreviewRoute
@@ -709,6 +729,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
   AdminErpRoute: AdminErpRoute,
+  AdminLoginRoute: AdminLoginRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminMapRoute: AdminMapRoute,
   AdminMobilePreviewRoute: AdminMobilePreviewRoute,
