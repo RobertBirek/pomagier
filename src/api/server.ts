@@ -982,6 +982,28 @@ app.post("/api/locations/undo", async (req, res) => {
   }
 });
 
+// --- Szybkie wyszukiwanie towarów (do auto-complete) ---
+app.get("/api/products/quick-search", async (req, res) => {
+  const q = (req.query.q as string || "").trim();
+  if (!q || q.length < 2) { res.json([]); return; }
+
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.json([]);
+
+    const result = await pool.request().input("q", `%${q}%`).query(`
+      SELECT TOP 8 tw_Symbol AS code, tw_Nazwa AS name, tw_PodstKodKresk AS barcode
+      FROM tw__Towar
+      WHERE tw_Symbol LIKE @q OR tw_Nazwa LIKE @q OR tw_PodstKodKresk LIKE @q
+      ORDER BY CASE WHEN tw_Symbol LIKE @q+'%' THEN 0 ELSE 1 END, tw_Symbol
+    `);
+    res.json(result.recordset);
+  } catch {
+    res.json([]);
+  }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");

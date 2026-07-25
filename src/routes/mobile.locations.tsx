@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
@@ -57,6 +57,8 @@ function LocationsPage() {
   const [undoing, setUndoing] = useState(false);
   const [lastLocation, setLastLocation] = useState<string | null>(() => localStorage.getItem(LAST_LOC_KEY));
   const [stepQty, setStepQty] = useState<{ code: string; qty: number } | null>(null);
+  const [suggestions, setSuggestions] = useState<{ code: string; name: string; barcode: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const refocus = () => setTimeout(() => inputRef.current?.focus(), 50);
@@ -103,6 +105,20 @@ function LocationsPage() {
   };
 
   const handleSubmit = () => addToBasket(inputValue);
+
+  // Auto-complete debounce
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const handleInputChange = useCallback((value: string) => {
+    setInputValue(value);
+    clearTimeout(searchTimeout.current);
+    if (value.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    searchTimeout.current = setTimeout(async () => {
+      const res = await fetch(`/api/products/quick-search?q=${encodeURIComponent(value.trim())}`);
+      const data = await res.json();
+      setSuggestions(data);
+      setShowSuggestions(data.length > 0);
+    }, 200);
+  }, []);
 
   const removeItem = (code: string) => { setBasket(b => b.filter(i => i.code !== code)); refocus(); };
 
@@ -168,14 +184,35 @@ function LocationsPage() {
       )}
 
       {/* Input */}
-      <div>
+      <div className="relative">
         <input ref={inputRef} value={inputValue}
-          onChange={e => setInputValue(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
+          onChange={e => handleInputChange(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { setShowSuggestions(false); handleSubmit(); } }}
+          onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           placeholder={mode === "scan" ? "Zeskanuj EAN towaru..." : "Teraz zeskanuj lokalizację"}
           autoComplete="off"
           className={`w-full rounded-lg border-2 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none transition-colors ${inputBorderClass}`}
         />
+
+        {/* Auto-complete suggestions */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border bg-card shadow-lg max-h-48 overflow-y-auto">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onMouseDown={() => { setInputValue(s.barcode || s.code); setShowSuggestions(false); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-accent touch-target border-b last:border-0"
+              >
+                <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono text-xs font-semibold truncate">{s.barcode || s.code}</div>
+                  <div className="text-xs text-muted-foreground truncate">{s.name}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
         <p className="mt-1 text-center text-xs font-medium" style={{ color: mode === "locate" ? "#2563eb" : "#16a34a" }}>
           {mode === "scan" ? "🟢 Skanuj towary (Enter)" : `🔵 Koszyk: ${totalQty} szt. — zeskanuj lokalizację`}
         </p>
