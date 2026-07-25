@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as MobileRouteImport } from './routes/mobile'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAlertsRouteImport } from './routes/admin.alerts'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -54,6 +55,11 @@ const AdminRoute = AdminRouteImport.update({
 const MobileRoute = MobileRouteImport.update({
   id: '/mobile',
   path: '/mobile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/mobile': typeof MobileRouteWithChildren
+  '/setup': typeof SetupRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/setup': typeof SetupRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/mobile': typeof MobileRouteWithChildren
+  '/setup': typeof SetupRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/mobile'
+    | '/setup'
     | '/admin/alerts'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/setup'
     | '/admin/alerts'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/mobile'
+    | '/setup'
     | '/admin/alerts'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -399,6 +411,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   MobileRoute: typeof MobileRouteWithChildren
+  SetupRoute: typeof SetupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -422,6 +435,13 @@ declare module '@tanstack/react-router' {
       path: '/mobile'
       fullPath: '/mobile'
       preLoaderRoute: typeof MobileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -700,6 +720,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   MobileRoute: MobileRouteWithChildren,
+  SetupRoute: SetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
