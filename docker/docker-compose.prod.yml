@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pomagier
+      POSTGRES_USER: pomagier
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pomagier"]
+      interval: 10s
+      retries: 5
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: prod
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://pomagier:${PG_PASSWORD}@postgres:5432/pomagier
+      - MSSQL_HOST=${MSSQL_HOST}
+      - MSSQL_DATABASE=${MSSQL_DATABASE}
+      - MSSQL_USER=${MSSQL_USER}
+      - MSSQL_PASSWORD=${MSSQL_PASSWORD}
+      - NODE_ENV=production
+      - API_PORT=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
