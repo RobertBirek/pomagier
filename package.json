@@ -6,6 +6,7 @@
     "dev": "vite dev",
     "dev:api": "tsx src/api/server.ts",
     "build": "vite build",
+    "build:api": "tsc -p tsconfig.build.json",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",

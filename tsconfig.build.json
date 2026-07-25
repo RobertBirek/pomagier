@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": false,
+    "declaration": false,
+    "sourceMap": false,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src/api/**/*.ts", "src/erp/**/*.ts", "src/db/**/*.ts", "src/lib/**/*.ts"],
+  "exclude": ["src/components/**", "src/routes/**", "src/hooks/**", "src/main.tsx", "src/router.tsx", "src/routeTree.gen.ts"]
+}

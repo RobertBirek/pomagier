@@ -5,8 +5,8 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
-import { decryptSecret } from "./backup-crypto";
-import { getDb, schema } from "../db/index";
+import { decryptSecret } from "./backup-crypto.js";
+import { getDb, schema } from "../db/index.js";
 import { eq } from "drizzle-orm";
 
 interface S3Config {

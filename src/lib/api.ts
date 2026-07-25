@@ -1,4 +1,4 @@
-import type { ScanResult } from "@/erp/types";
+import type { ScanResult } from "../erp/types.js";
 
 const BASE = "/api";
 

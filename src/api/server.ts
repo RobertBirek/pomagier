@@ -4,12 +4,12 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import crypto from "node:crypto";
-import { MssqlErpAdapter } from "../erp/mssql.adapter.ts";
-import { MockErpAdapter } from "../erp/mock.adapter.ts";
-import type { ErpAdapter } from "../erp/adapter.ts";
-import { getDb, schema } from "../db/index.ts";
+import { MssqlErpAdapter } from "../erp/mssql.adapter.js";
+import { MockErpAdapter } from "../erp/mock.adapter.js";
+import type { ErpAdapter } from "../erp/adapter.js";
+import { getDb, schema } from "../db/index.js";
 import { eq, and, sql } from "drizzle-orm";
-import { logger } from "../lib/logger.ts";
+import { logger } from "../lib/logger.js";
 
 const app = express();
 app.use(helmet());
@@ -304,7 +304,7 @@ app.post("/api/test-connection", async (req, res) => {
     return;
   }
   try {
-    const { MssqlErpAdapter } = await import("../erp/mssql.adapter.ts");
+    const { MssqlErpAdapter } = await import("../erp/mssql.adapter.js");
     const testAdapter = new MssqlErpAdapter();
     await testAdapter.reconnect({ host, port: parseInt(port) || 1433, database, user, password });
     const health = await testAdapter.healthCheck();
@@ -394,7 +394,7 @@ app.post("/api/erp-config", async (req, res) => {
 app.get("/api/locations", async (_req, res) => {
   try {
     const db = getDb();
-    const { sortLocations } = await import("../lib/locations.ts");
+    const { sortLocations } = await import("../lib/locations.js");
     const rows = await db.select().from(schema.locations).orderBy(schema.locations.code);
 
     const parsed = rows.map((r) => ({
@@ -428,7 +428,7 @@ app.post("/api/locations/import", async (_req, res) => {
       GROUP BY ${locationField}
     `);
 
-    const { parseLocation } = await import("../lib/locations.ts");
+    const { parseLocation } = await import("../lib/locations.js");
     const db = getDb();
 
     // Normalize existing entries (fix missing spaces)
@@ -509,7 +509,7 @@ app.post("/api/locations", async (req, res) => {
     return;
   }
 
-  const { parseLocation } = await import("../lib/locations.ts");
+  const { parseLocation } = await import("../lib/locations.js");
   const parsed = parseLocation(code);
   if (!parsed) {
     res.status(422).json({ error: "Nieprawidłowy format lokalizacji. Oczekiwano: A 1-2-3-4" });
@@ -591,7 +591,7 @@ app.put("/api/products/:id/location", async (req, res) => {
     return;
   }
 
-  const { parseLocation } = await import("../lib/locations.ts");
+  const { parseLocation } = await import("../lib/locations.js");
   const parsed = parseLocation(location);
   if (!parsed) {
     res.status(422).json({ error: "Nieprawidłowy format lokalizacji" });
@@ -746,7 +746,7 @@ app.get("/api/field-mappings", async (_req, res) => {
       .select()
       .from(schema.config)
       .where(sql`${schema.config.key} LIKE 'fieldmap_%'`);
-    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.ts");
+    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.js");
 
     const map = new Map(rows.map((r) => [r.key.replace("fieldmap_", ""), r.value]));
     const result = DEFAULT_MAPPINGS.map((dm) => ({
@@ -755,7 +755,7 @@ app.get("/api/field-mappings", async (_req, res) => {
     }));
     res.json(result);
   } catch {
-    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.ts");
+    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.js");
     res.json(DEFAULT_MAPPINGS);
   }
 });
@@ -790,7 +790,7 @@ app.post("/api/locations/sync", async (_req, res) => {
     if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
 
     const locationField = await getLocationField();
-    const { parseLocation } = await import("../lib/locations.ts");
+    const { parseLocation } = await import("../lib/locations.js");
     const db = getDb();
 
     // Pobierz wszystkie towary z lokalizacjami
@@ -911,7 +911,7 @@ app.post("/api/locations/assign", async (req, res) => {
     return;
   }
 
-  const { parseLocation } = await import("../lib/locations.ts");
+  const { parseLocation } = await import("../lib/locations.js");
   const parsed = parseLocation(location);
   if (!parsed) {
     res.status(422).json({ error: "Nieprawidłowy format lokalizacji" });
@@ -1094,7 +1094,7 @@ app.post("/api/locations/undo", async (req, res) => {
     return;
   }
 
-  const { parseLocation } = await import("../lib/locations.ts");
+  const { parseLocation } = await import("../lib/locations.js");
   const parsed = parseLocation(location);
   if (!parsed) {
     res.status(422).json({ error: "Nieprawidłowa lokalizacja" });
@@ -1262,7 +1262,7 @@ app.get("/api/locations/verify", async (req, res) => {
 app.get("/api/locations/duplicates", async (_req, res) => {
   try {
     const db = getDb();
-    const { parseLocation } = await import("../lib/locations.ts");
+    const { parseLocation } = await import("../lib/locations.js");
 
     const rows = await db
       .select({
@@ -1389,7 +1389,7 @@ app.post("/api/locations/transfer", async (req, res) => {
     return;
   }
 
-  const { parseLocation } = await import("../lib/locations.ts");
+  const { parseLocation } = await import("../lib/locations.js");
   const fromParsed = parseLocation(fromLocation);
   const toParsed = parseLocation(toLocation);
   if (!fromParsed || !toParsed) {
@@ -2048,7 +2048,7 @@ app.post("/api/wizard/import-all", async (_req, res) => {
       .query(
         `SELECT NULLIF(${locationField}, '') AS location FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != '' GROUP BY ${locationField}`,
       );
-    const { parseLocation } = await import("../lib/locations.ts");
+    const { parseLocation } = await import("../lib/locations.js");
     let imported = 0,
       skipped = 0;
     for (const row of locResult.recordset) {
@@ -2188,7 +2188,7 @@ app.put("/api/backup/config", async (req, res) => {
   }
   try {
     const db = getDb();
-    const { encryptSecret } = await import("../lib/backup-crypto.ts");
+    const { encryptSecret } = await import("../lib/backup-crypto.js");
     const entries: any[] = [
       { key: "s3_endpoint", value: endpoint },
       { key: "s3_bucket", value: bucket },
@@ -2217,7 +2217,7 @@ app.post("/api/backup/test-s3", async (req, res) => {
     return;
   }
   try {
-    const { testS3Connection } = await import("../lib/backup-s3.ts");
+    const { testS3Connection } = await import("../lib/backup-s3.js");
     const result = await testS3Connection({ endpoint, bucket, region, accessKey, secretKey });
     res.json(result);
   } catch (err: any) {
@@ -2254,7 +2254,7 @@ app.get("/api/backup/list", async (_req, res) => {
 
   let s3: any[] = [];
   try {
-    const { listS3Files } = await import("../lib/backup-s3.ts");
+    const { listS3Files } = await import("../lib/backup-s3.js");
     const files = await listS3Files();
     s3 = files.map((f) => ({ name: f, size: 0, date: new Date().toISOString(), source: "s3" }));
   } catch {}
@@ -2274,7 +2274,7 @@ app.get("/api/backup/download/:name", async (req, res) => {
   const source = req.query.source || "local";
   try {
     if (source === "s3") {
-      const { downloadFromS3 } = await import("../lib/backup-s3.ts");
+      const { downloadFromS3 } = await import("../lib/backup-s3.js");
       const data = await downloadFromS3(name);
       res.setHeader("Content-Type", "application/gzip");
       res.setHeader("Content-Disposition", `attachment; filename=${name}`);
@@ -2303,7 +2303,7 @@ app.delete("/api/backup/:name", async (req, res) => {
   const source = req.query.source || "local";
   try {
     if (source === "s3") {
-      const { deleteFromS3 } = await import("../lib/backup-s3.ts");
+      const { deleteFromS3 } = await import("../lib/backup-s3.js");
       await deleteFromS3(name);
     }
     const localPath = `/backups/local/${name}`;
@@ -2356,7 +2356,7 @@ app.post("/api/backup/upload-local", async (req, res) => {
     const localPath = `/backups/local/${file}`;
     const { readFileSync } = await import("node:fs");
     const data = readFileSync(localPath);
-    const { uploadToS3 } = await import("../lib/backup-s3.ts");
+    const { uploadToS3 } = await import("../lib/backup-s3.js");
     await uploadToS3(file, data);
     res.json({ ok: true });
   } catch (err: any) {
