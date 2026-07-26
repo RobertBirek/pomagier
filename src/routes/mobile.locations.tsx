@@ -169,6 +169,18 @@ function LocationsPage() {
     }).filter(Boolean) as BasketItem[]);
   };
 
+  const handleReset = async () => {
+    if (!resetLocation || basket.length === 0) return;
+    setResetting(true);
+    try {
+      const codes = basket.flatMap(b => Array(b.qty).fill(b.code));
+      const res = await fetch("/api/locations/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes, location: resetLocation }) });
+      if (res.ok) { const data = await res.json(); toast.success(`Reset: ${data.reset} towarów → ${resetLocation}`); setBasket([]); setResetLocation(null); }
+      else toast.error((await res.json()).error);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setResetting(false); refocus(); }
+  };
+
   const handleTransfer = async () => {
     if (!transferSource || !transferTarget || basket.length === 0) return;
     setTransferring(true);

@@ -2427,6 +2427,66 @@ app.post("/api/locations/reset", async (req, res) => {
   } catch (err) { logger.error({ err }, "Reset failed"); res.status(500).json({ error: "Reset nie powiodl sie" }); }
 });
 
+// --- Pełne dane produktu ---
+app.get("/api/products/:id", async (req, res) => {
+  const productId = parseInt(req.params.id as string);
+  if (!productId) { res.status(400).json({ error: "Brak ID" }); return; }
+  try {
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+
+    const result = await pool.request().input("id", productId).query(`
+      SELECT tw_Id, tw_Symbol, tw_Nazwa, tw_Opis, tw_PodstKodKresk, tw_JednMiary,
+             tw_PKWiU, tw_KodTowaru, tw_StanMin, tw_JednStanMin, tw_StanMaks, tw_DniWaznosc,
+             tw_Masa, tw_MasaNetto, tw_CenaOtwarta, tw_ObjetySysKaucyjnym, tw_Zablokowany,
+             tw_Pole1, tw_Pole2, tw_Pole3, tw_IdGrupa, tw_IdVatSp, tw_UrzNazwa
+      FROM tw__Towar WHERE tw_Id = @id
+    `);
+    if (!result.recordset[0]) { res.status(404).json({ error: "Nie znaleziono" }); return; }
+    const row = result.recordset[0] as any;
+
+    // Stock per warehouse
+    const stockRows = await pool.request().input("id", productId).query(`
+      SELECT s.st_MagId, m.mag_Symbol, m.mag_Nazwa, s.st_Stan, s.st_StanRez, s.st_StanMin, s.st_StanMax
+      FROM tw_Stan s JOIN sl_Magazyn m ON m.mag_Id = s.st_MagId WHERE s.st_TowId = @id
+    `);
+
+    // Locations from Postgres
+    const plRows = await db.select({ code: schema.locations.code, area: schema.locations.area, aisle: schema.locations.aisle, rack: schema.locations.rack, shelf: schema.locations.shelf })
+      .from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
+      .where(eq(schema.productLocations.productId, productId));
+
+    // Movement history
+    const movements = await db.select().from(schema.productMovements).where(eq(schema.productMovements.productId, productId)).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(10);
+
+    // VAT rate lookup
+    let vatRate = "";
+    if (row.tw_IdVatSp) {
+      const vatRow = await pool.request().input("id", row.tw_IdVatSp).query("SELECT vat_Nazwa FROM sl_StawkaVAT WHERE vat_Id = @id");
+      if (vatRow.recordset[0]) vatRate = (vatRow.recordset[0] as any).vat_Nazwa;
+    }
+
+    // Group name
+    let groupName = "";
+    if (row.tw_IdGrupa) {
+      const grRow = await pool.request().input("id", row.tw_IdGrupa).query("SELECT grt_Nazwa FROM sl_GrupaTw WHERE grt_Id = @id");
+      if (grRow.recordset[0]) groupName = (grRow.recordset[0] as any).grt_Nazwa;
+    }
+
+    res.json({
+      id: row.tw_Id, symbol: row.tw_Symbol, name: row.tw_Nazwa, description: row.tw_Opis,
+      barcode: row.tw_PodstKodKresk, unit: row.tw_JednMiary, pkwiu: row.tw_PKWiU,
+      productCode: row.tw_KodTowaru, minStock: row.tw_StanMin, minStockUnit: row.tw_JednStanMin,
+      maxStock: row.tw_StanMaks, expiryDays: row.tw_DniWaznosc, weight: row.tw_Masa,
+      netWeight: row.tw_MasaNetto, openPrice: row.tw_CenaOtwarta, depositSystem: row.tw_ObjetySysKaucyjnym,
+      blocked: row.tw_Zablokowany, vatRate, groupName, producerCode: row.tw_UrzNazwa,
+      stocks: stockRows.recordset, locations: plRows, movements,
+    });
+  } catch (err) { logger.error({ err }, "Product detail failed"); res.status(500).json({ error: "Błąd" }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");
