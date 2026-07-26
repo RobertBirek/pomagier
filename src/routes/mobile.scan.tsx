@@ -45,14 +45,8 @@ function ScanPage() {
   const handleScan = async (result: { code: string; ok: boolean; label: string }) => {
     const loc = parseLocation(result.code);
     if (loc) {
-      try {
-        const exists = await checkLocationExists(loc.raw);
-        if (!exists) { setPendingLocation({ code: loc.raw, label: loc.label }); return; }
-        toast.success(loc.label, { description: `Lokalizacja: ${loc.raw}` });
-      } catch {
-        await addScanToQueue(result.code, loc.raw);
-        toast.warning("Offline — zapisano w kolejce", { description: loc.raw });
-      }
+      toast.success(loc.label, { description: "Przekierowuję do karty lokalizacji…" });
+      setTimeout(() => nav({ to: "/mobile/location/$code", params: { code: loc.raw } }), 400);
       return;
     }
     if (result.ok) {

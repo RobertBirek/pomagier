@@ -2396,6 +2396,37 @@ try {
   logger.warn({ err }, "Migration skipped");
 }
 
+
+// --- Reset: wszystkie lokalizacje produktu → tylko ta jedna ---
+app.post("/api/locations/reset", async (req, res) => {
+  const { codes, location } = req.body ?? {};
+  if (!Array.isArray(codes) || !location) { res.status(400).json({ error: "Brak kodów lub lokalizacji" }); return; }
+  const { parseLocation } = await import("../lib/locations.ts");
+  const parsed = parseLocation(location);
+  if (!parsed) { res.status(422).json({ error: "Nieprawidlowy format" }); return; }
+  try {
+    const db = getDb(); const adapter = getAdapter(); const pool = await adapter.getPool?.();
+    if (!pool) return res.status(503).json({ error: "MSSQL niedostepny" });
+    const locationField = await getLocationField();
+    let [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
+    if (!loc) { [loc] = await db.insert(schema.locations).values({ code: parsed.raw, area: parsed.area, aisle: parsed.aisle, rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label }).returning(); }
+    let reset = 0;
+    for (const code of codes) {
+      const r = await pool.request().input("code", code).query("SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+      for (const row of r.recordset) {
+        const productId = (row as any).id;
+        await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, productId));
+        await db.insert(schema.productLocations).values({ productId, locationId: loc.id, quantity: 1 });
+        await pool.request().input("id", productId).input("val", parsed.raw).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        await db.insert(schema.productMovements).values({ productId, symbol: (row as any).symbol, name: (row as any).name, toLocationId: loc.id, toCode: parsed.raw, quantity: 1, operator: "operator", correlationId: crypto.randomUUID() });
+        reset++;
+      }
+    }
+    logger.info({ location: parsed.raw, reset }, "Location reset");
+    res.json({ ok: true, reset, location: parsed.raw });
+  } catch (err) { logger.error({ err }, "Reset failed"); res.status(500).json({ error: "Reset nie powiodl sie" }); }
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
   logger.info({ port }, "API server started");

@@ -59,6 +59,9 @@ function LocationsPage() {
   const [lastLocation, setLastLocation] = useState<string | null>(() => localStorage.getItem(LAST_LOC_KEY));
   const [showPicker, setShowPicker] = useState(false);
   const [transferMode, setTransferMode] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetLocation, setResetLocation] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [stockInfo, setStockInfo] = useState<{ location: string; assigned: number; inSubiekt: number } | null>(null);
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [hasLocation, setHasLocation] = useState<{ code: string; locations: string[] } | null>(null);
@@ -101,6 +104,12 @@ function LocationsPage() {
 
     const loc = parseLocation(trimmed);
     if (loc) {
+      if (resetMode) {
+        if (!resetLocation) { setResetLocation(loc.raw); toast.success(`Reset na: ${loc.raw}`); setInputValue(""); refocus(); return; }
+        // Same location scanned again — trigger reset
+        if (resetLocation === loc.raw && basket.length > 0) { return; } // handled by confirmation card
+        toast.error(`Oczekiwano: ${resetLocation}, zeskanowano: ${loc.raw}`); beep(200, 300); return;
+      }
       if (transferMode) {
         if (!transferSource) { setTransferSource(loc.raw); toast.success(`Źródło: ${loc.raw}`); setInputValue(""); refocus(); return; }
         if (!transferTarget && basket.length > 0) { setTransferTarget(loc.raw); toast.success(`Cel: ${loc.raw}`); setInputValue(""); refocus(); return; }

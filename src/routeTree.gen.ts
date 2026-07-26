@@ -43,6 +43,7 @@ import { Route as MobilePickingRouteImport } from './routes/mobile.picking'
 import { Route as MobileReceivingRouteImport } from './routes/mobile.receiving'
 import { Route as MobileScanRouteImport } from './routes/mobile.scan'
 import { Route as MobileSyncRouteImport } from './routes/mobile.sync'
+import { Route as MobileLocationCodeRouteImport } from './routes/mobile.location.$code'
 import { Route as MobileProductCodeRouteImport } from './routes/mobile.product.$code'
 
 const IndexRoute = IndexRouteImport.update({
@@ -215,6 +216,11 @@ const MobileSyncRoute = MobileSyncRouteImport.update({
   path: '/sync',
   getParentRoute: () => MobileRoute,
 } as any)
+const MobileLocationCodeRoute = MobileLocationCodeRouteImport.update({
+  id: '/location/$code',
+  path: '/location/$code',
+  getParentRoute: () => MobileRoute,
+} as any)
 const MobileProductCodeRoute = MobileProductCodeRouteImport.update({
   id: '/product/$code',
   path: '/product/$code',
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/mobile/sync': typeof MobileSyncRoute
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
+  '/mobile/location/$code': typeof MobileLocationCodeRoute
   '/mobile/product/$code': typeof MobileProductCodeRoute
 }
 export interface FileRoutesByTo {
@@ -291,6 +298,7 @@ export interface FileRoutesByTo {
   '/mobile/sync': typeof MobileSyncRoute
   '/admin': typeof AdminIndexRoute
   '/mobile': typeof MobileIndexRoute
+  '/mobile/location/$code': typeof MobileLocationCodeRoute
   '/mobile/product/$code': typeof MobileProductCodeRoute
 }
 export interface FileRoutesById {
@@ -329,6 +337,7 @@ export interface FileRoutesById {
   '/mobile/sync': typeof MobileSyncRoute
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
+  '/mobile/location/$code': typeof MobileLocationCodeRoute
   '/mobile/product/$code': typeof MobileProductCodeRoute
 }
 export interface FileRouteTypes {
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/mobile/sync'
     | '/admin/'
     | '/mobile/'
+    | '/mobile/location/$code'
     | '/mobile/product/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -403,6 +413,7 @@ export interface FileRouteTypes {
     | '/mobile/sync'
     | '/admin'
     | '/mobile'
+    | '/mobile/location/$code'
     | '/mobile/product/$code'
   id:
     | '__root__'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/mobile/sync'
     | '/admin/'
     | '/mobile/'
+    | '/mobile/location/$code'
     | '/mobile/product/$code'
   fileRoutesById: FileRoutesById
 }
@@ -691,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileSyncRouteImport
       parentRoute: typeof MobileRoute
     }
+    '/mobile/location/$code': {
+      id: '/mobile/location/$code'
+      path: '/location/$code'
+      fullPath: '/mobile/location/$code'
+      preLoaderRoute: typeof MobileLocationCodeRouteImport
+      parentRoute: typeof MobileRoute
+    }
     '/mobile/product/$code': {
       id: '/mobile/product/$code'
       path: '/product/$code'
@@ -758,6 +777,7 @@ interface MobileRouteChildren {
   MobileScanRoute: typeof MobileScanRoute
   MobileSyncRoute: typeof MobileSyncRoute
   MobileIndexRoute: typeof MobileIndexRoute
+  MobileLocationCodeRoute: typeof MobileLocationCodeRoute
   MobileProductCodeRoute: typeof MobileProductCodeRoute
 }
 
@@ -772,6 +792,7 @@ const MobileRouteChildren: MobileRouteChildren = {
   MobileScanRoute: MobileScanRoute,
   MobileSyncRoute: MobileSyncRoute,
   MobileIndexRoute: MobileIndexRoute,
+  MobileLocationCodeRoute: MobileLocationCodeRoute,
   MobileProductCodeRoute: MobileProductCodeRoute,
 }
 
