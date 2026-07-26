@@ -113,7 +113,6 @@ function AdminDashboard() {
         <SectionTitle title="Status systemu" />
         <div className="mt-2 flex gap-3">
           <StatusBadge tone={online ? "success" : "danger"}>MSSQL {online ? "online" : "offline"}</StatusBadge>
-          <StatusBadge tone="success">VPN</StatusBadge>
         </div>
       </div>
     </div>
