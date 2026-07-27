@@ -52,16 +52,8 @@ const navItems = [
   { title: "Magazyny", url: "/admin/warehouses", icon: Warehouse },
   { title: "Mapa magazynu", url: "/admin/map", icon: Map },
   { title: "Użytkownicy", url: "/admin/users", icon: Users },
-  { title: "Terminale", url: "/admin/terminals", icon: Smartphone },
-  { title: "Drukarki", url: "/admin/printers", icon: Printer },
-  { title: "Zadania", url: "/admin/tasks", icon: ListTodo },
-  { title: "Dokumenty", url: "/admin/documents", icon: FileText },
-  { title: "Kolejki", url: "/admin/queues", icon: ListChecks },
   { title: "Logi", url: "/admin/logs", icon: ScrollText },
-  { title: "Alerty", url: "/admin/alerts", icon: Bell },
   { title: "Statystyki", url: "/admin/stats", icon: BarChart3 },
-  { title: "Podgląd mobile", url: "/admin/mobile-preview", icon: Monitor },
-  { title: "Ustawienia", url: "/admin/settings", icon: Settings },
 ];
 
 function AppSidebar() {
