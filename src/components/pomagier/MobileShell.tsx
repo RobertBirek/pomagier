@@ -46,6 +46,7 @@ export function MobileShell() {
             <div className="flex items-center gap-2 min-w-0">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="truncate font-semibold">{operatorName || "Operator"}</span>
+              <span className="text-[10px] text-muted-foreground/50 ml-1">v1.0.0</span>
               <span className="text-muted-foreground">· {warehouse}</span>
             </div>
             <div className="flex items-center gap-2">

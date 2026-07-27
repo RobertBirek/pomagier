@@ -144,6 +144,7 @@ function AppSidebar({
               {!collapsed && (
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold leading-tight">{operatorName || "Operator"}</div>
+                  <div className="text-[10px] text-muted-foreground/50">v1.0.0</div>
                 </div>
               )}
             </div>
