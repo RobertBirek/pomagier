@@ -519,17 +519,11 @@ app.put("/api/field-mappings", requireAdmin, async (req, res) => {
 });
 
 // --- Zmiana PIN użytkownika ---
-app.put("/api/users/:subiektId/pin", async (req, res) => {
+app.put("/api/users/:subiektId/pin", requireAdmin, async (req, res) => {
   const subiektUzId = parseInt(req.params.subiektId as string);
   const { pin } = req.body ?? {};
 
-  // Allow self-change or admin override
-  if (!req.user) { res.status(401).json({ error: "Zaloguj się" }); return; }
-  if (req.user.role !== "admin" && req.user.subiektUzId !== subiektUzId) {
-    res.status(403).json({ error: "Możesz zmienić tylko swój PIN" }); return;
-  }
-
-  if (!pin || pin.length < 4 || pin.length > 8) {
+  if (!subiektUzId || !pin || pin.length < 4 || pin.length > 8) {
     res.status(400).json({ error: "PIN musi mieć 4-8 cyfr" });
     return;
   }
@@ -995,16 +989,14 @@ app.post("/api/inventory/report", requireAdmin, async (req, res) => {
   } catch (err) { logger.error({ err }, "Report failed"); res.status(500).json({ error: "Blad" }); }
 });
 
-// --- Aktywne terminale ---
 app.get("/api/terminals", requireAdmin, async (_req, res) => {
   try {
     const db = getDb(); const now = new Date();
-    const sessions = await db.select({ id: schema.sessions.id, createdAt: schema.sessions.createdAt, expiresAt: schema.sessions.expiresAt, userName: sql`TRIM(${schema.users.firstName} || ' ' || ${schema.users.lastName})`, role: schema.users.role, subiektUzId: schema.users.subiektUzId })
-      .from(schema.sessions).innerJoin(schema.users, eq(schema.sessions.userId, schema.users.id))
-      .where(sql`${schema.sessions.expiresAt} > NOW()`).orderBy(sql`${schema.sessions.createdAt} DESC`);
-    res.json(sessions.map(s => ({ id: s.id, userName: s.userName || `ID ${s.subiektUzId}`, role: s.role, loginTime: s.createdAt, expiresAt: s.expiresAt, active: new Date(s.expiresAt) > now })));
+    const rows = await db.select().from(schema.sessions).orderBy(sql`created_at DESC`).limit(20);
+    res.json(rows.filter(s => new Date(s.expiresAt) > now).map(s => ({ id: s.id, userId: s.userId, loginTime: s.createdAt, expiresAt: s.expiresAt })));
   } catch { res.json([]); }
 });
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
 
