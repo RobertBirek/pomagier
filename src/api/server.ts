@@ -994,6 +994,17 @@ app.post("/api/inventory/report", requireAdmin, async (req, res) => {
     res.json({ summary: { expected: ep.length, scanned: scanned.length, matched: matched.length, missing: missing.length, extra: extra.length, quantityDiff: qDiff.length }, matched, missing, extra, quantityDiff: qDiff });
   } catch (err) { logger.error({ err }, "Report failed"); res.status(500).json({ error: "Blad" }); }
 });
+
+// --- Aktywne terminale ---
+app.get("/api/terminals", requireAdmin, async (_req, res) => {
+  try {
+    const db = getDb(); const now = new Date();
+    const sessions = await db.select({ id: schema.sessions.id, createdAt: schema.sessions.createdAt, expiresAt: schema.sessions.expiresAt, userName: sql`TRIM(${schema.users.firstName} || ' ' || ${schema.users.lastName})`, role: schema.users.role, subiektUzId: schema.users.subiektUzId })
+      .from(schema.sessions).innerJoin(schema.users, eq(schema.sessions.userId, schema.users.id))
+      .where(sql`${schema.sessions.expiresAt} > NOW()`).orderBy(sql`${schema.sessions.createdAt} DESC`);
+    res.json(sessions.map(s => ({ id: s.id, userName: s.userName || `ID ${s.subiektUzId}`, role: s.role, loginTime: s.createdAt, expiresAt: s.expiresAt, active: new Date(s.expiresAt) > now })));
+  } catch { res.json([]); }
+});
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
 

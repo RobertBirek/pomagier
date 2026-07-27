@@ -74,6 +74,7 @@ const navSections = [
     label: "Administracja",
     items: [
       { title: "Użytkownicy", url: "/admin/users", icon: Users },
+      { title: "Terminale", url: "/admin/terminals", icon: Smartphone },
     ],
   },
 ];
