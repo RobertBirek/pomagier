@@ -137,16 +137,16 @@ function AppSidebar({
                 </div>
                 <span className={cn(
                   "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
-                  online ? "bg-emerald-500" : "bg-zinc-400"
+                  online ? "bg-success" : "bg-muted-foreground/30"
                 )} />
               </div>
               {!collapsed && (
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold leading-tight">{operatorName || "Operator"}</div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className={cn("inline-block h-1.5 w-1.5 rounded-full", online ? "bg-emerald-500" : "bg-zinc-400")} />
+                    <span className={cn("inline-block h-1.5 w-1.5 rounded-full", online ? "bg-success" : "bg-muted-foreground/30")} />
                     <span className="text-xs text-muted-foreground">MSSQL</span>
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
                     <span className="text-xs text-muted-foreground">API</span>
                   </div>
                 </div>
