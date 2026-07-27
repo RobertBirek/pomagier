@@ -22,18 +22,21 @@ function SetupPage() {
             Certyfikat root CA pozwala przeglądarce zaufać lokalnemu serwerowi. Bez niego kamera i instalacja PWA nie zadziałają.
           </p>
           <a
-            href="/api/ca"
+            href="/ca"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 touch-target"
           >
             <Download className="h-4 w-4" />
             Pobierz rootCA.pem
           </a>
+          <p className="text-xs text-muted-foreground mt-2">
+            Lub szybka strona z przyciskiem: <a href="/ca" className="underline">/ca</a>
+          </p>
         </Section>
 
         {/* Step 2: Android */}
         <Section number={2} title="Android" icon={<Smartphone className="h-5 w-5" />}>
           <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Otwórz pobrany plik <code className="rounded bg-muted px-1 font-mono text-xs">rootCA.pem</code></li>
+            <li>Otwórz <a href="/ca" className="text-primary underline">/ca</a> i kliknij <strong>"Pobierz rootCA.crt"</strong></li>
             <li>Nazwa certyfikatu: <strong>PomagierGT</strong></li>
             <li>Użycie: wybierz <strong>"VPN i aplikacje"</strong></li>
             <li>Potwierdź PIN-em, odciskiem palca lub wzorem</li>
@@ -137,7 +140,7 @@ function SetupPage() {
             <div>
               <div className="text-sm font-semibold mb-2">1. Zainstaluj certyfikat CA</div>
               <ol className="list-decimal space-y-1 pl-5 text-sm">
-                <li>Otwórz Chrome i wejdź na <code className="rounded bg-muted px-1 font-mono text-xs">https://192.168.1.174/api/ca</code></li>
+                <li>Otwórz Chrome i wejdź na <a href="/ca" className="text-primary underline">/ca</a> — kliknij "Pobierz rootCA.crt"</li>
                 <li>Pobierz plik <strong>rootCA.crt</strong></li>
                 <li>Ustawienia → Bezpieczeństwo → Zainstaluj certyfikat</li>
                 <li>Nazwa: <strong>PomagierGT</strong>, użycie: <strong>VPN i aplikacje</strong></li>
