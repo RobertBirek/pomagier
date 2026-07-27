@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getStats, getCompany, healthCheck } from "@/lib/api";
 import { KpiCard, StatusBadge, SectionTitle, LoadingRow } from "@/components/pomagier/primitives";
 import { Database, Server, Clock, Package, Users, MapPin, Wifi, WifiOff, Save, FlaskConical, ArrowRightLeft } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 async function fetchErpConfig() {
@@ -74,19 +74,19 @@ function AdminErp() {
   const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs?: number; error?: string } | null>(null);
   const [fieldMap, setFieldMap] = useState<{ key: string; subiektField: string }[]>([]);
 
-  // Sync form when config loads
-  const [synced, setSynced] = useState(false);
-  if (config && !synced) {
-    setForm({ host: config.host, port: config.port, database: config.database, user: config.user, password: "" });
-    setSynced(true);
-  }
+  useEffect(() => {
+    if (config) {
+      setForm({ host: config.host, port: config.port, database: config.database, user: config.user, password: "" });
+    }
+  }, [config]);
 
-  // Sync field mappings when loaded
-  const [mapSynced, setMapSynced] = useState(false);
-  if (fieldMappings && !mapSynced) {
-    setFieldMap(fieldMappings.map((m) => ({ key: m.key, subiektField: m.subiektField })));
-    setMapSynced(true);
-  }
+  useEffect(() => {
+    if (fieldMappings) {
+      setFieldMap(fieldMappings.map((m) => ({ key: m.key, subiektField: m.subiektField })));
+    }
+  }, [fieldMappings]);
+
+  const fieldMapByKey = useMemo(() => new Map(fieldMap.map((m) => [m.key, m])), [fieldMap]);
 
   const saveMut = useMutation({ mutationFn: saveErpConfig, onSuccess: () => { toast.success("Konfiguracja zapisana"); qc.invalidateQueries({ queryKey: ["health"] }); qc.invalidateQueries({ queryKey: ["stats"] }); qc.invalidateQueries({ queryKey: ["company"] }); refetchHealth(); }, onError: (e: any) => toast.error(e.message) });
   const saveMappingsMut = useMutation({ mutationFn: saveFieldMappings, onSuccess: () => { toast.success("Mapowanie zapisane"); refetchMappings(); }, onError: (e: any) => toast.error(e.message) });
@@ -222,10 +222,10 @@ function AdminErp() {
                 </div>
                 <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
                 <select
-                  value={fieldMap.find((m) => m.key === fm.key)?.subiektField || fm.subiektField}
+                  value={fieldMapByKey.get(fm.key)?.subiektField || fm.subiektField}
                   onChange={(e) =>
                     setFieldMap((prev) =>
-                      prev.some((m) => m.key === fm.key)
+                      fieldMapByKey.has(fm.key)
                         ? prev.map((m) => (m.key === fm.key ? { ...m, subiektField: e.target.value } : m))
                         : [...prev, { key: fm.key, subiektField: e.target.value }],
                     )

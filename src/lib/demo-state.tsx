@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 type DemoState = {
   offline: boolean;
@@ -20,6 +20,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [currentOperator, setCurrentOperator] = useState("Marek Wiśniewski");
   const [currentWarehouse, setCurrentWarehouse] = useState("MAG");
   const [pendingSync, setPendingSync] = useState(3);
+  const bumpPendingSync = useCallback((n = 1) => setPendingSync((p) => p + n), []);
+  const clearPendingSync = useCallback(() => setPendingSync(0), []);
   return (
     <Ctx.Provider
       value={{
@@ -30,8 +32,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         currentWarehouse,
         setCurrentWarehouse,
         pendingSync,
-        bumpPendingSync: (n = 1) => setPendingSync((p) => p + n),
-        clearPendingSync: () => setPendingSync(0),
+        bumpPendingSync,
+        clearPendingSync,
         battery: 68,
       }}
     >

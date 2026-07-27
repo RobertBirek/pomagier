@@ -5,7 +5,7 @@ import { LocationPicker } from "@/components/pomagier/LocationPicker";
 import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { toast } from "sonner";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { MapPin, Plus, X, Shuffle } from "lucide-react";
 
 async function checkLocationExists(code: string) {
@@ -82,8 +82,7 @@ function ScanPage() {
     finally { setAdding(false); setPendingLocation(null); }
   };
 
-  // Reload random on mount
-  if (!randomCode) loadRandom();
+  useEffect(() => { if (!randomCode) loadRandom(); }, []);
 
   return (
     <div className="mx-auto max-w-md p-4 space-y-4">

@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { getUsers, getWarehouses, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { User, Shield } from "lucide-react";
 
@@ -21,13 +21,16 @@ function Login() {
   const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
   // Set default warehouse when data loads
+  const whSymbols = useMemo(() => warehouses.map((w) => w.symbol).join(","), [warehouses]);
+
   useEffect(() => {
     if (warehouses.length > 0 && !warehouse) {
       setWarehouse(warehouses.find((w) => w.isMain)?.symbol || warehouses[0]?.symbol || "");
     }
-  }, [warehouses, warehouse]);
+  }, [whSymbols, warehouse]);
 
-  const selected = users.find((u) => u.subiektId === selectedId);
+  const userMap = useMemo(() => new Map(users.map((u) => [u.subiektId, u])), [users]);
+  const selected = selectedId != null ? userMap.get(selectedId) : null;
 
   const submit = async (pin: string) => {
     if (!selectedId) return;

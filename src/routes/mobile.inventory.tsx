@@ -54,7 +54,7 @@ function InventoryPage() {
   const addToBasket = (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
-    setBasket(b => { const existing = b.find(i => i.code === trimmed); if (existing) return b.map(i => i.code === trimmed ? { ...i, qty: i.qty + 1 } : i); return [...b, { code: trimmed, qty: 1 }]; });
+    setBasket(b => { const idx = b.findIndex(i => i.code === trimmed); if (idx >= 0) return b.map((i, j) => j === idx ? { ...i, qty: i.qty + 1 } : i); return [...b, { code: trimmed, qty: 1 }]; });
     setInputValue(""); refocus();
   };
 

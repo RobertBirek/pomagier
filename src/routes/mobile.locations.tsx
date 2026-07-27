@@ -131,9 +131,9 @@ function LocationsPage() {
     } catch {}
 
     // Check duplicate in basket
-    const existing = basket.find(b => b.code === trimmed);
-    if (existing) {
-      setBasket(b => b.map(i => i.code === trimmed ? { ...i, qty: i.qty + 1 } : i));
+    const idx = basket.findIndex(b => b.code === trimmed);
+    if (idx >= 0) {
+      setBasket(b => b.map((i, j) => j === idx ? { ...i, qty: i.qty + 1 } : i));
     } else {
       // Lookup product name
       const product = await lookupProduct(trimmed);

@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { getUsers, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { User, Shield, ArrowLeft } from "lucide-react";
 
@@ -16,7 +16,8 @@ function AdminLogin() {
 
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: getUsers });
   const admins = users.filter((u) => u.active && u.role === "admin");
-  const selected = admins.find((u) => u.subiektId === selectedId);
+  const adminMap = useMemo(() => new Map(admins.map((u) => [u.subiektId, u])), [admins]);
+  const selected = selectedId != null ? adminMap.get(selectedId) : null;
 
   const submit = async (pin: string) => {
     if (!selectedId) return;

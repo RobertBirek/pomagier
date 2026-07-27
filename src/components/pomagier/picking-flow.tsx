@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ScanPanel, QuantityStepper, type ScanResult } from "./scan";
 import { StatusBadge } from "./primitives";
@@ -35,7 +35,7 @@ export function PickingFlow({ initialTaskId }: { initialTaskId?: string }) {
   const [scanLog, setScanLog] = useState<ScanResult[]>([]);
   const [error, setError] = useState<{ title: string; description: string } | null>(null);
 
-  const task = useMemo(() => tasks.find((t) => t.id === taskId), [taskId]);
+  const task = taskId ? tasks.find((t) => t.id === taskId) : null;
   const pos = positions[index];
   const doneCount = positions.filter((p) => p.status !== "pending").length;
   const pickedCount = positions.filter((p) => p.status === "picked").length;
