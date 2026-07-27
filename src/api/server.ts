@@ -997,6 +997,12 @@ app.get("/api/terminals", requireAdmin, async (_req, res) => {
   } catch { res.json([]); }
 });
 
+
+app.get("/ca", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><title>Pobierz certyfikat</title></head><body style="font-family:system-ui;padding:20px;text-align:center"><h2>Certyfikat PomagierGT</h2><p>Kliknij przycisk aby pobrać i zainstalować:</p><a href="/api/ca" download="rootCA.crt" style="display:inline-block;background:#1e40af;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;touch-action:manipulation">📥 Pobierz rootCA.crt</a><p style="margin-top:20px;color:#666;font-size:14px">Po pobraniu: Ustawienia → Bezpieczeństwo → Zainstaluj certyfikat</p></body></html>`);
+});
+
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
 
