@@ -40,6 +40,7 @@ import { Route as MobileLocationsRouteImport } from './routes/mobile.locations'
 import { Route as MobileLoginRouteImport } from './routes/mobile.login'
 import { Route as MobileMyTasksRouteImport } from './routes/mobile.my-tasks'
 import { Route as MobilePickingRouteImport } from './routes/mobile.picking'
+import { Route as MobilePinRouteImport } from './routes/mobile.pin'
 import { Route as MobileReceivingRouteImport } from './routes/mobile.receiving'
 import { Route as MobileScanRouteImport } from './routes/mobile.scan'
 import { Route as MobileSyncRouteImport } from './routes/mobile.sync'
@@ -201,6 +202,11 @@ const MobilePickingRoute = MobilePickingRouteImport.update({
   path: '/picking',
   getParentRoute: () => MobileRoute,
 } as any)
+const MobilePinRoute = MobilePinRouteImport.update({
+  id: '/pin',
+  path: '/pin',
+  getParentRoute: () => MobileRoute,
+} as any)
 const MobileReceivingRoute = MobileReceivingRouteImport.update({
   id: '/receiving',
   path: '/receiving',
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/mobile/login': typeof MobileLoginRoute
   '/mobile/my-tasks': typeof MobileMyTasksRoute
   '/mobile/picking': typeof MobilePickingRoute
+  '/mobile/pin': typeof MobilePinRoute
   '/mobile/receiving': typeof MobileReceivingRoute
   '/mobile/scan': typeof MobileScanRoute
   '/mobile/sync': typeof MobileSyncRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/mobile/login': typeof MobileLoginRoute
   '/mobile/my-tasks': typeof MobileMyTasksRoute
   '/mobile/picking': typeof MobilePickingRoute
+  '/mobile/pin': typeof MobilePinRoute
   '/mobile/receiving': typeof MobileReceivingRoute
   '/mobile/scan': typeof MobileScanRoute
   '/mobile/sync': typeof MobileSyncRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/mobile/login': typeof MobileLoginRoute
   '/mobile/my-tasks': typeof MobileMyTasksRoute
   '/mobile/picking': typeof MobilePickingRoute
+  '/mobile/pin': typeof MobilePinRoute
   '/mobile/receiving': typeof MobileReceivingRoute
   '/mobile/scan': typeof MobileScanRoute
   '/mobile/sync': typeof MobileSyncRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/mobile/login'
     | '/mobile/my-tasks'
     | '/mobile/picking'
+    | '/mobile/pin'
     | '/mobile/receiving'
     | '/mobile/scan'
     | '/mobile/sync'
@@ -408,6 +418,7 @@ export interface FileRouteTypes {
     | '/mobile/login'
     | '/mobile/my-tasks'
     | '/mobile/picking'
+    | '/mobile/pin'
     | '/mobile/receiving'
     | '/mobile/scan'
     | '/mobile/sync'
@@ -446,6 +457,7 @@ export interface FileRouteTypes {
     | '/mobile/login'
     | '/mobile/my-tasks'
     | '/mobile/picking'
+    | '/mobile/pin'
     | '/mobile/receiving'
     | '/mobile/scan'
     | '/mobile/sync'
@@ -682,6 +694,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobilePickingRouteImport
       parentRoute: typeof MobileRoute
     }
+    '/mobile/pin': {
+      id: '/mobile/pin'
+      path: '/pin'
+      fullPath: '/mobile/pin'
+      preLoaderRoute: typeof MobilePinRouteImport
+      parentRoute: typeof MobileRoute
+    }
     '/mobile/receiving': {
       id: '/mobile/receiving'
       path: '/receiving'
@@ -773,6 +792,7 @@ interface MobileRouteChildren {
   MobileLoginRoute: typeof MobileLoginRoute
   MobileMyTasksRoute: typeof MobileMyTasksRoute
   MobilePickingRoute: typeof MobilePickingRoute
+  MobilePinRoute: typeof MobilePinRoute
   MobileReceivingRoute: typeof MobileReceivingRoute
   MobileScanRoute: typeof MobileScanRoute
   MobileSyncRoute: typeof MobileSyncRoute
@@ -788,6 +808,7 @@ const MobileRouteChildren: MobileRouteChildren = {
   MobileLoginRoute: MobileLoginRoute,
   MobileMyTasksRoute: MobileMyTasksRoute,
   MobilePickingRoute: MobilePickingRoute,
+  MobilePinRoute: MobilePinRoute,
   MobileReceivingRoute: MobileReceivingRoute,
   MobileScanRoute: MobileScanRoute,
   MobileSyncRoute: MobileSyncRoute,

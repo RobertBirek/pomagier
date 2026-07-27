@@ -519,11 +519,17 @@ app.put("/api/field-mappings", requireAdmin, async (req, res) => {
 });
 
 // --- Zmiana PIN użytkownika ---
-app.put("/api/users/:subiektId/pin", requireAdmin, async (req, res) => {
+app.put("/api/users/:subiektId/pin", async (req, res) => {
   const subiektUzId = parseInt(req.params.subiektId as string);
   const { pin } = req.body ?? {};
 
-  if (!subiektUzId || !pin || pin.length < 4 || pin.length > 8) {
+  // Allow self-change or admin override
+  if (!req.user) { res.status(401).json({ error: "Zaloguj się" }); return; }
+  if (req.user.role !== "admin" && req.user.subiektUzId !== subiektUzId) {
+    res.status(403).json({ error: "Możesz zmienić tylko swój PIN" }); return;
+  }
+
+  if (!pin || pin.length < 4 || pin.length > 8) {
     res.status(400).json({ error: "PIN musi mieć 4-8 cyfr" });
     return;
   }
