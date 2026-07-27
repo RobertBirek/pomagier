@@ -70,19 +70,19 @@ export function MobileShell() {
 
       {!hideChrome && (
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card safe-bottom">
-          <div className="grid grid-cols-4">
+          <div className="grid grid-cols-4 py-1">
             {tabs.map((t) => (
               <Link
                 key={t.to}
                 to={t.to}
                 className={cn(
-                  "touch-target flex flex-col items-center justify-center gap-0.5 py-1.5 text-xs transition",
+                  "flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors",
                   (pathname === t.to || pathname.startsWith(t.to + "/"))
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <t.icon className="h-4 w-4" />
+                <t.icon className="h-5 w-5" />
                 <span>{t.label}</span>
               </Link>
             ))}
