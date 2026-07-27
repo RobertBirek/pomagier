@@ -77,10 +77,15 @@ const navSections = [
   },
 ];
 
-function AppSidebar() {
+function AppSidebar({
+  operatorName, logout, online, dark, toggleDark,
+}: {
+  operatorName: string; logout: () => void; online: boolean; dark: boolean; toggleDark: () => void;
+}) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const nav = useNavigate();
 
   return (
     <Sidebar collapsible="icon">
@@ -119,6 +124,29 @@ function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
+
+      {/* Sidebar footer: user info + controls */}
+      <SidebarFooter className="border-t">
+        <div className={cn("flex items-center gap-2 px-3 py-2", collapsed && "justify-center")}>
+          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+            {operatorName?.slice(0, 2).toUpperCase() || "OP"}
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium">{operatorName || "Operator"}</div>
+              <StatusBadge tone={online ? "success" : "danger"}>{online ? "online" : "offline"}</StatusBadge>
+            </div>
+          )}
+        </div>
+        <div className={cn("flex items-center gap-1 px-2 pb-2", collapsed && "flex-col")}>
+          <button onClick={toggleDark} className="touch-target rounded-md p-1.5 hover:bg-accent" title={dark ? "Jasny" : "Ciemny"}>
+            {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
+          <button onClick={() => { logout(); nav({ to: "/admin/login" }); }} className="touch-target rounded-md p-1.5 hover:bg-accent text-muted-foreground hover:text-destructive" title="Wyloguj">
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
@@ -166,36 +194,16 @@ export function AppShellAdmin() {
   const { operatorName, logout } = useAuth();
   const { online } = useMssqlStatus();
   const [dark, toggleDark] = useDarkMode();
-  const nav = useNavigate();
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
+        <AppSidebar operatorName={operatorName} logout={logout} online={online} dark={dark} toggleDark={toggleDark} />
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur safe-top">
             <SidebarTrigger />
             <div className="flex items-center gap-2 border-l pl-3">
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-semibold">PomagierGT</span>
-              <StatusBadge tone={online ? "success" : "danger"}>MSSQL</StatusBadge>
-              <button onClick={toggleDark} className="touch-target rounded-md p-2 hover:bg-accent" title={dark ? "Jasny motyw" : "Ciemny motyw"}>
-                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-              <button onClick={() => { logout(); nav({ to: "/admin/login" }); }} className="touch-target rounded-md p-2 hover:bg-accent text-muted-foreground hover:text-destructive" title="Wyloguj">
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <StatusBadge tone="success">API: OK</StatusBadge>
-              <button
-                className="relative rounded-md p-2 hover:bg-accent"
-                aria-label="Powiadomienia"
-              >
-                <Bell className="h-4 w-4" />
-              </button>
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                {operatorName?.slice(0, 2).toUpperCase() || "OP"}
-              </div>
             </div>
           </header>
           <div className="border-b bg-card/50 px-4 py-2">
