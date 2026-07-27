@@ -143,21 +143,13 @@ function AppSidebar({
               {!collapsed && (
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold leading-tight">{operatorName || "Operator"}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={cn("inline-block h-1.5 w-1.5 rounded-full", online ? "bg-success" : "bg-muted-foreground/30")} />
-                    <span className="text-xs text-muted-foreground">MSSQL</span>
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
-                    <span className="text-xs text-muted-foreground">API</span>
-                  </div>
+                  <span className={cn("inline-block h-1.5 w-1.5 rounded-full mt-0.5", online ? "bg-success" : "bg-muted-foreground/30")} />
                 </div>
               )}
             </div>
 
-            {/* Controls */}
+            {/* Logout */}
             <div className={cn("flex items-center gap-0.5 shrink-0", collapsed && "flex-col")}>
-              <button onClick={toggleDark} className="touch-target grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={dark ? "Jasny motyw" : "Ciemny motyw"}>
-                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
               <button onClick={() => { logout(); nav({ to: "/admin/login" }); }} className="touch-target grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Wyloguj">
                 <LogOut className="h-4 w-4" />
               </button>
@@ -222,6 +214,17 @@ export function AppShellAdmin() {
             <div className="flex items-center gap-2 border-l pl-3">
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-semibold">PomagierGT</span>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className={cn("inline-block h-2 w-2 rounded-full", online ? "bg-success" : "bg-muted-foreground/30")} />
+                MSSQL
+                <span className="inline-block h-2 w-2 rounded-full bg-success" />
+                API
+              </div>
+              <button onClick={toggleDark} className="touch-target grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={dark ? "Jasny" : "Ciemny"}>
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
             </div>
           </header>
           <div className="border-b bg-card/50 px-4 py-2">
