@@ -144,7 +144,6 @@ function AppSidebar({
               {!collapsed && (
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold leading-tight">{operatorName || "Operator"}</div>
-                  <span className={cn("inline-block h-1.5 w-1.5 rounded-full mt-0.5", online ? "bg-success" : "bg-muted-foreground/30")} />
                 </div>
               )}
             </div>
