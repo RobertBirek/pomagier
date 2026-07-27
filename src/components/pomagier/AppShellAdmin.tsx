@@ -43,7 +43,6 @@ import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
 import { useDarkMode } from "@/lib/use-dark";
 import { LogOut } from "lucide-react";
-import { StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
 
 const navSections = [
@@ -144,7 +143,12 @@ function AppSidebar({
               {!collapsed && (
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold leading-tight">{operatorName || "Operator"}</div>
-                  <div className="text-xs text-muted-foreground">{online ? "online" : "offline"}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={cn("inline-block h-1.5 w-1.5 rounded-full", online ? "bg-emerald-500" : "bg-zinc-400")} />
+                    <span className="text-xs text-muted-foreground">MSSQL</span>
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-xs text-muted-foreground">API</span>
+                  </div>
                 </div>
               )}
             </div>
