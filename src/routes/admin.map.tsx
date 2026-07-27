@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { KpiCard, SectionTitle, LoadingRow, ErrorState, StatusBadge } from "@/components/pomagier/primitives";
-import { MapPin, Package, Layers, Download, RefreshCw, ShieldCheck, Search, Box, X, History, Printer } from "lucide-react";
+import { MapPin, Package, Layers, ShieldCheck, Search, Box, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -131,10 +131,7 @@ function AdminMap() {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => importMut.mutate()} disabled={importMut.isPending} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs hover:bg-accent disabled:opacity-50"><Download className="h-3.5 w-3.5" />Import</button>
-        <button onClick={() => syncMut.mutate()} disabled={syncMut.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />Sync</button>
         <button onClick={() => verifyMut.mutate()} disabled={verifyMut.isPending} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs hover:bg-accent disabled:opacity-50"><ShieldCheck className="h-3.5 w-3.5" />Weryfikuj</button>
-        <button onClick={handlePrintLabels} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs hover:bg-accent"><Printer className="h-3.5 w-3.5" />Etykiety</button>
         <div className="flex-1" />
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
