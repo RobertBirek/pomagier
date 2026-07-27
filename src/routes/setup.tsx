@@ -111,7 +111,7 @@ function SetupPage() {
             <code className="text-lg font-bold font-mono text-primary">https://pomagier.local</code>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Dalej możesz również korzystać przez adres IP: <code className="font-mono">https://10.10.254.131</code>
+            Dalej możesz również korzystać przez adres IP: <code className="font-mono">https://192.168.1.174</code>
           </p>
         </Section>
 
