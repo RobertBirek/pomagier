@@ -3,7 +3,9 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 import { MssqlErpAdapter } from "../erp/mssql.adapter.js";
 import { MockErpAdapter } from "../erp/mock.adapter.js";
 import type { ErpAdapter } from "../erp/adapter.js";
@@ -11,9 +13,11 @@ import { getDb, schema } from "../db/index.js";
 import { eq, and, sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { authMiddleware, requireAdmin } from "./auth-middleware.js";
+import { checkIdempotency, storeIdempotency } from "./idempotency.js";
 
 const app = express();
 app.use(helmet());
+app.use(cookieParser());
 app.use(authMiddleware);
 app.use(
   cors({
@@ -56,7 +60,11 @@ function getAdapter(): ErpAdapter {
 
 // --- Auth helpers ---
 function hashPin(pin: string): string {
-  return crypto.createHash("sha256").update(pin).digest("hex");
+  return bcrypt.hashSync(pin, 10);
+}
+
+function verifyPin(pin: string, hash: string): boolean {
+  return bcrypt.compareSync(pin, hash);
 }
 
 function generateToken(): string {
@@ -216,7 +224,7 @@ app.post("/api/login", async (req, res) => {
       return;
     }
 
-    if (user.pin !== hashPin(pin)) {
+    if (!verifyPin(pin, user.pin)) {
       try {
         await db
           .insert(schema.auditLog)
@@ -245,6 +253,14 @@ app.post("/api/login", async (req, res) => {
       userId: user.id,
       action: "login",
       details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
+    });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+      path: "/",
     });
 
     res.json({ token, user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
@@ -930,6 +946,12 @@ app.post("/api/locations/assign", requireAdmin, async (req, res) => {
   if (!Array.isArray(codes) || codes.length === 0 || !location) {
     res.status(400).json({ error: "Brak kodów lub lokalizacji" });
     return;
+  }
+
+  const idemKey = req.headers["x-idempotency-key"] as string;
+  if (idemKey) {
+    const cached = checkIdempotency(idemKey);
+    if (cached) { res.json(cached.result); return; }
   }
 
   const { parseLocation } = await import("../lib/locations.js");
@@ -2156,7 +2178,7 @@ app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
         .insert(schema.users)
         .values({
           subiektUzId,
-          pin: crypto.createHash("sha256").update("0000").digest("hex"),
+          pin: hashPin("0000"),
           role: subiektUzId === 1 ? "admin" : "operator",
         })
         .onConflictDoNothing();

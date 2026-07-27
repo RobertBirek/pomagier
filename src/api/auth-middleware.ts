@@ -7,7 +7,7 @@ declare global {
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const token = (req.headers.authorization || "").replace("Bearer ", "");
+  const token = req.cookies?.token || (req.headers.authorization || "").replace("Bearer ", "");
   if (!token) return next(); // Allow unauthenticated for public endpoints
 
   try {

@@ -1,12 +1,12 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 import { users } from "../src/db/schema.ts";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://pomagier:pomagier_dev@localhost:5432/pomagier";
 
 function hashPin(pin: string): string {
-  return crypto.createHash("sha256").update(pin).digest("hex");
+  return bcrypt.hashSync(pin, 10);
 }
 
 async function seed() {
