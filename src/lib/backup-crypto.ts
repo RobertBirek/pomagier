@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 
 const ALGORITHM = "aes-256-cbc";
-const KEY = process.env.BACKUP_ENCRYPTION_KEY || "pomagier-backup-dev-key-32chr!!";
+const KEY = process.env.BACKUP_ENCRYPTION_KEY || "pomagier-dev-backup-key-change-me";
+if (process.env.NODE_ENV === "production" && KEY === "pomagier-dev-backup-key-change-me") {
+  throw new Error("BACKUP_ENCRYPTION_KEY required in production");
+}
 
 function getKey(): Buffer {
   return crypto.createHash("sha256").update(KEY).digest();

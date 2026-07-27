@@ -17,7 +17,9 @@ app.use(helmet());
 app.use(authMiddleware);
 app.use(
   cors({
-    origin: ["https://pomagier.local", "https://localhost", "http://localhost:5173"],
+    origin: process.env.NODE_ENV === "production"
+      ? ["https://pomagier.local", "https://localhost"]
+      : ["https://pomagier.local", "https://localhost", "http://localhost:5173"],
     credentials: true,
   }),
 );
@@ -297,7 +299,7 @@ app.get("/api/stats", async (_req, res) => {
 });
 
 // --- Test MSSQL connection with given params ---
-app.post("/api/test-connection", async (req, res) => {
+app.post("/api/test-connection", requireAdmin, async (req, res) => {
   const { host, port, database, user, password } = req.body ?? {};
   if (!host || !database || !user || !password) {
     res
@@ -416,7 +418,7 @@ app.get("/api/locations", async (_req, res) => {
 });
 
 // --- Import lokalizacji z Subiekta (jednorazowo) ---
-app.post("/api/locations/import", async (_req, res) => {
+app.post("/api/locations/import", requireAdmin, async (_req, res) => {
   try {
     const adapter = getAdapter();
     const pool = await adapter.getPool?.();
@@ -504,7 +506,7 @@ app.post("/api/locations/import", async (_req, res) => {
 });
 
 // --- Dodaj nową lokalizację ---
-app.post("/api/locations", async (req, res) => {
+app.post("/api/locations", requireAdmin, async (req, res) => {
   const { code } = req.body ?? {};
   if (!code) {
     res.status(400).json({ error: "Brak kodu lokalizacji" });
@@ -584,8 +586,8 @@ app.get("/api/products-by-location", async (req, res) => {
 });
 
 // --- Aktualizuj lokalizację produktu w Subiekt GT ---
-app.put("/api/products/:id/location", async (req, res) => {
-  const productId = parseInt(req.params.id);
+app.put("/api/products/:id/location", requireAdmin, async (req, res) => {
+  const productId = parseInt(req.params.id as string);
   const { location } = req.body ?? {};
 
   if (!productId || !location) {
@@ -785,7 +787,7 @@ app.put("/api/field-mappings", requireAdmin, async (req, res) => {
 });
 
 // --- Synchronizuj product_locations z Subiekt GT ---
-app.post("/api/locations/sync", async (_req, res) => {
+app.post("/api/locations/sync", requireAdmin, async (_req, res) => {
   try {
     const adapter = getAdapter();
     const pool = await adapter.getPool?.();
@@ -923,7 +925,7 @@ app.get("/api/products/random", async (_req, res) => {
 });
 
 // --- Przypisz towary do lokalizacji ---
-app.post("/api/locations/assign", async (req, res) => {
+app.post("/api/locations/assign", requireAdmin, async (req, res) => {
   const { codes, location } = req.body ?? {};
   if (!Array.isArray(codes) || codes.length === 0 || !location) {
     res.status(400).json({ error: "Brak kodów lub lokalizacji" });
@@ -1106,7 +1108,7 @@ app.get("/api/ca", async (_req, res) => {
 });
 
 // --- Cofnij ostatnią operację przypisania ---
-app.post("/api/locations/undo", async (req, res) => {
+app.post("/api/locations/undo", requireAdmin, async (req, res) => {
   const { location, codes } = req.body ?? {};
   if (!location || !Array.isArray(codes) || codes.length === 0) {
     res.status(400).json({ error: "Brak lokalizacji lub kodów" });
@@ -1401,7 +1403,7 @@ app.get("/api/locations/check-product", async (req, res) => {
 });
 
 // --- Przenieś towary między lokalizacjami ---
-app.post("/api/locations/transfer", async (req, res) => {
+app.post("/api/locations/transfer", requireAdmin, async (req, res) => {
   const { codes, fromLocation, toLocation } = req.body ?? {};
   if (!Array.isArray(codes) || codes.length === 0 || !fromLocation || !toLocation) {
     res.status(400).json({ error: "Brak kodów, źródła lub celu" });
@@ -1799,7 +1801,7 @@ app.get("/api/activity", async (_req, res) => {
 });
 
 // --- Napraw rozbieżności: zsynchronizuj Subiekt z Postgres ---
-app.post("/api/locations/fix-sync", async (_req, res) => {
+app.post("/api/locations/fix-sync", requireAdmin, async (_req, res) => {
   try {
     const db = getDb();
     const adapter = getAdapter();
@@ -1845,7 +1847,7 @@ app.post("/api/locations/fix-sync", async (_req, res) => {
 });
 
 // --- Wyczyść pole lokalizacji w Subiekcie ---
-app.post("/api/locations/clear-field", async (_req, res) => {
+app.post("/api/locations/clear-field", requireAdmin, async (_req, res) => {
   try {
     const adapter = getAdapter();
     const pool = await adapter.getPool?.();
@@ -1862,7 +1864,7 @@ app.post("/api/locations/clear-field", async (_req, res) => {
 });
 
 // --- Fix sync per selected products ---
-app.post("/api/locations/fix-sync-batch", async (req, res) => {
+app.post("/api/locations/fix-sync-batch", requireAdmin, async (req, res) => {
   const { productIds, direction } = req.body ?? {};
   if (!Array.isArray(productIds) || productIds.length === 0) {
     res.status(400).json({ error: "Brak productIds" });
@@ -2028,7 +2030,7 @@ app.get("/api/wizard/status", async (_req, res) => {
 });
 
 // Wyczyść tabele
-app.post("/api/wizard/clear", async (req, res) => {
+app.post("/api/wizard/clear", requireAdmin, async (req, res) => {
   const { tables } = req.body ?? {};
   if (!Array.isArray(tables)) {
     res.status(400).json({ error: "Brak listy tabel" });
@@ -2047,7 +2049,7 @@ app.post("/api/wizard/clear", async (req, res) => {
 });
 
 // Import wszystkiego
-app.post("/api/wizard/import-all", async (_req, res) => {
+app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
   const results: any = {};
   try {
     // Step 1: Import locations
@@ -2398,7 +2400,7 @@ try {
 
 
 // --- Reset: wszystkie lokalizacje produktu → tylko ta jedna ---
-app.post("/api/locations/reset", async (req, res) => {
+app.post("/api/locations/reset", requireAdmin, async (req, res) => {
   const { codes, location } = req.body ?? {};
   if (!Array.isArray(codes) || !location) { res.status(400).json({ error: "Brak kodów lub lokalizacji" }); return; }
   const { parseLocation } = await import("../lib/locations.ts");
@@ -2489,7 +2491,7 @@ app.get("/api/products/:id", async (req, res) => {
 
 
 // --- Raport inwentaryzacji ---
-app.post("/api/inventory/report", async (req, res) => {
+app.post("/api/inventory/report", requireAdmin, async (req, res) => {
   const { scope, area, aisle, rack, shelf, scanned } = req.body ?? {};
   if (!Array.isArray(scanned)) { res.status(400).json({ error: "Brak zeskanowanych" }); return; }
   try {
