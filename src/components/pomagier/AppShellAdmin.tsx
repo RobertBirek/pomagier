@@ -19,6 +19,7 @@ import {
   Building2,
   FileText,
   Package,
+  HardDrive,
   Plus,
   Menu,
   Sun,
@@ -44,16 +45,36 @@ import { LogOut } from "lucide-react";
 import { StatusBadge } from "./primitives";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Konfiguracja ERP", url: "/admin/erp", icon: Database },
-  { title: "Backup", url: "/admin/backup", icon: Database },
-  { title: "Towary", url: "/admin/products", icon: Package },
-  { title: "Magazyny", url: "/admin/warehouses", icon: Warehouse },
-  { title: "Mapa magazynu", url: "/admin/map", icon: Map },
-  { title: "Użytkownicy", url: "/admin/users", icon: Users },
-  { title: "Logi", url: "/admin/logs", icon: ScrollText },
-  { title: "Statystyki", url: "/admin/stats", icon: BarChart3 },
+const navSections = [
+  {
+    label: "Monitorowanie",
+    items: [
+      { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+      { title: "Statystyki", url: "/admin/stats", icon: BarChart3 },
+      { title: "Logi", url: "/admin/logs", icon: ScrollText },
+    ],
+  },
+  {
+    label: "ERP",
+    items: [
+      { title: "Konfiguracja ERP", url: "/admin/erp", icon: Database },
+      { title: "Backup", url: "/admin/backup", icon: HardDrive },
+    ],
+  },
+  {
+    label: "Magazyn",
+    items: [
+      { title: "Towary", url: "/admin/products", icon: Package },
+      { title: "Magazyny", url: "/admin/warehouses", icon: Warehouse },
+      { title: "Mapa magazynu", url: "/admin/map", icon: Map },
+    ],
+  },
+  {
+    label: "Administracja",
+    items: [
+      { title: "Użytkownicy", url: "/admin/users", icon: Users },
+    ],
+  },
 ];
 
 function AppSidebar() {
@@ -75,26 +96,28 @@ function AppSidebar() {
             </div>
           )}
         </div>
-        <SidebarGroup>
-          <SidebarGroupLabel>Nawigacja</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => {
-                const active = pathname.startsWith(item.url);
-                return (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={active}>
-                      <Link to={item.url} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navSections.map((section) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => {
+                  const active = pathname.startsWith(item.url);
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton asChild isActive={active}>
+                        <Link to={item.url} className="flex items-center gap-2">
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
     </Sidebar>
   );
