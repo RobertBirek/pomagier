@@ -44,6 +44,7 @@ import { useMssqlStatus } from "@/lib/use-status";
 import { useDarkMode } from "@/lib/use-dark";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "./primitives";
 
 const navSections = [
   {
@@ -216,12 +217,8 @@ export function AppShellAdmin() {
               <span className="text-sm font-semibold">PomagierGT</span>
             </div>
             <div className="ml-auto flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className={cn("inline-block h-2 w-2 rounded-full", online ? "bg-success" : "bg-muted-foreground/30")} />
-                MSSQL
-                <span className="inline-block h-2 w-2 rounded-full bg-success" />
-                API
-              </div>
+              <StatusBadge tone={online ? "success" : "danger"}>MSSQL</StatusBadge>
+              <StatusBadge tone="success">API</StatusBadge>
               <button onClick={toggleDark} className="touch-target grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={dark ? "Jasny" : "Ciemny"}>
                 {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
