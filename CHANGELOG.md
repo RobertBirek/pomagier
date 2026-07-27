@@ -1,54 +1,62 @@
 # Changelog
 
-## [0.2.0] — 2026-07-25
+## [1.0.0] — 2026-07-26 (Production Ready)
 
-### Added
-- **Wizard wdrożeniowy**: 5 kroków (MSSQL→Mapowanie→Czyszczenie→Import→Start), auto-detect przy pierwszym uruchomieniu
-- **Auto-logout**: 15min mobile, 30min admin bezczynności
-- **Login audit**: każde logowanie/nieudana próba w `audit_log`
-- **Mapa magazynu 2.0**: wizualna siatka alejka×półka (72 komórki), heatmapa, wyszukiwarka, puste lokalizacje
-- **Szczegóły lokalizacji**: modal z produktami, historią, stock verification
-- **Eksport etykiet PDF**: jspdf, kody Code 128 do druku
-- **Weryfikacja spójności**: modal z rozbieżnościami, checkboxy per produkt, bidirectional sync + clear
-- **Dashboard aktywności**: wykres dzienny 7 dni, ostatnie ruchy
-- **Firefox CA**: instrukcja instalacji certyfikatu
-- **/admin/logs**: realne dane z `product_movements` + `audit_log`
-- **Logowanie do /admin**: przycisk wylogowania w nagłówku
-- **Domyślny PIN**: 0000 dla nowych operatorów (seed)
+### Security Hardening
+- **bcrypt**: PIN hashing replaced SHA-256 (10 salt rounds)
+- **httpOnly cookie**: JWT token in secure cookie, not localStorage
+- **Idempotency keys**: `X-Idempotency-Key` header for write operations (5-min TTL)
+- **requireAdmin**: 14+ previously unprotected endpoints now require admin role
+- **CORS**: restricted to pomagier.local in production
+- **Hardcoded secrets**: removed from code, env-only
+- **Helmet + rate-limit**: security headers, 20/min login, 100/min API
 
-### Changed
-- **SSR → SPA**: TanStack Start usunięty, czysty React + Vite + TanStack Router
-- **Express API**: wydzielony serwer (port 3000), Vite proxy `/api`
-- **Lokalizacje w Postgres**: source of truth, import z Subiekta jednorazowy
-- **Field mapping**: konfigurowalne mapowanie pól Pomagier ↔ Subiekt (`fieldmap_location`)
-- **Status MSSQL**: live wskaźnik online (useMssqlStatus hook)
-- **Mobile shell**: "Lokaliz." tab zamiast "Zadania"
-- **Admin panel**: live dane z MSSQL (users, warehouses, ERP config, stats)
-- **Safe area**: CSS `env(safe-area-inset-*)` dla PWA notch
+### Refactoring
+- **server.ts**: 2564 → 1023 lines (-60%), routes extracted to modules
+- **backup routes** → `src/api/routes/backup.ts`
+- **location routes** → `src/api/routes/locations.ts`
 
-### Fixed
-- Pino-pretty crash w SSR
-- Named instance MSSQL (`host\instance`)
-- Product list deduplication (subquery SUM)
-- Login infinite re-render (setState in select)
-- Vite allowedHosts dla pomagier.local
-- Caddy cert permissions
+### New Features
+- **Admin login**: `/admin/login` — separate page for admins only
+- **Role management**: dropdown Admin/Operator in `/admin/users`
+- **Reset mode**: clear all product locations, set only one
+- **Product card 2.0**: full Subiekt data (VAT, PKWiU, group, weight, movements)
+- **Location card**: `/mobile/location/$code` — all products in location
+- **Inventory**: scope selector (exact/shelf/rack/area) + scan + report
+- **Deployment wizard**: 5-step setup with auto-detect
+- **Backup system**: daily cron, local + S3, admin UI
+- **Dark mode**: toggle in headers
+- **VPN**: WireGuard client, health check every 5min
+
+### Tests
+- 14 tests total (8 unit + 6 integration)
+
+### Infrastructure
+- **Caddy**: HTTPS reverse proxy, static file serving
+- **mkcert**: local CA + trusted cert for pomagier.local  
+- **avahi**: mDNS pomagier.local
+- **systemd**: pomagier-api service with auto-restart
+- **Log rotation**: pino-roll, daily, 7 days
+- **Docker**: production stage + healthchecks + compose.prod
+- **Migrations**: Drizzle auto-migrate on startup
 
 ---
 
-## [0.1.0] — 2026-07-24
-
+## [0.2.0] — 2026-07-25
 ### Added
-- **MVP foundation**: React 19 + Vite 8 + TanStack Router + Tailwind CSS 4 + shadcn/ui
-- **Docker stack**: postgres:16, Dockerfile multi-stage
-- **ERP adapter**: MssqlErpAdapter (parametryzowane zapytania), MockErpAdapter
-- **Mobile flow**: login (PIN + JWT), dashboard, scan page, product card
-- **Admin panel**: 16 routes, live KPI, ERP config form
-- **Postgres schema**: users (subiekt_uz_id + PIN), sessions, audit_log, config, locations, product_locations
-- **Express API**: health, scan, company, users, warehouses, login, stats, products (paginated)
-- **Field mapping**: konfigurowalne `tw_PoleX` per feature
-- **Location system**: Code 128 parser (`A 1-2-3-4`), 88 locations imported
-- **Product list**: 577 towarów, paginacja, search, filtrowanie
-- **Seed script**: PIN-y dla operatorów Subiekta
-- **Testy**: Vitest (8/8), ERP adapter + auth unit tests
-- **Documentation**: AGENTS.md, README, PRD, ARCHITECTURE, PLAN, TASKS, SECURITY
+- PWA: manifest, Service Worker, offline queue
+- HTTPS + domena pomagier.local
+- /mobile/locations: assign/transfer/reset modes
+- product_movements audit trail
+- Location picker, duplicates detection, stock verification
+- Camera scanner (html5-qrcode)
+- Auto-logout, location stats, sync verification
+
+## [0.1.0] — 2026-07-24
+### Added
+- MVP foundation: React 19 + Vite + TanStack Router + Express + Postgres
+- ERP adapter: MssqlErpAdapter + MockErpAdapter
+- Mobile flow: login (PIN + JWT), dashboard, scan, product card
+- Admin panel: 16 routes, live MSSQL data
+- Location system: Code 128 parser, 88 locations
+- Product list: 577 items, pagination, search

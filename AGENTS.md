@@ -1,6 +1,6 @@
 # AGENTS.md — PomagierGT
 
-## Stack technologiczny
+## Stan projektu: v1.0.0 Production Ready
 
 | Warstwa | Technologia | Stan |
 |---|---|---|
