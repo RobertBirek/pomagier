@@ -10,6 +10,17 @@
 | ERP | Insert Subiekt GT (MSSQL read-only) | ✓ Produkcyjny |
 | Reverse proxy | Caddy (HTTPS, port 443) | ✓ Produkcyjny |
 | mDNS | avahi-daemon (pomagier.local) | ✓ Produkcyjny |
+| Testy | Vitest (14/14) | ✓ Aktywne |
+| Deployment | systemd (pomagier-api, pomagier-vite) | ✓ Produkcyjny |
+
+| Warstwa | Technologia | Stan |
+|---|---|---|
+| Frontend/PWA | React 19, TypeScript, TanStack Router, Tailwind CSS 4, shadcn/ui | ✓ Produkcyjny |
+| Backend API | Express 5 (port 3000) | ✓ Produkcyjny |
+| Baza aplikacyjna | Postgres 16 (Drizzle ORM) | ✓ Produkcyjny |
+| ERP | Insert Subiekt GT (MSSQL read-only) | ✓ Produkcyjny |
+| Reverse proxy | Caddy (HTTPS, port 443) | ✓ Produkcyjny |
+| mDNS | avahi-daemon (pomagier.local) | ✓ Produkcyjny |
 | Testy | Vitest (8/8) | ✓ Aktywne |
 | Deployment | systemd (pomagier-api, pomagier-vite) | ✓ Produkcyjny |
 
