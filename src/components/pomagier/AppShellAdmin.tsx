@@ -126,26 +126,39 @@ function AppSidebar({
         ))}
       </SidebarContent>
 
-      {/* Sidebar footer: user info + controls */}
-      <SidebarFooter className="border-t">
-        <div className={cn("flex items-center gap-2 px-3 py-2", collapsed && "justify-center")}>
-          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-            {operatorName?.slice(0, 2).toUpperCase() || "OP"}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium">{operatorName || "Operator"}</div>
-              <StatusBadge tone={online ? "success" : "danger"}>{online ? "online" : "offline"}</StatusBadge>
+      {/* Sidebar footer */}
+      <SidebarFooter>
+        <div className={cn("border-t px-3 py-3", collapsed && "px-2")}>
+          <div className={cn("flex items-center gap-2.5", collapsed && "flex-col gap-3")}>
+            {/* Avatar + name + status */}
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className={cn("relative shrink-0", collapsed && "mx-auto")}>
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+                  {operatorName?.slice(0, 2).toUpperCase() || "OP"}
+                </div>
+                <span className={cn(
+                  "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
+                  online ? "bg-emerald-500" : "bg-zinc-400"
+                )} />
+              </div>
+              {!collapsed && (
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold leading-tight">{operatorName || "Operator"}</div>
+                  <div className="text-xs text-muted-foreground">{online ? "online" : "offline"}</div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className={cn("flex items-center gap-1 px-2 pb-2", collapsed && "flex-col")}>
-          <button onClick={toggleDark} className="touch-target rounded-md p-1.5 hover:bg-accent" title={dark ? "Jasny" : "Ciemny"}>
-            {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          </button>
-          <button onClick={() => { logout(); nav({ to: "/admin/login" }); }} className="touch-target rounded-md p-1.5 hover:bg-accent text-muted-foreground hover:text-destructive" title="Wyloguj">
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
+
+            {/* Controls */}
+            <div className={cn("flex items-center gap-0.5 shrink-0", collapsed && "flex-col")}>
+              <button onClick={toggleDark} className="touch-target grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={dark ? "Jasny motyw" : "Ciemny motyw"}>
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+              <button onClick={() => { logout(); nav({ to: "/admin/login" }); }} className="touch-target grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Wyloguj">
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
