@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Smartphone, Monitor, Globe, Wifi, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Download, Smartphone, Monitor, Globe, Wifi, AlertTriangle, CheckCircle2, ScanLine } from "lucide-react";
 
 export const Route = createFileRoute("/setup")({
   component: SetupPage,
@@ -126,6 +126,48 @@ function SetupPage() {
             <li>Aplikacja otworzy się na pełnym ekranie, bez paska adresu</li>
             <li>Ikona "P" na niebieskim tle pojawi się na pulpicie</li>
           </ol>
+        </Section>
+
+        {/* Zebra terminal */}
+        <Section number={8} title="Konfiguracja terminala Zebra M3 SL20" icon={<ScanLine className="h-5 w-5" />}>
+          <p className="text-sm text-muted-foreground mb-3">
+            Terminal Zebra z wbudowanym skanerem kodów kreskowych. Skonfiguruj DataWedge do automatycznego wysyłania kodów z Enter.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm font-semibold mb-2">1. Zainstaluj certyfikat CA</div>
+              <ol className="list-decimal space-y-1 pl-5 text-sm">
+                <li>Otwórz Chrome i wejdź na <code className="rounded bg-muted px-1 font-mono text-xs">https://192.168.1.174/api/ca</code></li>
+                <li>Pobierz plik <strong>rootCA.crt</strong></li>
+                <li>Ustawienia → Bezpieczeństwo → Zainstaluj certyfikat</li>
+                <li>Nazwa: <strong>PomagierGT</strong>, użycie: <strong>VPN i aplikacje</strong></li>
+              </ol>
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">2. Skonfiguruj DataWedge</div>
+              <ol className="list-decimal space-y-1 pl-5 text-sm">
+                <li>Otwórz aplikację <strong>DataWedge</strong> (preinstalowana)</li>
+                <li>Utwórz nowy profil lub edytuj domyślny</li>
+                <li><strong>Input</strong> → Barcode: włączone</li>
+                <li><strong>Output</strong> → Keystroke: włączone</li>
+                <li>W ustawieniach Keystroke dodaj <strong>Enter (keycode 13)</strong> jako suffix</li>
+                <li><strong>Associated apps</strong>: wybierz Chrome</li>
+                <li>Zapisz profil</li>
+              </ol>
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">3. Zainstaluj PWA</div>
+              <ol className="list-decimal space-y-1 pl-5 text-sm">
+                <li>Otwórz <code className="rounded bg-muted px-1 font-mono text-xs">https://192.168.1.174</code> w Chrome</li>
+                <li>Menu (⋮) → <strong>Dodaj do ekranu głównego</strong></li>
+                <li>Aplikacja otwiera się na pełnym ekranie</li>
+                <li>Skaner automatycznie wpisuje kod + Enter → pole skanowania odbiera kod</li>
+              </ol>
+            </div>
+            <div className="rounded bg-blue-50 border border-blue-200 p-3 text-sm">
+              <strong>Wskazówka:</strong> Po zainstalowaniu PWA, aplikacja działa jak natywna — pełny ekran, własna ikona, skaner jako klawiatura. Nie potrzebuje certyfikatu jeśli używasz IP. Certyfikat CA potrzebny tylko dla domeny <code className="font-mono">pomagier.local</code>.
+            </div>
+          </div>
         </Section>
 
         {/* FAQ */}
