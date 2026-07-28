@@ -107,6 +107,10 @@ function LocationsPage() {
       {history.length > 0 && (
         <div className="rounded-lg border bg-card p-3"><div className="flex items-center gap-2 mb-2 text-xs font-medium text-muted-foreground"><History className="h-3.5 w-3.5" />Ostatnie operacje</div><div className="divide-y">{history.map(e => (<div key={e.timestamp} className="flex items-center justify-between py-1.5 text-xs"><div className="min-w-0"><span className="font-mono font-semibold">{e.location}</span><span className="text-muted-foreground ml-2">{e.codes.length} kodów</span></div><button onClick={() => handleUndo(e)} disabled={undoing} className="touch-target inline-flex items-center gap-1 rounded border px-2 py-0.5 hover:bg-accent text-destructive"><RotateCcw className="h-3 w-3" />Cofnij</button></div>))}</div></div>
       )}
+      {/* Empty */}
+      {basket.length === 0 && !pendingLocation && history.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground"><Package className="mx-auto h-12 w-12 opacity-20 mb-2" /><p className="text-sm">Skanuj EAN towaru w polu powyżej</p><p className="text-xs mt-1">Następnie zeskanuj kod lokalizacji</p></div>
+      )}
     </div>
   );
 }
