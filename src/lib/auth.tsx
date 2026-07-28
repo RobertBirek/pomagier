@@ -1,13 +1,14 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 interface AuthState {
+  token: string | null;
   user: { id: string; subiektUzId: number; role: string } | null;
   operatorName: string;
   warehouse: string;
 }
 
 interface AuthContextType extends AuthState {
-  login: (user: AuthState["user"], name: string, wh: string) => void;
+  login: (token: string, user: AuthState["user"], name: string, wh: string) => void;
   logout: () => void;
 }
 
@@ -16,30 +17,21 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => {
     try {
-      const saved = localStorage.getItem("pomagier_session");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          user: parsed.user || null,
-          operatorName: parsed.operatorName || "",
-          warehouse: parsed.warehouse || "",
-        };
-      }
-    } catch {
-      /* corrupted localStorage entry — ignore and reset */
-    }
-    return { user: null, operatorName: "", warehouse: "" };
+      const saved = localStorage.getItem("pomagier_auth");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { token: null, user: null, operatorName: "", warehouse: "" };
   });
 
-  const login = useCallback((user: AuthState["user"], name: string, wh: string) => {
-    const session = { user, operatorName: name, warehouse: wh };
-    localStorage.setItem("pomagier_session", JSON.stringify(session));
-    setState({ user, operatorName: name, warehouse: wh });
+  const login = useCallback((token: string, user: AuthState["user"], name: string, wh: string) => {
+    const session = { token, user, operatorName: name, warehouse: wh };
+    localStorage.setItem("pomagier_auth", JSON.stringify(session));
+    setState(session);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("pomagier_session");
-    setState({ user: null, operatorName: "", warehouse: "" });
+    localStorage.removeItem("pomagier_auth");
+    setState({ token: null, user: null, operatorName: "", warehouse: "" });
   }, []);
 
   return (
