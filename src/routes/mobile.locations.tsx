@@ -118,7 +118,7 @@ function LocationsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Sticky header with input + mode button */}
-      <div className={`sticky top-0 z-30 bg-card border-b safe-top transition-all duration-200 ${scrolled ? "py-1.5" : "py-2"}`}>
+      <div className={`sticky top-[36px] z-20 bg-card border-b border-t transition-all duration-200 ${scrolled ? "py-1.5" : "py-2"}`}>
         {/* Page title — hidden when scrolled */}
         {!scrolled && (
           <div className="px-3 pb-1">
