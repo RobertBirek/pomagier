@@ -25,13 +25,6 @@ export function MobileShell() {
   useAutoLogout(15);
   const nav = useNavigate();
   const [queueCount, setQueueCount] = useState(0);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     const check = () => getQueueCount().then(setQueueCount);
@@ -48,8 +41,8 @@ export function MobileShell() {
   return (
     <div className="flex min-h-screen flex-col bg-muted/50">
       {!hideChrome && (
-        <header className={`sticky top-0 z-30 border-b bg-card safe-top transition-all duration-200 ${scrolled ? "py-1" : "py-0"}`}>
-          <div className={cn("flex items-center justify-between px-3 transition-all duration-200", scrolled ? "py-0.5 text-[10px]" : "py-2 text-xs")}>
+        <header className="sticky top-0 z-30 border-b bg-card safe-top">
+          <div className="flex items-center justify-between px-3 py-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="truncate font-semibold">{operatorName || "Operator"}</span>

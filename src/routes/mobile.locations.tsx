@@ -112,7 +112,7 @@ function LocationsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Sticky header with input + mode button */}
-      <div className="bg-card border-b py-2">
+      <div className="sticky top-10 z-20 bg-card border-b py-2">
         {/* Page title */}
         <div className="px-3 pb-1">
             <h1 className="text-sm font-bold">Lokalizacje · <span className="text-muted-foreground font-normal">{currentMode.label}</span></h1>
