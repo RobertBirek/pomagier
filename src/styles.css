@@ -158,3 +158,38 @@
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* Zebra MC3300 / small terminal (480px) optimizations */
+@media (max-width: 500px) and (min-width: 400px) {
+  html {
+    font-size: 15px; /* Slightly larger base for readability at arm's length */
+  }
+
+  /* Larger touch targets for gloved hands */
+  .touch-target {
+    min-height: 3.25rem;
+    min-width: 3.25rem;
+  }
+
+  /* Scan input — the main interaction point */
+  input[class*="text-center"][class*="text-lg"] {
+    font-size: 1.25rem;
+    padding: 1rem 1.5rem;
+  }
+
+  /* Bigger icons in mobile footer */
+  nav[class*="safe-bottom"] svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  /* Tighter spacing in lists */
+  .space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+
+  /* Full-width buttons */
+  button[class*="touch-target"] {
+    width: 100%;
+  }
+}

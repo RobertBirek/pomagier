@@ -100,7 +100,7 @@ export function ScanPanel({
             }}
             placeholder={hint}
             autoComplete="off"
-            className="w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+            className="w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-6 sm:py-5 text-center text-xl sm:text-lg font-mono font-bold shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
           />
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
