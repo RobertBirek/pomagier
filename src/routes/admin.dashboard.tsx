@@ -8,7 +8,17 @@ import { Package, MapPin, Users, ArrowRightLeft, Clock, BarChart3 } from "lucide
 async function fetchActivity() {
   const r = await fetch("/api/activity");
   return r.json() as Promise<{
-    movements: { id: string; productId: number; symbol: string; name: string; fromCode: string; toCode: string; quantity: number; operator: string; createdAt: string }[];
+    movements: {
+      id: string;
+      productId: number;
+      symbol: string;
+      name: string;
+      fromCode: string;
+      toCode: string;
+      quantity: number;
+      operator: string;
+      createdAt: string;
+    }[];
     scans: any[];
     dailyStats: { date: string; count: number }[];
   }>;
@@ -19,9 +29,17 @@ export const Route = createFileRoute("/admin/dashboard")({
 });
 
 function AdminDashboard() {
-  const { data: stats, isLoading } = useQuery({ queryKey: ["stats"], queryFn: getStats, refetchInterval: 30_000 });
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["stats"],
+    queryFn: getStats,
+    refetchInterval: 30_000,
+  });
   const { data: company } = useQuery({ queryKey: ["company"], queryFn: getCompany });
-  const { data: activity } = useQuery({ queryKey: ["activity"], queryFn: fetchActivity, refetchInterval: 15_000 });
+  const { data: activity } = useQuery({
+    queryKey: ["activity"],
+    queryFn: fetchActivity,
+    refetchInterval: 15_000,
+  });
   const { online } = useMssqlStatus();
 
   return (
@@ -65,7 +83,9 @@ function AdminDashboard() {
               <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                 <div
                   className="w-full rounded-t bg-primary/20 hover:bg-primary/40 transition-colors"
-                  style={{ height: `${Math.max(4, (d.count / Math.max(1, ...activity.dailyStats.map(s => s.count))) * 80)}%` }}
+                  style={{
+                    height: `${Math.max(4, (d.count / Math.max(1, ...activity.dailyStats.map((s) => s.count))) * 80)}%`,
+                  }}
                   title={`${d.date}: ${d.count} ruchów`}
                 />
                 <span className="text-[10px] text-muted-foreground">{d.date.slice(5)}</span>
@@ -74,7 +94,10 @@ function AdminDashboard() {
           </div>
         )}
         <div className="mt-2">
-          <StatusBadge tone="info"><Clock className="mr-1 inline h-3 w-3" />{new Date().toLocaleTimeString("pl-PL")}</StatusBadge>
+          <StatusBadge tone="info">
+            <Clock className="mr-1 inline h-3 w-3" />
+            {new Date().toLocaleTimeString("pl-PL")}
+          </StatusBadge>
         </div>
       </div>
 
@@ -84,7 +107,10 @@ function AdminDashboard() {
         {activity?.movements && activity.movements.length > 0 ? (
           <div className="mt-3 space-y-1.5 max-h-64 overflow-y-auto">
             {activity.movements.slice(0, 10).map((m) => (
-              <div key={m.id} className="flex items-center gap-2 text-xs border-b last:border-0 py-1.5">
+              <div
+                key={m.id}
+                className="flex items-center gap-2 text-xs border-b last:border-0 py-1.5"
+              >
                 <ArrowRightLeft className="h-3 w-3 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="font-mono font-semibold">{m.symbol || `ID ${m.productId}`}</span>
@@ -92,15 +118,24 @@ function AdminDashboard() {
                 </div>
                 <div className="shrink-0 text-right">
                   {m.fromCode && m.toCode ? (
-                    <span className="text-muted-foreground font-mono">{m.fromCode} → <span className="font-semibold">{m.toCode}</span></span>
+                    <span className="text-muted-foreground font-mono">
+                      {m.fromCode} → <span className="font-semibold">{m.toCode}</span>
+                    </span>
                   ) : m.toCode ? (
-                    <span className="text-muted-foreground font-mono">→ <span className="font-semibold">{m.toCode}</span></span>
+                    <span className="text-muted-foreground font-mono">
+                      → <span className="font-semibold">{m.toCode}</span>
+                    </span>
                   ) : (
                     <span className="text-destructive font-mono">← {m.fromCode}</span>
                   )}
                   <span className="ml-2">×{m.quantity}</span>
                 </div>
-                <span className="text-muted-foreground text-[10px] w-16 text-right">{new Date(m.createdAt).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="text-muted-foreground text-[10px] w-16 text-right">
+                  {new Date(m.createdAt).toLocaleTimeString("pl-PL", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
               </div>
             ))}
           </div>
@@ -112,7 +147,9 @@ function AdminDashboard() {
       <div>
         <SectionTitle title="Status systemu" />
         <div className="mt-2 flex gap-3">
-          <StatusBadge tone={online ? "success" : "danger"}>MSSQL {online ? "online" : "offline"}</StatusBadge>
+          <StatusBadge tone={online ? "success" : "danger"}>
+            MSSQL {online ? "online" : "offline"}
+          </StatusBadge>
         </div>
       </div>
     </div>

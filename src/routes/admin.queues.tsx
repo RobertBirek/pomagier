@@ -13,7 +13,10 @@ function AdminQueues() {
       </div>
 
       <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-        <p>System kolejek zostanie wdrożony przy pierwszym module zapisującym dane do Subiekta (Sfera GT).</p>
+        <p>
+          System kolejek zostanie wdrożony przy pierwszym module zapisującym dane do Subiekta (Sfera
+          GT).
+        </p>
         <p className="mt-1">Na tym etapie wszystkie operacje są read-only.</p>
       </div>
     </div>

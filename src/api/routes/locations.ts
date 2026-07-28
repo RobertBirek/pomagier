@@ -7,6 +7,20 @@ import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
 
+/** Whitelist of allowed Subiekt GT field names for location mapping. Prevents SQL Injection. */
+const ALLOWED_LOCATION_FIELDS = new Set([
+  "tw_Pole1",
+  "tw_Pole2",
+  "tw_Pole3",
+  "tw_Pole4",
+  "tw_Pole5",
+  "tw_Pole6",
+  "tw_Pole7",
+  "tw_Pole8",
+  "tw_Opis",
+  "tw_Uwagi",
+]);
+
 async function getLocationField(): Promise<string> {
   try {
     const db = getDb();
@@ -14,13 +28,40 @@ async function getLocationField(): Promise<string> {
       .select()
       .from(schema.config)
       .where(eq(schema.config.key, "fieldmap_location"));
-    return row?.value || "tw_Pole1";
+    const field = row?.value || "tw_Pole1";
+    if (!ALLOWED_LOCATION_FIELDS.has(field)) {
+      logger.warn({ field }, "Blocked untrusted locationField — falling back to tw_Pole1");
+      return "tw_Pole1";
+    }
+    return field;
   } catch {
     return "tw_Pole1";
   }
 }
 
 export { getLocationField };
+
+/** Fetch operator's full name from Subiekt GT. Falls back to "Operator ID N" if MSSQL unavailable. */
+async function getOperatorName(subiektUzId: number): Promise<string> {
+  try {
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    if (!pool) return `Operator ID ${subiektUzId}`;
+    const result = await pool
+      .request()
+      .input("id", subiektUzId)
+      .query(
+        "SELECT uz_Imie AS firstName, uz_Nazwisko AS lastName FROM pd_Uzytkownik WHERE uz_Id = @id",
+      );
+    const row = result.recordset[0] as { firstName: string; lastName: string } | undefined;
+    if (row && (row.firstName || row.lastName)) {
+      return `${row.firstName || ""} ${row.lastName || ""}`.trim();
+    }
+    return `Operator ID ${subiektUzId}`;
+  } catch {
+    return `Operator ID ${subiektUzId}`;
+  }
+}
 
 export function registerLocationsRoutes(app: express.Express) {
   // --- Lokalizacje (tylko Postgres) ---
@@ -360,7 +401,10 @@ export function registerLocationsRoutes(app: express.Express) {
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
       const cached = checkIdempotency(idemKey);
-      if (cached) { res.json(cached.result); return; }
+      if (cached) {
+        res.json(cached.result);
+        return;
+      }
     }
 
     const { parseLocation } = await import("../../lib/locations.js");
@@ -460,6 +504,7 @@ export function registerLocationsRoutes(app: express.Express) {
       );
 
       // Log movements
+      const operatorName = await getOperatorName(req.user?.subiektUzId ?? 0);
       for (const [productId, qty] of grouped) {
         const p = foundProducts.find((fp) => fp.id === productId)!;
         await db.insert(schema.productMovements).values({
@@ -469,7 +514,7 @@ export function registerLocationsRoutes(app: express.Express) {
           toLocationId: loc.id,
           toCode: parsed.raw,
           quantity: qty,
-          operator: "operator",
+          operator: operatorName,
           correlationId: crypto.randomUUID(),
         });
       }
@@ -593,6 +638,7 @@ export function registerLocationsRoutes(app: express.Express) {
       logger.info({ location: parsed.raw, undone }, "Assignment undone");
 
       // Log undo movements
+      const operatorName = await getOperatorName(req.user?.subiektUzId ?? 0);
       for (const code of [...new Set(codes)]) {
         if (!pool) break;
         const r = await pool
@@ -609,7 +655,7 @@ export function registerLocationsRoutes(app: express.Express) {
             fromLocationId: loc.id,
             fromCode: parsed.raw,
             quantity: 1,
-            operator: "operator",
+            operator: operatorName,
             correlationId: crypto.randomUUID(),
           });
         }
@@ -689,7 +735,13 @@ export function registerLocationsRoutes(app: express.Express) {
         number,
         {
           productId: number;
-          locations: { code: string; area: string; aisle: number; rack: number; quantity: number }[];
+          locations: {
+            code: string;
+            area: string;
+            aisle: number;
+            rack: number;
+            quantity: number;
+          }[];
         }
       >();
       for (const r of rows) {
@@ -867,6 +919,7 @@ export function registerLocationsRoutes(app: express.Express) {
       for (const p of foundProducts) grouped.set(p.id, (grouped.get(p.id) || 0) + 1);
 
       let moved = 0;
+      const operatorName = await getOperatorName(req.user?.subiektUzId ?? 0);
       for (const [productId, qty] of grouped) {
         const p = foundProducts.find((fp) => fp.id === productId)!;
 
@@ -917,7 +970,7 @@ export function registerLocationsRoutes(app: express.Express) {
           fromCode: fromParsed.raw,
           toCode: toParsed.raw,
           quantity: qty,
-          operator: "operator",
+          operator: operatorName,
           correlationId: crypto.randomUUID(),
         });
 
@@ -1033,13 +1086,11 @@ export function registerLocationsRoutes(app: express.Express) {
         if (!areas.has(r.area)) areas.set(r.area, { aisles: new Map(), maxAisle: 0, maxShelf: 0 });
         const area = areas.get(r.area)!;
         if (!area.aisles.has(r.aisle)) area.aisles.set(r.aisle, new Map());
-        area.aisles
-          .get(r.aisle)!
-          .set(r.shelf, {
-            code: r.sampleCode,
-            productCount: r.productCount,
-            totalQuantity: r.totalQuantity,
-          });
+        area.aisles.get(r.aisle)!.set(r.shelf, {
+          code: r.sampleCode,
+          productCount: r.productCount,
+          totalQuantity: r.totalQuantity,
+        });
         if (r.aisle > area.maxAisle) area.maxAisle = r.aisle;
         if (r.shelf > area.maxShelf) area.maxShelf = r.shelf;
       }
@@ -1131,7 +1182,9 @@ export function registerLocationsRoutes(app: express.Express) {
         doc.setFontSize(fontSize - 2);
         doc.setTextColor(100);
         const loc = code.match(/^([A-Z])\s*(\d+)-(\d+)-(\d+)-(\d+)$/);
-        const label = loc ? `A:${loc[1]} | Rząd:${loc[2]} | Regał:${loc[3]} | Półka:${loc[4]}` : code;
+        const label = loc
+          ? `A:${loc[1]} | Rząd:${loc[2]} | Regał:${loc[3]} | Półka:${loc[4]}`
+          : code;
         doc.text(label, x + (cellW - 2) / 2, y + 14, { align: "center" });
         doc.text("PomagierGT", x + (cellW - 2) / 2, y + 20, { align: "center" });
         doc.setTextColor(0);
@@ -1264,7 +1317,9 @@ export function registerLocationsRoutes(app: express.Express) {
             .map((s: string) => s.trim())
             .filter(Boolean);
           if (current)
-            await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, id));
+            await db
+              .delete(schema.productLocations)
+              .where(eq(schema.productLocations.productId, id));
           for (const code of codes) {
             const [loc] = await db
               .select()
@@ -1299,30 +1354,80 @@ export function registerLocationsRoutes(app: express.Express) {
   // --- Reset: wszystkie lokalizacje produktu → tylko ta jedna ---
   app.post("/api/locations/reset", requireAdmin, async (req, res) => {
     const { codes, location } = req.body ?? {};
-    if (!Array.isArray(codes) || !location) { res.status(400).json({ error: "Brak kodów lub lokalizacji" }); return; }
+    if (!Array.isArray(codes) || !location) {
+      res.status(400).json({ error: "Brak kodów lub lokalizacji" });
+      return;
+    }
     const { parseLocation } = await import("../../lib/locations.js");
     const parsed = parseLocation(location);
-    if (!parsed) { res.status(422).json({ error: "Nieprawidlowy format" }); return; }
+    if (!parsed) {
+      res.status(422).json({ error: "Nieprawidlowy format" });
+      return;
+    }
     try {
-      const db = getDb(); const adapter = getAdapter(); const pool = await adapter.getPool?.();
+      const db = getDb();
+      const adapter = getAdapter();
+      const pool = await adapter.getPool?.();
       if (!pool) return res.status(503).json({ error: "MSSQL niedostepny" });
       const locationField = await getLocationField();
-      let [loc] = await db.select().from(schema.locations).where(eq(schema.locations.code, parsed.raw));
-      if (!loc) { [loc] = await db.insert(schema.locations).values({ code: parsed.raw, area: parsed.area, aisle: parsed.aisle, rack: parsed.rack, shelf: parsed.shelf, spot: parsed.spot, label: parsed.label }).returning(); }
+      let [loc] = await db
+        .select()
+        .from(schema.locations)
+        .where(eq(schema.locations.code, parsed.raw));
+      if (!loc) {
+        [loc] = await db
+          .insert(schema.locations)
+          .values({
+            code: parsed.raw,
+            area: parsed.area,
+            aisle: parsed.aisle,
+            rack: parsed.rack,
+            shelf: parsed.shelf,
+            spot: parsed.spot,
+            label: parsed.label,
+          })
+          .returning();
+      }
       let reset = 0;
+      const operatorName = await getOperatorName(req.user?.subiektUzId ?? 0);
       for (const code of codes) {
-        const r = await pool.request().input("code", code).query("SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+        const r = await pool
+          .request()
+          .input("code", code)
+          .query(
+            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
+          );
         for (const row of r.recordset) {
           const productId = (row as any).id;
-          await db.delete(schema.productLocations).where(eq(schema.productLocations.productId, productId));
-          await db.insert(schema.productLocations).values({ productId, locationId: loc.id, quantity: 1 });
-          await pool.request().input("id", productId).input("val", parsed.raw).query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
-          await db.insert(schema.productMovements).values({ productId, symbol: (row as any).symbol, name: (row as any).name, toLocationId: loc.id, toCode: parsed.raw, quantity: 1, operator: "operator", correlationId: crypto.randomUUID() });
+          await db
+            .delete(schema.productLocations)
+            .where(eq(schema.productLocations.productId, productId));
+          await db
+            .insert(schema.productLocations)
+            .values({ productId, locationId: loc.id, quantity: 1 });
+          await pool
+            .request()
+            .input("id", productId)
+            .input("val", parsed.raw)
+            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+          await db.insert(schema.productMovements).values({
+            productId,
+            symbol: (row as any).symbol,
+            name: (row as any).name,
+            toLocationId: loc.id,
+            toCode: parsed.raw,
+            quantity: 1,
+            operator: operatorName,
+            correlationId: crypto.randomUUID(),
+          });
           reset++;
         }
       }
       logger.info({ location: parsed.raw, reset }, "Location reset");
       res.json({ ok: true, reset, location: parsed.raw });
-    } catch (err) { logger.error({ err }, "Reset failed"); res.status(500).json({ error: "Reset nie powiodl sie" }); }
+    } catch (err) {
+      logger.error({ err }, "Reset failed");
+      res.status(500).json({ error: "Reset nie powiodl sie" });
+    }
   });
 }

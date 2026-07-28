@@ -33,23 +33,6 @@ https://github.com/RobertBirek/pomagier.git
 
 To jest właściwe repozytorium produkcyjne PomagierGT.
 
-Repozytorium referencji UI:
-
-https://github.com/RobertBirek/pomagier-magazyn-smart.git
-
-Jest to prototyp interfejsu utworzony w Lovable — TYLKO do referencji UI/UX. Nie jest to repozytorium produkcyjne.
-
-Traktuj kod z Lovable jako:
-
-- referencję UI/UX,
-- źródło komponentów i stylistyki,
-- potencjalny fundament klienta webowego,
-- materiał do audytu i selektywnego wykorzystania.
-
-Nie traktuj kodu Lovable jako obowiązującej architektury produkcyjnej.
-
-Nie usuwaj ani nie przebudowuj istniejącego UI bez wcześniejszego audytu i uzasadnienia. Preferuj adaptację istniejących ekranów i komponentów zamiast tworzenia równoległego interfejsu od zera.
-
 # NAZWA I CEL PROJEKTU
 
 Nazwa aplikacji: **PomagierGT**
@@ -370,7 +353,7 @@ Potencjalny podział:
 
 ## Web/PWA
 
-- istniejący frontend z repozytorium Lovable,
+- frontend PWA (React 19, TypeScript, TanStack Router, Tailwind CSS),
 - React,
 - TypeScript,
 - TanStack Router/Start,
@@ -429,28 +412,9 @@ Connector może odpowiadać za:
 
 Przeglądarka klienta nigdy nie może łączyć się bezpośrednio z MSSQL ani Sferą GT.
 
-# ZASADY DOTYCZĄCE GUI Z LOVABLE
+# ZASADY DOTYCZĄCE GUI
 
-Najpierw wykonaj audyt istniejącego interfejsu.
-
-Dla każdego istniejącego ekranu określ:
-
-- czy jest tylko makietą,
-- czy może zostać wykorzystany bez zmian,
-- czy wymaga podłączenia do API,
-- czy wymaga uproszczenia,
-- czy jest poza aktualnym MVP.
-
-Nie rozwijaj wszystkich obecnych ekranów jednocześnie.
-
-Ekrany poza bieżącym zakresem mogą pozostać:
-
-- jako statyczne makiety,
-- oznaczone jako „w przygotowaniu",
-- ukryte za feature flag,
-- niedostępne dla zwykłego operatora.
-
-Zachowaj spójność istniejącego design systemu, chyba że audyt wykaże konkretne problemy użyteczności.
+Zachowaj spójność istniejącego design systemu. Nie usuwaj ani nie przebudowuj istniejącego UI bez wcześniejszego audytu i uzasadnienia. Preferuj adaptację istniejących ekranów i komponentów zamiast tworzenia równoległego interfejsu od zera.
 
 Klient mobilny musi być projektowany pod:
 
@@ -708,7 +672,7 @@ Pierwszy wycinek uznaje się za zakończony, gdy:
 - lint przechodzi,
 - typecheck przechodzi,
 - testy przechodzą,
-- UI zachowuje spójność z prototypem Lovable,
+- UI zachowuje spójność z design systemem,
 - jeden uzgodniony flow działa od początku do końca,
 - backend nie jest zasymulowany bez wyraźnego oznaczenia,
 - mock i realny adapter mają oddzielne implementacje,

@@ -37,8 +37,8 @@ function Login() {
     try {
       const result = await apiLogin(selectedId, pin);
       const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
-      auth.login(result.token, result.user, name, warehouse);
-      toast.success(`Witaj, ${name.split(" ")[0]}!`);
+      auth.login(result.user, name, warehouse);
+      toast.success(`Witaj, ${name}!`);
       nav({ to: "/mobile/dashboard" });
     } catch (err: any) {
       toast.error(err.message || "Błąd logowania");
@@ -60,34 +60,44 @@ function Login() {
           Wybierz operatora
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {users.filter((u) => u.active).map((u) => (
-            <button
-              key={u.subiektId}
-              onClick={() => setSelectedId(u.subiektId)}
-              className={`touch-target rounded-lg border p-2 text-left text-xs transition ${
-                selectedId === u.subiektId ? "border-primary bg-primary/10" : "bg-card hover:bg-accent"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 font-semibold">
-                <User className="h-3.5 w-3.5" />
-                {u.firstName || u.lastName || `ID ${u.subiektId}`}
-              </div>
-              <div className="mt-0.5 text-muted-foreground">{u.role}</div>
-              {!u.hasPin && (
-                <div className="mt-0.5 text-warning">Brak PIN (skonfiguruj)</div>
-              )}
-            </button>
-          ))}
+          {users
+            .filter((u) => u.active)
+            .map((u) => (
+              <button
+                key={u.subiektId}
+                onClick={() => setSelectedId(u.subiektId)}
+                className={`touch-target rounded-lg border p-2 text-left text-xs transition ${
+                  selectedId === u.subiektId
+                    ? "border-primary bg-primary/10"
+                    : "bg-card hover:bg-accent"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <User className="h-3.5 w-3.5" />
+                  {[u.firstName, u.lastName].filter(Boolean).join(" ") || `ID ${u.subiektId}`}
+                </div>
+                <div className="mt-0.5 text-muted-foreground">{u.role}</div>
+                {!u.hasPin && <div className="mt-0.5 text-warning">Brak PIN (skonfiguruj)</div>}
+              </button>
+            ))}
           {users.length === 0 && (
-            <p className="text-muted-foreground col-span-2 text-xs">Brak użytkowników (Subiekt niedostępny)</p>
+            <p className="text-muted-foreground col-span-2 text-xs">
+              Brak użytkowników (Subiekt niedostępny)
+            </p>
           )}
         </div>
       </div>
 
       {warehouses.length > 0 && (
         <div className="mb-3">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Magazyn</label>
-          <select value={warehouse} onChange={(e) => setWarehouse(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Magazyn
+          </label>
+          <select
+            value={warehouse}
+            onChange={(e) => setWarehouse(e.target.value)}
+            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
             {warehouses.map((w) => (
               <option key={w.symbol} value={w.symbol}>
                 {w.symbol} — {w.name}
@@ -100,14 +110,18 @@ function Login() {
       {selected && (
         <div className="rounded-lg border bg-card p-3">
           <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            PIN dla: <b className="text-foreground">{selected.firstName || selected.lastName}</b>
+            PIN dla: <b className="text-foreground">{[selected.firstName, selected.lastName].filter(Boolean).join(" ") || `ID ${selected.subiektId}`}</b>
           </div>
           <PinPad onSubmit={submit} />
         </div>
       )}
 
-      <Link to="/admin/login" className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2">
-        <Shield className="h-3 w-3" />Panel administratora
+      <Link
+        to="/admin/login"
+        className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2"
+      >
+        <Shield className="h-3 w-3" />
+        Panel administratora
       </Link>
     </div>
   );

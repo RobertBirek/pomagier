@@ -1,27 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { SectionTitle, LoadingRow, EmptyState, StatusBadge } from "@/components/pomagier/primitives";
+import {
+  SectionTitle,
+  LoadingRow,
+  EmptyState,
+  StatusBadge,
+} from "@/components/pomagier/primitives";
 import { Smartphone, Clock, Wifi } from "lucide-react";
 
-interface TerminalInfo { id: string; userId: string; loginTime: string; expiresAt: string; }
+interface TerminalInfo {
+  id: string;
+  userId: string;
+  loginTime: string;
+  expiresAt: string;
+}
 
 export const Route = createFileRoute("/admin/terminals")({ component: AdminTerminals });
 
 function AdminTerminals() {
-  const { data: terminals, isLoading } = useQuery({ queryKey: ["terminals"], queryFn: async () => {
-    const r = await fetch("/api/terminals");
-    return r.json() as Promise<TerminalInfo[]>;
-  }, refetchInterval: 15000 });
+  const { data: terminals, isLoading } = useQuery({
+    queryKey: ["terminals"],
+    queryFn: async () => {
+      const r = await fetch("/api/terminals");
+      return r.json() as Promise<TerminalInfo[]>;
+    },
+    refetchInterval: 15000,
+  });
 
-  const { data: users } = useQuery({ queryKey: ["users"], queryFn: async () => {
-    const r = await fetch("/api/users");
-    return r.json() as Promise<{ subiektId: number; firstName: string; lastName: string; role: string }[]>;
-  }});
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const r = await fetch("/api/users");
+      return r.json() as Promise<
+        { subiektId: number; firstName: string; lastName: string; role: string }[]
+      >;
+    },
+  });
 
-  const getUserName = (userId: string) => {
-    if (!users) return "?";
-    // userId is UUID, need to find matching user from sessions — just show userId for now
-    return userId.slice(0, 8) + "...";
+  const getUserName = (t: { userName?: string; userId: string }) => {
+    if (t.userName) return t.userName;
+    return t.userId.slice(0, 8) + "...";
   };
 
   return (
@@ -38,19 +56,31 @@ function AdminTerminals() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Smartphone className="h-4 w-4 text-primary" />
-                  <StatusBadge tone="success"><Wifi className="mr-1 inline h-3 w-3" />Online</StatusBadge>
+                  <StatusBadge tone="success">
+                    <Wifi className="mr-1 inline h-3 w-3" />
+                    Online
+                  </StatusBadge>
                 </div>
-                <span className="text-xs text-muted-foreground font-mono">{getUserName(t.userId)}</span>
+                <span className="text-xs text-muted-foreground font-mono">{getUserName(t)}</span>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
-                <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(t.loginTime).toLocaleString("pl-PL")}</div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {new Date(t.loginTime).toLocaleString("pl-PL")}
+                </div>
                 <div>Wygasa: {new Date(t.expiresAt).toLocaleTimeString("pl-PL")}</div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        !isLoading && <EmptyState icon={<Smartphone className="h-8 w-8" />} title="Brak aktywnych sesji" description="Żaden użytkownik nie jest zalogowany" />
+        !isLoading && (
+          <EmptyState
+            icon={<Smartphone className="h-8 w-8" />}
+            title="Brak aktywnych sesji"
+            description="Żaden użytkownik nie jest zalogowany"
+          />
+        )
       )}
     </div>
   );

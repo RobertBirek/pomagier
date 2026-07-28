@@ -7,7 +7,7 @@
 |---|---|---|
 | id | uuid PK | |
 | subiekt_uz_id | int UNIQUE | klucz do `pd_Uzytkownik.uz_Id` |
-| pin | varchar(64) | SHA-256 hash |
+| pin | varchar(64) | bcrypt hash (10 rounds) |
 | role | varchar(20) | admin / operator |
 | active | boolean | |
 | created_at | timestamp | |

@@ -1,22 +1,33 @@
 import { describe, it, expect } from "vitest";
-import crypto from "node:crypto";
+import bcrypt from "bcryptjs";
 
 function hashPin(pin: string): string {
-  return crypto.createHash("sha256").update(pin).digest("hex");
+  return bcrypt.hashSync(pin, 10);
+}
+
+function verifyPin(pin: string, hash: string): boolean {
+  return bcrypt.compareSync(pin, hash);
 }
 
 describe("Auth utilities", () => {
-  it("should hash PIN consistently", () => {
-    expect(hashPin("0000")).toBe(hashPin("0000"));
-    expect(hashPin("0000").length).toBe(64);
+  it("should verify correct PIN against its hash", () => {
+    const hash = hashPin("0000");
+    expect(verifyPin("0000", hash)).toBe(true);
   });
 
-  it("should produce different hashes for different PINs", () => {
-    expect(hashPin("0000")).not.toBe(hashPin("1111"));
+  it("should reject wrong PIN", () => {
+    const hash = hashPin("0000");
+    expect(verifyPin("1111", hash)).toBe(false);
+  });
+
+  it("should produce different hashes for same PIN (salt)", () => {
+    const hash1 = hashPin("0000");
+    const hash2 = hashPin("0000");
+    expect(hash1).not.toBe(hash2); // bcrypt uses random salt
   });
 
   it("should handle empty PIN", () => {
-    const h = hashPin("");
-    expect(h.length).toBe(64);
+    const hash = hashPin("");
+    expect(verifyPin("", hash)).toBe(true);
   });
 });

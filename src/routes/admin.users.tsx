@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUsers } from "@/lib/api";
-import { KpiCard, StatusBadge, SectionTitle, EmptyState, ErrorState, LoadingRow } from "@/components/pomagier/primitives";
+import {
+  KpiCard,
+  StatusBadge,
+  SectionTitle,
+  EmptyState,
+  ErrorState,
+  LoadingRow,
+} from "@/components/pomagier/primitives";
 import { PinPad } from "@/components/pomagier/scan";
 import { Users, Shield, Key, UserX, X } from "lucide-react";
 import { useState } from "react";
@@ -19,7 +26,9 @@ async function setPin(subiektUzId: number, pin: string) {
 
 async function setRole(subiektUzId: number, role: string) {
   const res = await fetch(`/api/users/${subiektUzId}/role`, {
-    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }),
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
   });
   if (!res.ok) throw new Error((await res.json()).error);
   return res.json();
@@ -31,7 +40,11 @@ export const Route = createFileRoute("/admin/users")({
 
 function AdminUsers() {
   const qc = useQueryClient();
-  const { data: users, isLoading, error } = useQuery({ queryKey: ["users"], queryFn: getUsers, refetchInterval: 30_000 });
+  const {
+    data: users,
+    isLoading,
+    error,
+  } = useQuery({ queryKey: ["users"], queryFn: getUsers, refetchInterval: 30_000 });
   const [pinUser, setPinUser] = useState<{ subiektId: number; name: string } | null>(null);
 
   const setPinMut = useMutation({
@@ -46,7 +59,10 @@ function AdminUsers() {
 
   const setRoleMut = useMutation({
     mutationFn: ({ id, role }: { id: number; role: string }) => setRole(id, role),
-    onSuccess: () => { toast.success("Rola zmieniona"); qc.invalidateQueries({ queryKey: ["users"] }); },
+    onSuccess: () => {
+      toast.success("Rola zmieniona");
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -56,33 +72,66 @@ function AdminUsers() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Użytkownicy</h1>
-        <p className="text-sm text-muted-foreground">Operatorzy z Subiekt GT + PIN-y z PomagierGT</p>
+        <p className="text-sm text-muted-foreground">
+          Operatorzy z Subiekt GT + PIN-y z PomagierGT
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Wszyscy" value={String(users?.length ?? 0)} icon={<Users className="h-4 w-4" />} tone="primary" />
-        <KpiCard label="Aktywni" value={String(activeUsers)} icon={<Shield className="h-4 w-4" />} tone="success" />
-        <KpiCard label="Z PIN-em" value={String(users?.filter((u) => u.hasPin).length ?? 0)} icon={<Key className="h-4 w-4" />} tone="info" />
+        <KpiCard
+          label="Wszyscy"
+          value={String(users?.length ?? 0)}
+          icon={<Users className="h-4 w-4" />}
+          tone="primary"
+        />
+        <KpiCard
+          label="Aktywni"
+          value={String(activeUsers)}
+          icon={<Shield className="h-4 w-4" />}
+          tone="success"
+        />
+        <KpiCard
+          label="Z PIN-em"
+          value={String(users?.filter((u) => u.hasPin).length ?? 0)}
+          icon={<Key className="h-4 w-4" />}
+          tone="info"
+        />
       </div>
 
       {isLoading && <LoadingRow />}
-      {error && <ErrorState title="Błąd" description="Nie udało się pobrać użytkowników" retry={() => window.location.reload()} />}
+      {error && (
+        <ErrorState
+          title="Błąd"
+          description="Nie udało się pobrać użytkowników"
+          retry={() => window.location.reload()}
+        />
+      )}
 
       {/* PIN change modal */}
       {pinUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPinUser(null)}>
-          <div className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setPinUser(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-semibold">Zmień PIN</h2>
-                <p className="text-sm text-muted-foreground">{pinUser.name} (ID: {pinUser.subiektId})</p>
+                <p className="text-sm text-muted-foreground">
+                  {pinUser.name} (ID: {pinUser.subiektId})
+                </p>
               </div>
-              <button onClick={() => setPinUser(null)} className="rounded p-1 hover:bg-accent"><X className="h-4 w-4" /></button>
+              <button onClick={() => setPinUser(null)} className="rounded p-1 hover:bg-accent">
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <PinPad
-              onSubmit={(pin) => setPinMut.mutate({ id: pinUser.subiektId, pin })}
-            />
-            {setPinMut.isPending && <p className="text-center text-xs text-muted-foreground mt-2">Zapisywanie…</p>}
+            <PinPad onSubmit={(pin) => setPinMut.mutate({ id: pinUser.subiektId, pin })} />
+            {setPinMut.isPending && (
+              <p className="text-center text-xs text-muted-foreground mt-2">Zapisywanie…</p>
+            )}
           </div>
         </div>
       )}
@@ -105,7 +154,9 @@ function AdminUsers() {
               {users.map((u) => (
                 <tr key={u.subiektId} className="border-b hover:bg-muted/30">
                   <td className="px-4 py-2 font-mono text-xs">{u.subiektId}</td>
-                  <td className="px-4 py-2">{u.firstName || <span className="text-muted-foreground italic">—</span>}</td>
+                  <td className="px-4 py-2">
+                    {u.firstName || <span className="text-muted-foreground italic">—</span>}
+                  </td>
                   <td className="px-4 py-2 font-semibold">{u.lastName}</td>
                   <td className="px-4 py-2">
                     <select
@@ -118,14 +169,27 @@ function AdminUsers() {
                     </select>
                   </td>
                   <td className="px-4 py-2">
-                    {u.active ? <StatusBadge tone="success">Aktywny</StatusBadge> : <StatusBadge tone="muted">Nieaktywny</StatusBadge>}
+                    {u.active ? (
+                      <StatusBadge tone="success">Aktywny</StatusBadge>
+                    ) : (
+                      <StatusBadge tone="muted">Nieaktywny</StatusBadge>
+                    )}
                   </td>
                   <td className="px-4 py-2">
-                    {u.hasPin ? <StatusBadge tone="success">Ustawiony</StatusBadge> : <StatusBadge tone="danger">Brak</StatusBadge>}
+                    {u.hasPin ? (
+                      <StatusBadge tone="success">Ustawiony</StatusBadge>
+                    ) : (
+                      <StatusBadge tone="danger">Brak</StatusBadge>
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     <button
-                      onClick={() => setPinUser({ subiektId: u.subiektId, name: `${u.firstName} ${u.lastName}`.trim() || `ID ${u.subiektId}` })}
+                      onClick={() =>
+                        setPinUser({
+                          subiektId: u.subiektId,
+                          name: `${u.firstName} ${u.lastName}`.trim() || `ID ${u.subiektId}`,
+                        })
+                      }
                       className="touch-target rounded border px-2 py-1 text-xs hover:bg-accent"
                       title={u.hasPin ? "Zmień PIN" : "Ustaw PIN"}
                     >
@@ -139,7 +203,12 @@ function AdminUsers() {
         </div>
       )}
 
-      {users && users.length === 0 && <EmptyState title="Brak użytkowników" description="Subiekt GT nie zwrócił danych lub Postgres nie jest dostępny" />}
+      {users && users.length === 0 && (
+        <EmptyState
+          title="Brak użytkowników"
+          description="Subiekt GT nie zwrócił danych lub Postgres nie jest dostępny"
+        />
+      )}
     </div>
   );
 }

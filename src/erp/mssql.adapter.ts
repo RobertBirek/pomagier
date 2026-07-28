@@ -21,7 +21,13 @@ interface ProductRow {
 
 export class MssqlErpAdapter implements ErpAdapter {
   private pool: sql.ConnectionPool | null = null;
-  private config: { host: string; port: number; database: string; user: string; password: string } | null = null;
+  private config: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+  } | null = null;
 
   async getPool(): Promise<sql.ConnectionPool> {
     if (this.pool) return this.pool;
@@ -37,7 +43,13 @@ export class MssqlErpAdapter implements ErpAdapter {
     });
   }
 
-  async reconnect(config: { host: string; port: number; database: string; user: string; password: string }): Promise<void> {
+  async reconnect(config: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+  }): Promise<void> {
     if (this.pool) {
       await this.pool.close();
       this.pool = null;
@@ -48,7 +60,13 @@ export class MssqlErpAdapter implements ErpAdapter {
     logger.info("MSSQL reconnected with new config");
   }
 
-  private async _connect(cfg: { host: string; port: number; database: string; user: string; password: string }): Promise<sql.ConnectionPool> {
+  private async _connect(cfg: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+  }): Promise<sql.ConnectionPool> {
     const hostParts = cfg.host.split("\\");
     const server = hostParts[0];
     const instanceName = hostParts.length > 1 ? hostParts[1] : undefined;
@@ -68,6 +86,9 @@ export class MssqlErpAdapter implements ErpAdapter {
       },
     };
     this.pool = await sql.connect(sqlConfig);
+    logger.warn(
+      "MSSQL connection uses trustServerCertificate: true — acceptable for local network, not for WAN",
+    );
     logger.info({ host: cfg.host, database: cfg.database }, "MSSQL connection pool created");
     return this.pool;
   }

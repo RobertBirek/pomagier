@@ -27,8 +27,6 @@ System składa się z dwóch części:
 
 **Produkcyjne**: https://github.com/RobertBirek/pomagier.git
 
-**Prototyp UI (Lovable)**: https://github.com/RobertBirek/pomagier-magazyn-smart.git — tylko referencja UI/UX, nie architektura produkcyjna.
-
 ## Stan projektu
 
 - [x] Konfiguracja opencode (agenci, skille, pliki wiedzy)

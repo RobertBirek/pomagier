@@ -4,17 +4,25 @@
 
 PomagierGT jest aplikacją webową i mobilną PWA stanowiącą warstwę operacyjną pomiędzy użytkownikami magazynu a systemem ERP Insert Subiekt GT.
 
-## MVP — pierwszy pionowy wycinek
+## Stan: v1.1.0 — Produkcyjny z ciągłymi usprawnieniami
 
-[Wymaga decyzji: wybór pierwszego modułu MVP]
+MVP (v1.0.0) został osiągnięty 2026-07-26. Projekt jest w fazie ciągłych usprawnień.
 
-Kandydaci (kolejność proponowana):
+## Zrealizowane moduły
 
-1. **Informacja o towarze po zeskanowaniu kodu** — najniższe ryzyko integracji, najprostszy flow, szybki do przetestowania, natychmiastowa wartość dla magazyniera.
-2. Lokalizacja towaru
-3. Inwentaryzacja
-4. Kompletacja
-5. Weryfikacja dostawy
+- [x] Informacja o towarze (skanowanie kodu → dane produktu, stany magazynowe)
+- [x] Lokalizacja towaru w magazynie (przypisywanie, przenoszenie, reset)
+- [x] Zarządzanie użytkownikami (import z Subiekta, PIN, role admin/operator)
+- [x] Panel administracyjny (dashboard, produkty, użytkownicy, magazyny, terminale, backup)
+- [x] Logi i audyt (`audit_log`, `product_movements`)
+- [x] PWA (Service Worker, offline queue, instalowalna na Android)
+- [x] Deployment (systemd, Caddy HTTPS, mDNS pomagier.local)
+
+## Moduły w trakcie rozwoju
+
+- [ ] Inwentaryzacja (szkielet istnieje w `/mobile/inventory`)
+- [ ] Kompletacja (szkielet istnieje w `/mobile/picking`)
+- [ ] Przyjęcie i weryfikacja dostaw (szkielet istnieje w `/mobile/receiving`)
 
 ## Docelowe obszary funkcjonalne
 
@@ -31,20 +39,22 @@ Kandydaci (kolejność proponowana):
 
 ## Kluczowe wymagania niefunkcjonalne
 
-- PWA instalowalna na Android
-- Obsługa skanerów kodów kreskowych (fizycznych i kamery)
-- Praca offline z synchronizacją
-- Bezpieczeństwo: RBAC, TLS, idempotencja, audyt
-- Ochrona danych ERP — domyślnie tylko odczyt, zapis przez Sferę GT
+- [x] PWA instalowalna na Android
+- [x] Obsługa skanerów kodów kreskowych (fizycznych i kamery)
+- [x] Praca offline z synchronizacją (kolejka IndexedDB)
+- [x] Bezpieczeństwo: RBAC, TLS, httpOnly cookie, idempotencja, audyt
+- [x] Ochrona danych ERP — whitelist walidacja pól MSSQL, konto read-only gdzie możliwe
+
+## Decyzje zamknięte
+
+- [x] Topologia: VPS Linux, bezpośredni MSSQL do Subiekta GT po LAN, brak Sfery GT
+- [x] Backend: Express 5 + Postgres 16 + Drizzle ORM
+- [x] Frontend: React 19 + TanStack Router + Tailwind CSS 4
+- [x] Auth: JWT httpOnly cookie, bcrypt PIN, PIN lockout (5 prób/5 min)
+- [x] Zakres MVP: informacja o towarze + lokalizacje (zrealizowane)
 
 ## Otwarte decyzje
 
-- [Wymaga decyzji: wybór pierwszego modułu MVP]
-- [Wymaga decyzji: topologia systemu — VPS Linux + connector Windows?]
-- [Wymaga decyzji: zakres operacji ERP w MVP — tylko odczyt czy też zapis?]
-- [Wymaga decyzji: technologia backendu]
-- [Wymaga decyzji: baza aplikacyjna — Postgres czy inna?]
-- [Wymaga decyzji: sposób uwierzytelniania operatorów]
-- [Nieznane: modele terminali, wersje Androida, typ skanerów]
-- [Nieznane: dostępność Sfery GT i jej API]
-- [Nieznane: skala — liczba magazynów, operatorów, towarów]
+- [ ] Priorytetyzacja kolejnych modułów (inwentaryzacja vs kompletacja vs przyjęcie dostaw)
+- [ ] [Nieznane: modele terminali, wersje Androida, typ skanerów w produkcji]
+- [ ] [Nieznane: skala produkcyjna — liczba operatorów, skanów/min]

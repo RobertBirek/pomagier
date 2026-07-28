@@ -13,7 +13,7 @@ export function useDarkMode(): [boolean, () => void] {
     localStorage.setItem("pomagier-dark", dark ? "1" : "0");
   }, [dark]);
 
-  const toggle = useCallback(() => setDark(d => !d), []);
+  const toggle = useCallback(() => setDark((d) => !d), []);
 
   return [dark, toggle];
 }

@@ -25,7 +25,14 @@ export async function getCompany() {
 export async function getUsers() {
   const res = await fetch(`${BASE}/users`);
   return res.json() as Promise<
-    { subiektId: number; firstName: string; lastName: string; active: boolean; hasPin: boolean; role: string }[]
+    {
+      subiektId: number;
+      firstName: string;
+      lastName: string;
+      active: boolean;
+      hasPin: boolean;
+      role: string;
+    }[]
   >;
 }
 
@@ -44,7 +51,10 @@ export async function login(subiektUzId: number, pin: string) {
     const err = await res.json().catch(() => ({ error: "Błąd" }));
     throw new Error(err.error || "Błąd logowania");
   }
-  return res.json() as Promise<{ token: string; user: { id: string; subiektUzId: number; role: string } }>;
+  return res.json() as Promise<{
+    token: string;
+    user: { id: string; subiektUzId: number; role: string };
+  }>;
 }
 
 export async function getStats() {

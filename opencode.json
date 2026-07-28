@@ -6,13 +6,6 @@
     "opencode-skills-collection@latest",
     "superpowers@git+https://github.com/obra/superpowers.git"
   ],
-  "references": {
-    "lovable-ui": {
-      "repository": "RobertBirek/pomagier-magazyn-smart",
-      "branch": "main",
-      "description": "Prototyp UI/UX PomagierGT utworzony w Lovable. Używaj jako referencji komponentów, stylistyki i ekranów. Nie traktuj jako obowiązującej architektury produkcyjnej."
-    }
-  },
   "compaction": {
     "auto": true,
     "tail_turns": 20

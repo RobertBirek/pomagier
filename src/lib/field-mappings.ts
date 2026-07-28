@@ -1,13 +1,18 @@
 /** Field mappings: Pomagier feature → Subiekt GT column */
 export interface FieldMapping {
-  key: string;          // e.g. "location"
-  label: string;        // e.g. "Lokalizacja towaru"
+  key: string; // e.g. "location"
+  label: string; // e.g. "Lokalizacja towaru"
   subiektField: string; // e.g. "tw_Pole1"
   subiektTable: string; // e.g. "tw__Towar"
 }
 
 export const DEFAULT_MAPPINGS: FieldMapping[] = [
-  { key: "location", label: "Lokalizacja towaru", subiektField: "tw_Pole1", subiektTable: "tw__Towar" },
+  {
+    key: "location",
+    label: "Lokalizacja towaru",
+    subiektField: "tw_Pole1",
+    subiektTable: "tw__Towar",
+  },
 ];
 
 /** Available Subiekt fields that can be mapped */

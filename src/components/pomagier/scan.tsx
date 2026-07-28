@@ -41,7 +41,9 @@ export function ScanPanel({
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const emit = (r: ScanResult) => {
     setHistory((h) => [r, ...h].slice(0, 5));
@@ -60,7 +62,12 @@ export function ScanPanel({
     if (!code) return;
     const isCustomAction = customActions?.find((a) => a.code === code);
     if (isCustomAction) {
-      emit({ code, ok: isCustomAction.kind === "ok", label: isCustomAction.label, kind: isCustomAction.kind });
+      emit({
+        code,
+        ok: isCustomAction.kind === "ok",
+        label: isCustomAction.label,
+        kind: isCustomAction.kind,
+      });
     } else {
       emit({ code, ok: true, label: `Kod: ${code}`, kind: "ok" });
     }
@@ -88,7 +95,9 @@ export function ScanPanel({
             ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSubmit();
+            }}
             placeholder={hint}
             autoComplete="off"
             className="w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
@@ -118,8 +127,8 @@ export function ScanPanel({
         </div>
       </div>
 
-        {/* Scan history */}
-        {history.length > 0 && (
+      {/* Scan history */}
+      {history.length > 0 && (
         <div className="mt-5">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

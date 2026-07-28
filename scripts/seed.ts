@@ -3,7 +3,8 @@ import postgres from "postgres";
 import bcrypt from "bcryptjs";
 import { users } from "../src/db/schema.ts";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://pomagier:pomagier_dev@localhost:5432/pomagier";
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://pomagier:pomagier_dev@localhost:5432/pomagier";
 
 function hashPin(pin: string): string {
   return bcrypt.hashSync(pin, 10);
@@ -16,8 +17,8 @@ async function seed() {
   console.log("Seeding app users with PINs for Subiekt operators...");
 
   const data = [
-    { subiektUzId: 1, pin: "0000", role: "admin" },    // Szef
-    { subiektUzId: 3, pin: "1111", role: "operator" },  // Jan Kowalski
+    { subiektUzId: 1, pin: "0000", role: "admin" }, // Szef
+    { subiektUzId: 3, pin: "1111", role: "operator" }, // Jan Kowalski
   ];
 
   for (const u of data) {

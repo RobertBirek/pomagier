@@ -1,5 +1,39 @@
 # CHANGELOG — PomagierGT
 
+## [1.1.0] — 2026-07-27 Security Hardening & UX
+
+### Security
+- CRIT-2: SQL Injection fix — whitelist validation for `locationField` (only `tw_Pole1..tw_Pole8`, `tw_Opis`, `tw_Uwagi`)
+- CRIT-4: Token removed from localStorage (`pomagier_auth` → `pomagier_session` without token), only httpOnly cookie
+- HIGH: PIN brute-force lockout — 5 failed attempts → 5 minute lockout per `subiektUzId` (in-memory)
+- Security audit completed (4 critical, 6 high, 9 medium findings reviewed)
+
+### Refactor: /mobile/locations
+- Extracted to components: `ScanInput`, `BasketPanel`, `ConfirmCard`, `HistoryPanel`
+- Extracted hooks: `useBasket`, `useScanFocus`, `useLocationMemory`
+- Added `beep()` to shared utils
+- Page reduced from 547 → ~350 lines, 21 states → 14 states
+
+### UX Improvements
+- Loading states on all action buttons (saving, undoing, resetting, transferring)
+- Client-side `X-Idempotency-Key` header on all mutation requests
+- Scan feedback: beep only (no toast spam), toast only on errors
+- Debounce increased 200ms → 300ms for auto-complete
+- Removed aggressive global click/touch focus handler
+
+### Test Fixes
+- Integration tests: fixed EAN to match `Magnum_Profi` database (product RONDOO SL1)
+- Auth tests: migrated from SHA-256 to bcrypt (matching server.ts)
+- 15/15 tests passing
+
+### Documentation
+- DECISIONS.md: 8 architectural decisions registered
+- PRD.md: resolved stale `[Wymaga decyzji]` markers, updated module status
+- DEPLOYMENT.md: updated to reflect actual production deployment
+- DB_SCHEMA.md: corrected `pin` column documentation (SHA-256 → bcrypt)
+
+---
+
 ## [1.0.0] — 2026-07-26 Production Ready
 
 ### Security

@@ -13,16 +13,46 @@ import { logger } from "../lib/logger.js";
 import { authMiddleware, requireAdmin } from "./auth-middleware.js";
 import { registerBackupRoutes } from "./routes/backup.js";
 import { registerLocationsRoutes, getLocationField } from "./routes/locations.js";
+import { getEnv } from "../lib/env.js";
+
+// Validate environment on startup (warn but don't crash — app can work with mock)
+try {
+  const env = getEnv();
+  logger.info({ nodeEnv: env.NODE_ENV, port: env.API_PORT }, "Environment validated");
+  if (env.JWT_SECRET.length < 16) {
+    logger.warn("JWT_SECRET is shorter than recommended (min 16 chars)");
+  }
+  if (env.NODE_ENV === "production" && env.JWT_SECRET.includes("dev-")) {
+    logger.warn("Production is using a development JWT_SECRET");
+  }
+} catch (err) {
+  logger.warn({ err }, "Environment validation failed — some features may not work");
+}
 
 const app = express();
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        mediaSrc: ["'self'"],
+      },
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(authMiddleware);
 app.use(
   cors({
-    origin: process.env.NODE_ENV === "production"
-      ? ["https://pomagier.local", "https://localhost"]
-      : ["https://pomagier.local", "https://localhost", "http://localhost:5173"],
+    origin:
+      process.env.NODE_ENV === "production"
+        ? ["https://pomagier.ilovelighting.hmcloud.pl", "https://localhost"]
+        : ["https://pomagier.ilovelighting.hmcloud.pl", "https://localhost", "http://localhost:5173"],
     credentials: true,
   }),
 );
@@ -164,12 +194,56 @@ app.get("/api/warehouses", async (_req, res) => {
   }
 });
 
+// --- PIN brute-force lockout (in-memory, 5 attempts → 5 min lock) ---
+const PIN_LOCKOUT_MAX = 5;
+const PIN_LOCKOUT_MS = 5 * 60 * 1000;
+const pinAttempts = new Map<number, { count: number; lockedUntil: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of pinAttempts) {
+    if (now > entry.lockedUntil) pinAttempts.delete(id);
+  }
+}, 60_000);
+
+function checkPinLockout(subiektUzId: number): string | null {
+  const entry = pinAttempts.get(subiektUzId);
+  if (!entry) return null;
+  if (Date.now() < entry.lockedUntil) {
+    const remaining = Math.ceil((entry.lockedUntil - Date.now()) / 60_000);
+    return `Konto zablokowane. Spróbuj ponownie za ${remaining} min.`;
+  }
+  pinAttempts.delete(subiektUzId);
+  return null;
+}
+
+function recordPinFailure(subiektUzId: number): void {
+  const entry = pinAttempts.get(subiektUzId) || { count: 0, lockedUntil: 0 };
+  entry.count++;
+  if (entry.count >= PIN_LOCKOUT_MAX) {
+    entry.lockedUntil = Date.now() + PIN_LOCKOUT_MS;
+    logger.warn({ subiektUzId, attempts: entry.count }, "PIN lockout activated");
+  }
+  pinAttempts.set(subiektUzId, entry);
+}
+
+function clearPinAttempts(subiektUzId: number): void {
+  pinAttempts.delete(subiektUzId);
+}
+
 // --- Logowanie ---
 app.post("/api/login", async (req, res) => {
   const { subiektUzId, pin } = req.body ?? {};
 
   if (!subiektUzId || !pin) {
     res.status(400).json({ error: "Brak ID użytkownika lub PIN" });
+    return;
+  }
+
+  // Check lockout before DB query
+  const lockoutMsg = checkPinLockout(subiektUzId);
+  if (lockoutMsg) {
+    res.status(429).json({ error: lockoutMsg });
     return;
   }
 
@@ -181,33 +255,34 @@ app.post("/api/login", async (req, res) => {
       .where(and(eq(schema.users.subiektUzId, subiektUzId), eq(schema.users.active, true)));
 
     if (!user) {
+      recordPinFailure(subiektUzId);
       try {
-        await db
-          .insert(schema.auditLog)
-          .values({
-            correlationId: crypto.randomUUID(),
-            action: "login_failed",
-            details: JSON.stringify({ subiektUzId, reason: "no_user" }),
-          });
+        await db.insert(schema.auditLog).values({
+          correlationId: crypto.randomUUID(),
+          action: "login_failed",
+          details: JSON.stringify({ subiektUzId, reason: "no_user" }),
+        });
       } catch {}
       res.status(401).json({ error: "Użytkownik nie skonfigurowany w PomagierGT" });
       return;
     }
 
     if (!verifyPin(pin, user.pin)) {
+      recordPinFailure(subiektUzId);
       try {
-        await db
-          .insert(schema.auditLog)
-          .values({
-            correlationId: crypto.randomUUID(),
-            userId: user.id,
-            action: "login_failed",
-            details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }),
-          });
+        await db.insert(schema.auditLog).values({
+          correlationId: crypto.randomUUID(),
+          userId: user.id,
+          action: "login_failed",
+          details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }),
+        });
       } catch {}
       res.status(401).json({ error: "Nieprawidłowy PIN" });
       return;
     }
+
+    // Successful login — clear lockout
+    clearPinAttempts(subiektUzId);
 
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
@@ -551,17 +626,29 @@ app.put("/api/users/:subiektId/pin", requireAdmin, async (req, res) => {
 app.put("/api/users/:subiektId/role", requireAdmin, async (req, res) => {
   const subiektUzId = parseInt(req.params.subiektId as string);
   const { role } = req.body ?? {};
-  if (!subiektUzId || !["admin", "operator"].includes(role)) { res.status(400).json({ error: "Nieprawidłowa rola" }); return; }
+  if (!subiektUzId || !["admin", "operator"].includes(role)) {
+    res.status(400).json({ error: "Nieprawidłowa rola" });
+    return;
+  }
   try {
     const db = getDb();
     if (role !== "admin") {
-      const admins = await db.select().from(schema.users).where(and(eq(schema.users.role, "admin"), eq(schema.users.active, true)));
-      if (admins.length === 1 && admins[0].subiektUzId === subiektUzId) { res.status(400).json({ error: "Nie można usunąć ostatniego administratora" }); return; }
+      const admins = await db
+        .select()
+        .from(schema.users)
+        .where(and(eq(schema.users.role, "admin"), eq(schema.users.active, true)));
+      if (admins.length === 1 && admins[0].subiektUzId === subiektUzId) {
+        res.status(400).json({ error: "Nie można usunąć ostatniego administratora" });
+        return;
+      }
     }
     await db.update(schema.users).set({ role }).where(eq(schema.users.subiektUzId, subiektUzId));
     logger.info({ subiektUzId, role }, "User role updated");
     res.json({ ok: true, role });
-  } catch (err) { logger.error({ err }, "Role update failed"); res.status(500).json({ error: "Błąd" }); }
+  } catch (err) {
+    logger.error({ err }, "Role update failed");
+    res.status(500).json({ error: "Błąd" });
+  }
 });
 
 // --- Losowy kod towaru z Subiekta ---
@@ -898,22 +985,26 @@ registerBackupRoutes(app);
 
 // Auto-migrate on startup
 try {
-  import("drizzle-orm/postgres-js/migrator").then(async ({ migrate }) => {
-    const db = getDb();
-    await migrate(db, { migrationsFolder: "./src/db/migrations" });
-    logger.info("Database migrations completed");
-  }).catch((err) => {
-    logger.warn({ err }, "Migration execution failed");
-  });
+  import("drizzle-orm/postgres-js/migrator")
+    .then(async ({ migrate }) => {
+      const db = getDb();
+      await migrate(db, { migrationsFolder: "./src/db/migrations" });
+      logger.info("Database migrations completed");
+    })
+    .catch((err) => {
+      logger.warn({ err }, "Migration execution failed");
+    });
 } catch (err) {
   logger.warn({ err }, "Migration skipped");
 }
 
-
 // --- Pełne dane produktu ---
 app.get("/api/products/:id", async (req, res) => {
   const productId = parseInt(req.params.id as string);
-  if (!productId) { res.status(400).json({ error: "Brak ID" }); return; }
+  if (!productId) {
+    res.status(400).json({ error: "Brak ID" });
+    return;
+  }
   try {
     const db = getDb();
     const adapter = getAdapter();
@@ -927,7 +1018,10 @@ app.get("/api/products/:id", async (req, res) => {
              tw_Pole1, tw_Pole2, tw_Pole3, tw_IdGrupa, tw_IdVatSp, tw_UrzNazwa
       FROM tw__Towar WHERE tw_Id = @id
     `);
-    if (!result.recordset[0]) { res.status(404).json({ error: "Nie znaleziono" }); return; }
+    if (!result.recordset[0]) {
+      res.status(404).json({ error: "Nie znaleziono" });
+      return;
+    }
     const row = result.recordset[0] as any;
 
     // Stock per warehouse
@@ -937,102 +1031,278 @@ app.get("/api/products/:id", async (req, res) => {
     `);
 
     // Locations from Postgres
-    const plRows = await db.select({ code: schema.locations.code, area: schema.locations.area, aisle: schema.locations.aisle, rack: schema.locations.rack, shelf: schema.locations.shelf })
-      .from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
+    const plRows = await db
+      .select({
+        code: schema.locations.code,
+        area: schema.locations.area,
+        aisle: schema.locations.aisle,
+        rack: schema.locations.rack,
+        shelf: schema.locations.shelf,
+      })
+      .from(schema.productLocations)
+      .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
       .where(eq(schema.productLocations.productId, productId));
 
     // Movement history
-    const movements = await db.select().from(schema.productMovements).where(eq(schema.productMovements.productId, productId)).orderBy(sql`${schema.productMovements.createdAt} DESC`).limit(10);
+    const movements = await db
+      .select()
+      .from(schema.productMovements)
+      .where(eq(schema.productMovements.productId, productId))
+      .orderBy(sql`${schema.productMovements.createdAt} DESC`)
+      .limit(10);
 
     // VAT rate lookup
     let vatRate = "";
     if (row.tw_IdVatSp) {
-      const vatRow = await pool.request().input("id", row.tw_IdVatSp).query("SELECT vat_Nazwa FROM sl_StawkaVAT WHERE vat_Id = @id");
+      const vatRow = await pool
+        .request()
+        .input("id", row.tw_IdVatSp)
+        .query("SELECT vat_Nazwa FROM sl_StawkaVAT WHERE vat_Id = @id");
       if (vatRow.recordset[0]) vatRate = (vatRow.recordset[0] as any).vat_Nazwa;
     }
 
     // Group name
     let groupName = "";
     if (row.tw_IdGrupa) {
-      const grRow = await pool.request().input("id", row.tw_IdGrupa).query("SELECT grt_Nazwa FROM sl_GrupaTw WHERE grt_Id = @id");
+      const grRow = await pool
+        .request()
+        .input("id", row.tw_IdGrupa)
+        .query("SELECT grt_Nazwa FROM sl_GrupaTw WHERE grt_Id = @id");
       if (grRow.recordset[0]) groupName = (grRow.recordset[0] as any).grt_Nazwa;
     }
 
     res.json({
-      id: row.tw_Id, symbol: row.tw_Symbol, name: row.tw_Nazwa, description: row.tw_Opis,
-      barcode: row.tw_PodstKodKresk, unit: row.tw_JednMiary, pkwiu: row.tw_PKWiU,
-      productCode: row.tw_KodTowaru, minStock: row.tw_StanMin, minStockUnit: row.tw_JednStanMin,
-      maxStock: row.tw_StanMaks, expiryDays: row.tw_DniWaznosc, weight: row.tw_Masa,
-      netWeight: row.tw_MasaNetto, openPrice: row.tw_CenaOtwarta, depositSystem: row.tw_ObjetySysKaucyjnym,
-      blocked: row.tw_Zablokowany, vatRate, groupName, producerCode: row.tw_UrzNazwa,
-      stocks: stockRows.recordset, locations: plRows, movements,
+      id: row.tw_Id,
+      symbol: row.tw_Symbol,
+      name: row.tw_Nazwa,
+      description: row.tw_Opis,
+      barcode: row.tw_PodstKodKresk,
+      unit: row.tw_JednMiary,
+      pkwiu: row.tw_PKWiU,
+      productCode: row.tw_KodTowaru,
+      minStock: row.tw_StanMin,
+      minStockUnit: row.tw_JednStanMin,
+      maxStock: row.tw_StanMaks,
+      expiryDays: row.tw_DniWaznosc,
+      weight: row.tw_Masa,
+      netWeight: row.tw_MasaNetto,
+      openPrice: row.tw_CenaOtwarta,
+      depositSystem: row.tw_ObjetySysKaucyjnym,
+      blocked: row.tw_Zablokowany,
+      vatRate,
+      groupName,
+      producerCode: row.tw_UrzNazwa,
+      stocks: stockRows.recordset,
+      locations: plRows,
+      movements,
     });
-  } catch (err) { logger.error({ err }, "Product detail failed"); res.status(500).json({ error: "Błąd" }); }
+  } catch (err) {
+    logger.error({ err }, "Product detail failed");
+    res.status(500).json({ error: "Błąd" });
+  }
 });
-
 
 // --- Raport inwentaryzacji ---
 app.post("/api/inventory/report", requireAdmin, async (req, res) => {
   const { scope, area, aisle, rack, shelf, scanned } = req.body ?? {};
-  if (!Array.isArray(scanned)) { res.status(400).json({ error: "Brak zeskanowanych" }); return; }
+  if (!Array.isArray(scanned)) {
+    res.status(400).json({ error: "Brak zeskanowanych" });
+    return;
+  }
   try {
-    const expectedRes = await fetch(`http://localhost:3000/api/inventory/expected?scope=${scope}&area=${area}&aisle=${aisle}&rack=${rack}&shelf=${shelf}`);
+    const expectedRes = await fetch(
+      `http://localhost:3000/api/inventory/expected?scope=${scope}&area=${area}&aisle=${aisle}&rack=${rack}&shelf=${shelf}`,
+    );
     const expectedData = await expectedRes.json();
     const ep: any[] = expectedData.products || [];
-    const sm = new Map(); for (const s of scanned) sm.set(s.code, (sm.get(s.code) || 0) + s.qty);
-    const matched = [], missing = [], extra = [], qDiff = [];
+    const sm = new Map();
+    for (const s of scanned) sm.set(s.code, (sm.get(s.code) || 0) + s.qty);
+    const matched = [],
+      missing = [],
+      extra = [],
+      qDiff = [];
     const sc = new Set(sm.keys());
-    for (const p of ep) { const sq = sm.get(p.barcode) || sm.get(p.symbol) || 0; if (sq === 0) missing.push(p); else if (sq !== p.qty) qDiff.push({ ...p, expectedQty: p.qty, scannedQty: sq }); else matched.push(p); if (p.barcode) sc.delete(p.barcode); sc.delete(p.symbol); }
+    for (const p of ep) {
+      const sq = sm.get(p.barcode) || sm.get(p.symbol) || 0;
+      if (sq === 0) missing.push(p);
+      else if (sq !== p.qty) qDiff.push({ ...p, expectedQty: p.qty, scannedQty: sq });
+      else matched.push(p);
+      if (p.barcode) sc.delete(p.barcode);
+      sc.delete(p.symbol);
+    }
     for (const c of sc) extra.push({ code: c, qty: sm.get(c) || 0 });
-    try { const db = getDb(); await db.insert(schema.auditLog).values({ correlationId: crypto.randomUUID(), action: "inventory_report", details: JSON.stringify({ scope, matched: matched.length, missing: missing.length }) }); } catch {}
-    res.json({ summary: { expected: ep.length, scanned: scanned.length, matched: matched.length, missing: missing.length, extra: extra.length, quantityDiff: qDiff.length }, matched, missing, extra, quantityDiff: qDiff });
-  } catch (err) { logger.error({ err }, "Report failed"); res.status(500).json({ error: "Blad" }); }
+    try {
+      const db = getDb();
+      await db.insert(schema.auditLog).values({
+        correlationId: crypto.randomUUID(),
+        action: "inventory_report",
+        details: JSON.stringify({ scope, matched: matched.length, missing: missing.length }),
+      });
+    } catch {}
+    res.json({
+      summary: {
+        expected: ep.length,
+        scanned: scanned.length,
+        matched: matched.length,
+        missing: missing.length,
+        extra: extra.length,
+        quantityDiff: qDiff.length,
+      },
+      matched,
+      missing,
+      extra,
+      quantityDiff: qDiff,
+    });
+  } catch (err) {
+    logger.error({ err }, "Report failed");
+    res.status(500).json({ error: "Blad" });
+  }
 });
 
 app.get("/api/terminals", requireAdmin, async (_req, res) => {
   try {
-    const db = getDb(); const now = new Date();
-    const rows = await db.select().from(schema.sessions).orderBy(sql`created_at DESC`).limit(20);
-    res.json(rows.filter(s => new Date(s.expiresAt) > now).map(s => ({ id: s.id, userId: s.userId, loginTime: s.createdAt, expiresAt: s.expiresAt })));
-  } catch { res.json([]); }
-});
+    const db = getDb();
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    const now = new Date();
+    const rows = await db
+      .select()
+      .from(schema.sessions)
+      .orderBy(sql`created_at DESC`)
+      .limit(20);
 
+    const terminals = rows.filter((s) => new Date(s.expiresAt) > now);
+
+    // Fetch user names from Subiekt
+    let userNameMap = new Map<string, string>();
+    if (pool) {
+      const userIds = [...new Set(terminals.map((t) => t.userId))];
+      const userRows = await db
+        .select()
+        .from(schema.users)
+        .where(sql`${schema.users.id} IN (${userIds.map(() => sql`?`).reduce((arr, p) => [...arr, p], [] as any)})`);
+      const subiektIds = userRows.map((u) => u.subiektUzId);
+
+      if (subiektIds.length > 0) {
+        const names = await pool.request().query(`
+          SELECT uz_Id AS id, uz_Imie AS firstName, uz_Nazwisko AS lastName
+          FROM pd_Uzytkownik
+          WHERE uz_Id IN (${subiektIds.join(",")})
+        `);
+        for (const row of names.recordset) {
+          const r = row as { id: number; firstName: string; lastName: string };
+          const subiektId = r.id;
+          const appUser = userRows.find((u) => u.subiektUzId === subiektId);
+          if (appUser) {
+            userNameMap.set(appUser.id, `${r.firstName || ""} ${r.lastName || ""}`.trim());
+          }
+        }
+      }
+    }
+
+    res.json(
+      terminals.map((s) => ({
+        id: s.id,
+        userId: s.userId,
+        userName: userNameMap.get(s.userId) || "",
+        loginTime: s.createdAt,
+        expiresAt: s.expiresAt,
+      })),
+    );
+  } catch {
+    res.json([]);
+  }
+});
 
 app.get("/ca", (_req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><title>Pobierz certyfikat</title></head><body style="font-family:system-ui;padding:20px;text-align:center"><h2>Certyfikat PomagierGT</h2><p>Kliknij przycisk aby pobrać i zainstalować:</p><a href="/api/ca" download="rootCA.crt" style="display:inline-block;background:#1e40af;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;touch-action:manipulation">📥 Pobierz rootCA.crt</a><p style="margin-top:20px;color:#666;font-size:14px">Po pobraniu: Ustawienia → Bezpieczeństwo → Zainstaluj certyfikat</p></body></html>`);
+  res.send(
+    `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><title>Pobierz certyfikat</title></head><body style="font-family:system-ui;padding:20px;text-align:center"><h2>Certyfikat PomagierGT</h2><p>Kliknij przycisk aby pobrać i zainstalować:</p><a href="/api/ca" download="rootCA.crt" style="display:inline-block;background:#1e40af;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;touch-action:manipulation">📥 Pobierz rootCA.crt</a><p style="margin-top:20px;color:#666;font-size:14px">Po pobraniu: Ustawienia → Bezpieczeństwo → Zainstaluj certyfikat</p></body></html>`,
+  );
 });
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 app.listen(port, () => {
-
-// === Inwentaryzacja ===
-app.get("/api/inventory/expected", async (req, res) => {
-  const scope = (req.query.scope as string) || "exact";
-  const area = (req.query.area as string) || "A";
-  const aisle = parseInt(req.query.aisle as string) || 0;
-  const rack = parseInt(req.query.rack as string) || 0;
-  const shelf = parseInt(req.query.shelf as string) || 0;
-  try {
-    const db = getDb(); const adapter = getAdapter(); const pool = await adapter.getPool?.();
-    let q = db.select({ code: schema.locations.code, area: schema.locations.area, aisle: schema.locations.aisle, rack: schema.locations.rack, shelf: schema.locations.shelf, productId: schema.productLocations.productId, quantity: schema.productLocations.quantity }).from(schema.productLocations).innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id)).where(eq(schema.locations.area, area));
-    if (["exact","shelf","rack"].includes(scope) && aisle) q = (q as any).where(eq(schema.locations.aisle, aisle));
-    if (["exact","shelf"].includes(scope) && rack) q = (q as any).where(eq(schema.locations.rack, rack));
-    if (["exact"].includes(scope) && shelf) q = (q as any).where(eq(schema.locations.shelf, shelf));
-    const rows = await q;
-    const grouped = new Map();
-    for (const r of rows) { if (!r.productId) continue; const g = grouped.get(r.productId) || { id: r.productId, symbol: "", name: "", unit: "", barcode: "", locations: [], qty: 0, subiektStock: 0 }; g.locations.push(r.code); g.qty += (r.quantity || 0); grouped.set(r.productId, g); }
-    if (pool && grouped.size > 0) {
-      const ids = [...grouped.keys()];
-      const pr = await pool.request().query(`SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_JednMiary AS unit, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${ids})`);
-      for (const p of pr.recordset) { const g = grouped.get((p as any).id); if (g) { g.symbol = (p as any).symbol; g.name = (p as any).name; g.unit = (p as any).unit; g.barcode = (p as any).barcode; } }
-      const sr = await pool.request().query(`SELECT st_TowId, SUM(st_Stan) AS total FROM tw_Stan WHERE st_TowId IN (${ids}) GROUP BY st_TowId`);
-      for (const s of sr.recordset) { const g = grouped.get((s as any).st_TowId); if (g) g.subiektStock = (s as any).total; }
+  // === Inwentaryzacja ===
+  app.get("/api/inventory/expected", async (req, res) => {
+    const scope = (req.query.scope as string) || "exact";
+    const area = (req.query.area as string) || "A";
+    const aisle = parseInt(req.query.aisle as string) || 0;
+    const rack = parseInt(req.query.rack as string) || 0;
+    const shelf = parseInt(req.query.shelf as string) || 0;
+    try {
+      const db = getDb();
+      const adapter = getAdapter();
+      const pool = await adapter.getPool?.();
+      let q = db
+        .select({
+          code: schema.locations.code,
+          area: schema.locations.area,
+          aisle: schema.locations.aisle,
+          rack: schema.locations.rack,
+          shelf: schema.locations.shelf,
+          productId: schema.productLocations.productId,
+          quantity: schema.productLocations.quantity,
+        })
+        .from(schema.productLocations)
+        .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
+        .where(eq(schema.locations.area, area));
+      if (["exact", "shelf", "rack"].includes(scope) && aisle)
+        q = (q as any).where(eq(schema.locations.aisle, aisle));
+      if (["exact", "shelf"].includes(scope) && rack)
+        q = (q as any).where(eq(schema.locations.rack, rack));
+      if (["exact"].includes(scope) && shelf)
+        q = (q as any).where(eq(schema.locations.shelf, shelf));
+      const rows = await q;
+      const grouped = new Map();
+      for (const r of rows) {
+        if (!r.productId) continue;
+        const g = grouped.get(r.productId) || {
+          id: r.productId,
+          symbol: "",
+          name: "",
+          unit: "",
+          barcode: "",
+          locations: [],
+          qty: 0,
+          subiektStock: 0,
+        };
+        g.locations.push(r.code);
+        g.qty += r.quantity || 0;
+        grouped.set(r.productId, g);
+      }
+      if (pool && grouped.size > 0) {
+        const ids = [...grouped.keys()];
+        const pr = await pool
+          .request()
+          .query(
+            `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_JednMiary AS unit, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${ids})`,
+          );
+        for (const p of pr.recordset) {
+          const g = grouped.get((p as any).id);
+          if (g) {
+            g.symbol = (p as any).symbol;
+            g.name = (p as any).name;
+            g.unit = (p as any).unit;
+            g.barcode = (p as any).barcode;
+          }
+        }
+        const sr = await pool
+          .request()
+          .query(
+            `SELECT st_TowId, SUM(st_Stan) AS total FROM tw_Stan WHERE st_TowId IN (${ids}) GROUP BY st_TowId`,
+          );
+        for (const s of sr.recordset) {
+          const g = grouped.get((s as any).st_TowId);
+          if (g) g.subiektStock = (s as any).total;
+        }
+      }
+      res.json({ scope, area, aisle, rack, shelf, products: [...grouped.values()] });
+    } catch (err) {
+      logger.error({ err }, "Inventory expected failed");
+      res.json({ products: [] });
     }
-    res.json({ scope, area, aisle, rack, shelf, products: [...grouped.values()] });
-  } catch (err) { logger.error({ err }, "Inventory expected failed"); res.json({ products: [] }); }
-});
-
+  });
 
   logger.info({ port }, "API server started");
 });

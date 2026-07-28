@@ -78,10 +78,18 @@ export function CameraScanner({ onScan, onClose, inline }: CameraScannerProps) {
         {active ? (
           <div className="rounded-lg border overflow-hidden bg-black">
             <div className="flex items-center justify-between px-3 py-2 bg-black text-white text-xs">
-              <span className="flex items-center gap-1.5"><ScanLine className="h-3.5 w-3.5" />Skanuję…</span>
-              <button onClick={stopScanner} className="touch-target rounded p-1 hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
+              <span className="flex items-center gap-1.5">
+                <ScanLine className="h-3.5 w-3.5" />
+                Skanuję…
+              </span>
+              <button onClick={stopScanner} className="touch-target rounded p-1 hover:bg-white/10">
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <div id={viewportId.current} className="h-64 [&>video]:!h-full [&>video]:!w-full [&>video]:!object-cover" />
+            <div
+              id={viewportId.current}
+              className="h-64 [&>video]:!h-full [&>video]:!w-full [&>video]:!object-cover"
+            />
             <div className="px-3 py-2 bg-black text-center">
               {loading && <Loader2 className="mx-auto h-4 w-4 animate-spin text-white/60" />}
               {error && <p className="text-red-400 text-xs">{error}</p>}
@@ -105,11 +113,21 @@ export function CameraScanner({ onScan, onClose, inline }: CameraScannerProps) {
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="flex items-center justify-between px-4 py-3 text-white">
         <span className="text-sm font-medium">Skanuj kamerą</span>
-        <button onClick={onClose} className="touch-target rounded p-2 hover:bg-white/10"><X className="h-5 w-5" /></button>
+        <button onClick={onClose} className="touch-target rounded p-2 hover:bg-white/10">
+          <X className="h-5 w-5" />
+        </button>
       </div>
-      <div id={viewportId.current} className="flex-1 [&>video]:!h-full [&>video]:!w-full [&>video]:!object-cover" />
+      <div
+        id={viewportId.current}
+        className="flex-1 [&>video]:!h-full [&>video]:!w-full [&>video]:!object-cover"
+      />
       <div className="px-4 py-4 text-center">
-        {loading && <div className="flex items-center justify-center gap-2 text-white/60 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Inicjalizacja kamery...</div>}
+        {loading && (
+          <div className="flex items-center justify-center gap-2 text-white/60 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Inicjalizacja kamery...
+          </div>
+        )}
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {!loading && !error && <p className="text-green-400 text-sm">Kod zeskanowany</p>}
       </div>

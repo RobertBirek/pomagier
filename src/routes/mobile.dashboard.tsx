@@ -2,16 +2,55 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { getCompany } from "@/lib/api";
-import { Scan, ClipboardList, Package, Truck, MapPin, RefreshCw, ListTodo, Key } from "lucide-react";
+import {
+  Scan,
+  ClipboardList,
+  Package,
+  Truck,
+  MapPin,
+  RefreshCw,
+  ListTodo,
+  Key,
+} from "lucide-react";
 
 const tiles = [
   { to: "/mobile/scan", label: "Skanuj", icon: Scan, color: "bg-blue-500", desc: "Skaner kodów" },
-  { to: "/mobile/picking", label: "Kompletacja", icon: ClipboardList, color: "bg-emerald-500", desc: "Zbieranie zamówień" },
-  { to: "/mobile/inventory", label: "Inwentaryzacja", icon: Package, color: "bg-amber-500", desc: "Spis z natury" },
-  { to: "/mobile/receiving", label: "Dostawy", icon: Truck, color: "bg-purple-500", desc: "Przyjęcie towaru" },
-  { to: "/mobile/locations", label: "Lokalizacje", icon: MapPin, color: "bg-rose-500", desc: "Przypisz towary" },
+  {
+    to: "/mobile/picking",
+    label: "Kompletacja",
+    icon: ClipboardList,
+    color: "bg-emerald-500",
+    desc: "Zbieranie zamówień",
+  },
+  {
+    to: "/mobile/inventory",
+    label: "Inwentaryzacja",
+    icon: Package,
+    color: "bg-amber-500",
+    desc: "Spis z natury",
+  },
+  {
+    to: "/mobile/receiving",
+    label: "Dostawy",
+    icon: Truck,
+    color: "bg-purple-500",
+    desc: "Przyjęcie towaru",
+  },
+  {
+    to: "/mobile/locations",
+    label: "Lokalizacje",
+    icon: MapPin,
+    color: "bg-rose-500",
+    desc: "Przypisz towary",
+  },
   { to: "/mobile/pin", label: "Zmień PIN", icon: Key, color: "bg-slate-500", desc: "Nowy PIN" },
-  { to: "/mobile/sync", label: "Synchronizacja", icon: RefreshCw, color: "bg-slate-500", desc: "Stan synchronizacji" },
+  {
+    to: "/mobile/sync",
+    label: "Synchronizacja",
+    icon: RefreshCw,
+    color: "bg-slate-500",
+    desc: "Stan synchronizacji",
+  },
 ];
 
 export const Route = createFileRoute("/mobile/dashboard")({
@@ -30,7 +69,9 @@ function Dashboard() {
     <div className="mx-auto max-w-md p-4">
       <div className="mb-4">
         <h1 className="text-lg font-bold">{company?.name || "PomagierGT"}</h1>
-        <p className="text-xs text-muted-foreground">{operatorName} · {warehouse}</p>
+        <p className="text-xs text-muted-foreground">
+          {operatorName} · {warehouse}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

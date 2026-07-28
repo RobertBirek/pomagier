@@ -1,168 +1,464 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { useScanFocus } from "@/hooks/use-scan-focus";
+import { useBasket } from "@/hooks/use-basket";
+import { parseLocation } from "@/lib/locations";
+import { beep, cn } from "@/lib/utils";
+import { addScanToQueue } from "@/lib/offline-queue";
 import { toast } from "sonner";
-import { MapPin, Package, CheckCircle2, X, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Search, Layers } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import {
+  MapPin,
+  Package,
+  CheckCircle2,
+  X,
+  AlertTriangle,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  Trash2,
+  ArrowLeft,
+} from "lucide-react";
 import { StatusBadge, SectionTitle } from "@/components/pomagier/primitives";
 
-async function fetchExpected(location: string, scope: string) {
-  const parts = location.split(" "); const area = parts[0]; const nums = (parts[1] || "1-1-1-1").split("-");
-  const aisle = nums[0] || "0"; const rack = nums[1] || "0"; const shelf = nums[2] || "0";
-  const r = await fetch(`/api/inventory/expected?scope=${scope}&area=${area}&aisle=${aisle}&rack=${rack}&shelf=${shelf}`);
-  return r.json() as Promise<{ scope: string; area: string; aisle: number; rack: number; shelf: number; products: any[] }>;
+interface ExpectedProduct {
+  id: number;
+  symbol: string;
+  name: string;
+  barcode: string;
+  unit: string;
+  qty: number;
+  subiektStock: number;
+  locations: string[];
+  /** How many already scanned */
+  scannedQty: number;
 }
 
-async function submitReport(data: any) {
-  const r = await fetch("/api/inventory/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+interface InventoryResult {
+  summary: { expected: number; scanned: number; matched: number; missing: number; extra: number; quantityDiff: number };
+  matched: ExpectedProduct[];
+  missing: ExpectedProduct[];
+  extra: { code: string; qty: number; name?: string }[];
+  quantityDiff: (ExpectedProduct & { scannedQty: number })[];
+}
+
+async function fetchExpected(loc: { area: string; aisle?: number; rack?: number; shelf?: number }, scope: string) {
+  const params = new URLSearchParams({ scope, area: loc.area });
+  if (loc.aisle != null) params.set("aisle", String(loc.aisle));
+  if (loc.rack != null) params.set("rack", String(loc.rack));
+  if (loc.shelf != null) params.set("shelf", String(loc.shelf));
+  const r = await fetch(`/api/inventory/expected?${params.toString()}`);
+  return r.json() as Promise<{ products: ExpectedProduct[] }>;
+}
+
+async function submitReport(scope: string, loc: { area: string; aisle?: number; rack?: number; shelf?: number }, codes: string[]) {
+  const r = await fetch("/api/inventory/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope,
+      area: loc.area,
+      aisle: loc.aisle ?? 0,
+      rack: loc.rack ?? 0,
+      shelf: loc.shelf ?? 0,
+      scanned: codes.map((c) => ({ code: c, qty: 1 })),
+    }),
+  });
   if (!r.ok) throw new Error((await r.json()).error);
-  return r.json();
+  return r.json() as Promise<InventoryResult>;
 }
 
 export const Route = createFileRoute("/mobile/inventory")({ component: InventoryPage });
 
+const SCOPES = [
+  { key: "exact", label: "Pojedyncza lokalizacja", desc: "np. A 1-2-3-1" },
+  { key: "shelf", label: "Cała półka", desc: "np. A 1-2 — wszystkie shelf" },
+  { key: "rack", label: "Cały regał", desc: "np. A 1 — wszystkie rack i shelf" },
+  { key: "area", label: "Cały obszar", desc: "np. A — wszystkie" },
+] as const;
+
 function InventoryPage() {
+  const { inputRef, refocus } = useScanFocus();
+  const { basket, totalQty, flatCodes, addToBasket, removeItem, updateQty, clearBasket } = useBasket();
+
   const [step, setStep] = useState<"setup" | "scan" | "report">("setup");
   const [scope, setScope] = useState("exact");
   const [location, setLocation] = useState("");
-  const [inputValue, setInputValue] = useState("");
-  const [expected, setExpected] = useState<any>(null);
-  const [basket, setBasket] = useState<{ code: string; qty: number }[]>([]);
-  const [report, setReport] = useState<any>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const refocus = () => setTimeout(() => inputRef.current?.focus(), 50);
+  const [expected, setExpected] = useState<ExpectedProduct[]>([]);
+  const [report, setReport] = useState<InventoryResult | null>(null);
+  const [inputFlash, setInputFlash] = useState<"ok" | "err" | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => { refocus(); }, []);
+  // Build scan map: barcode → expected qty (for matching during scan)
+  const expectedByBarcode = useMemo(() => {
+    const map = new Map<string, ExpectedProduct>();
+    for (const p of expected) {
+      if (p.barcode) map.set(p.barcode, p);
+      map.set(p.symbol, p);
+    }
+    return map;
+  }, [expected]);
 
-  const scopes = [
-    { key: "exact", label: "Pojedyncza lokalizacja", desc: "np. A 1-2-3-1" },
-    { key: "shelf", label: "Cała półka", desc: "np. A 1-2 — wszystkie shelf" },
-    { key: "rack", label: "Cały regał", desc: "np. A 1 — wszystkie rack i shelf" },
-    { key: "area", label: "Cały obszar", desc: "np. A — wszystkie" },
-  ];
+  // Compute scanned qty per product from basket
+  const scannedMap = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const code of flatCodes) {
+      const ep = expectedByBarcode.get(code);
+      if (ep) map.set(ep.id, (map.get(ep.id) || 0) + 1);
+    }
+    return map;
+  }, [flatCodes, expectedByBarcode]);
+
+  // Products with scan progress
+  const productsWithProgress = useMemo(() => {
+    return expected.map((p) => ({
+      ...p,
+      scannedQty: scannedMap.get(p.id) || 0,
+      done: (scannedMap.get(p.id) || 0) >= p.qty,
+    }));
+  }, [expected, scannedMap]);
+
+  const matchedCount = productsWithProgress.filter((p) => p.done).length;
+  const progress = expected.length > 0 ? Math.round((matchedCount / expected.length) * 100) : 0;
+
+  const flash = (kind: "ok" | "err") => {
+    setInputFlash(kind);
+    setTimeout(() => setInputFlash(null), 500);
+  };
 
   const startScan = async () => {
     if (!location.trim()) return;
+    setLoading(true);
     try {
-      const data = await fetchExpected(location.trim(), scope);
-      if (data.products.length === 0) { toast.error("Brak produktów w tym zakresie"); return; }
-      setExpected(data);
+      const loc = parseLocation(location.trim());
+      if (!loc) {
+        toast.error("Nieprawidłowy format lokalizacji");
+        setLoading(false);
+        return;
+      }
+      const data = await fetchExpected(loc, scope);
+      if (data.products.length === 0) {
+        toast.error("Brak produktów w tym zakresie");
+        setLoading(false);
+        return;
+      }
+      setExpected(data.products);
       setStep("scan");
-      toast.success(`Znaleziono ${data.products.length} produktów`);
+      beep(800, 100);
+      clearBasket();
       refocus();
-    } catch { toast.error("Błąd pobierania"); }
+    } catch {
+      toast.error("Błąd pobierania danych");
+    }
+    setLoading(false);
   };
 
-  const addToBasket = (code: string) => {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    setBasket(b => { const idx = b.findIndex(i => i.code === trimmed); if (idx >= 0) return b.map((i, j) => j === idx ? { ...i, qty: i.qty + 1 } : i); return [...b, { code: trimmed, qty: 1 }]; });
-    setInputValue(""); refocus();
-  };
+  const [inputValue, setInputValue] = useState("");
+
+  const handleInputSubmit = useCallback(async () => {
+    const code = inputValue.trim();
+    if (!code || loading) return;
+    setInputValue("");
+    setLoading(true);
+
+    // Check if this code matches an expected product
+    const ep = expectedByBarcode.get(code);
+    if (ep) {
+      beep(800, 100);
+      setTimeout(() => beep(1000, 80), 120);
+      flash("ok");
+      await addToBasket(code);
+      toast.success(ep.name || ep.symbol, { duration: 800, description: `${(scannedMap.get(ep.id) || 0) + 1}/${ep.qty}` });
+    } else {
+      beep(200, 300);
+      flash("err");
+      // Still add — it's an extra product (might be found during report)
+      await addToBasket(code);
+      toast.warning("Nieoczekiwany produkt", { duration: 1200, description: code });
+    }
+    setLoading(false);
+    refocus();
+  }, [inputValue, loading, expectedByBarcode, addToBasket, scannedMap]);
 
   const finishScan = async () => {
-    if (!expected) return;
+    if (basket.length === 0) return;
+    setLoading(true);
     try {
-      const parts = location.split(" "); const area = parts[0]; const nums = (parts[1] || "1-1-1-1").split("-");
-      const result = await submitReport({
-        scope, area, aisle: parseInt(nums[0] || "0"), rack: parseInt(nums[1] || "0"), shelf: parseInt(nums[2] || "0"),
-        scanned: basket.map(b => ({ code: b.code, qty: b.qty })),
-      });
+      const loc = parseLocation(location.trim())!;
+      const result = await submitReport(scope, loc, flatCodes);
       setReport(result);
       setStep("report");
-    } catch (e: any) { toast.error(e.message); }
+      beep(1000, 80);
+      setTimeout(() => beep(1200, 120), 120);
+    } catch (e: any) {
+      beep(200, 400);
+      toast.error(e.message || "Błąd");
+    }
+    setLoading(false);
   };
 
-  const totalBasket = basket.reduce((s, b) => s + b.qty, 0);
+  const resetAll = () => {
+    setStep("setup");
+    clearBasket();
+    setReport(null);
+    setExpected([]);
+    setLocation("");
+  };
+
+  const inputBorderClass = cn(
+    "w-full rounded-lg border-2 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none transition-all duration-200",
+    inputFlash === "ok" && "border-green-500 bg-green-50 ring-2 ring-green-500/20",
+    inputFlash === "err" && "border-red-400 bg-red-50 ring-2 ring-red-400/20",
+    !inputFlash && "border-primary/40 focus:border-primary focus:ring-primary/20",
+  );
 
   return (
     <div className="mx-auto max-w-md p-4 space-y-4">
-      <h1 className="text-lg font-bold">Inwentaryzacja</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold">Inwentaryzacja</h1>
+        {step !== "setup" && (
+          <button onClick={resetAll} className="touch-target inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs hover:bg-accent">
+            <ArrowLeft className="h-3.5 w-3.5" /> Nowa
+          </button>
+        )}
+      </div>
 
+      {/* === SETUP === */}
       {step === "setup" && (
         <div className="space-y-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-2">Wybierz zakres inwentaryzacji:</p>
-            <div className="space-y-2">
-              {scopes.map(s => (
-                <label key={s.key} className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer ${scope === s.key ? "border-primary bg-primary/5" : "hover:bg-muted/30"}`}>
-                  <input type="radio" name="scope" checked={scope === s.key} onChange={() => setScope(s.key)} className="mt-0.5" />
-                  <div><div className="text-sm font-semibold">{s.label}</div><div className="text-xs text-muted-foreground">{s.desc}</div></div>
-                </label>
-              ))}
-            </div>
+          <p className="text-xs text-muted-foreground">Wybierz zakres inwentaryzacji:</p>
+          <div className="space-y-2">
+            {SCOPES.map((s) => (
+              <label
+                key={s.key}
+                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer touch-target ${scope === s.key ? "border-primary bg-primary/5" : "hover:bg-muted/30"}`}
+              >
+                <input type="radio" name="scope" checked={scope === s.key} onChange={() => setScope(s.key)} className="mt-0.5" />
+                <div>
+                  <div className="text-sm font-semibold">{s.label}</div>
+                  <div className="text-xs text-muted-foreground">{s.desc}</div>
+                </div>
+              </label>
+            ))}
           </div>
           <div>
             <label className="text-xs font-medium">Lokalizacja bazowa</label>
-            <input value={location} onChange={e => setLocation(e.target.value)} placeholder="np. A 1-2-3-1" className="mt-1 w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-4 text-center text-lg font-mono shadow-inner outline-none focus:border-primary" />
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") startScan(); }}
+              placeholder="np. A 1-2-3-1"
+              autoComplete="off"
+              className="mt-1 w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-4 text-center text-lg font-mono shadow-inner outline-none focus:border-primary"
+            />
           </div>
-          <button onClick={startScan} disabled={!location.trim()} className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground disabled:opacity-50">Rozpocznij inwentaryzację</button>
+          <button
+            onClick={startScan}
+            disabled={!location.trim() || loading}
+            className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground disabled:opacity-50 touch-target"
+          >
+            {loading ? "⏳ Ładowanie…" : "Rozpocznij inwentaryzację"}
+          </button>
         </div>
       )}
 
-      {step === "scan" && expected && (
+      {/* === SCAN === */}
+      {step === "scan" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold"><Layers className="inline h-4 w-4 mr-1" />{expected.products.length} produktów oczekiwanych</span>
-            <StatusBadge tone="info">{scope}</StatusBadge>
+          {/* Progress */}
+          <div className="rounded-lg border bg-card p-3">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="font-semibold flex items-center gap-1.5">
+                <Layers className="h-4 w-4 text-primary" />
+                {matchedCount}/{expected.length}
+              </span>
+              <StatusBadge tone={progress === 100 ? "success" : "info"}>{progress}%</StatusBadge>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-3 max-h-40 overflow-y-auto text-xs space-y-1">
-            {expected.products.map((p: any) => (
-              <div key={p.id} className="flex items-center justify-between py-0.5 border-b last:border-0">
-                <div className="font-mono truncate">{p.symbol}</div>
-                <div className="text-muted-foreground">×{p.qty}</div>
+          {/* Scan input */}
+          <div className="relative">
+            <input
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleInputSubmit(); }}
+              placeholder="Skanuj EAN towaru…"
+              autoComplete="off"
+              disabled={loading}
+              className={inputBorderClass}
+            />
+            <p className="mt-1 text-center text-xs text-muted-foreground">
+              {loading ? "⏳ Szukam…" : `🟢 Zeskanowano ${totalQty} szt. — Enter aby dodać`}
+            </p>
+          </div>
+
+          {/* Products list with scan progress */}
+          <div className="rounded-lg border bg-card divide-y max-h-64 overflow-y-auto">
+            {productsWithProgress.map((p) => (
+              <div
+                key={p.id}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 text-xs transition-colors",
+                  p.done && "bg-green-50",
+                )}
+              >
+                <div className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors",
+                  p.done ? "bg-green-500 border-green-500" : "border-muted-foreground/30",
+                )}>
+                  {p.done && <CheckCircle2 className="h-3 w-3 text-white" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono font-semibold truncate">{p.symbol}</div>
+                  <div className="text-muted-foreground truncate">{p.name}</div>
+                  {p.locations.length > 0 && (
+                    <div className="flex items-center gap-1 mt-0.5 text-muted-foreground">
+                      <MapPin className="h-2.5 w-2.5" />
+                      {p.locations.slice(0, 2).join(", ")}
+                      {p.locations.length > 2 && ` +${p.locations.length - 2}`}
+                    </div>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={cn("font-bold", p.done ? "text-green-700" : "text-muted-foreground")}>
+                    {p.scannedQty}/{p.qty}
+                  </div>
+                  {p.subiektStock > 0 && (
+                    <div className="text-[10px] text-muted-foreground">stan: {p.subiektStock}</div>
+                  )}
+                </div>
               </div>
             ))}
+            {expected.length === 0 && (
+              <div className="p-4 text-center text-xs text-muted-foreground">Brak produktów</div>
+            )}
           </div>
 
-          <input ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addToBasket(inputValue); }} placeholder="Skanuj EAN towaru..." autoComplete="off" className="w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none focus:border-primary" />
-
+          {/* Basket summary */}
           {basket.length > 0 && (
             <div className="rounded-lg border bg-card p-3">
-              <div className="text-sm font-semibold mb-2">Zeskanowano: {totalBasket} szt.</div>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {basket.map(b => (
-                  <div key={b.code} className="flex items-center justify-between text-xs"><span className="font-mono">{b.code}</span><div className="flex items-center gap-2"><span>×{b.qty}</span><button onClick={() => setBasket(prev => prev.filter(i => i.code !== b.code))} className="text-destructive"><X className="h-3 w-3" /></button></div></div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold">Koszyk ({totalQty} szt.)</span>
+                <button onClick={clearBasket} className="touch-target text-xs text-destructive hover:underline inline-flex items-center gap-1">
+                  <Trash2 className="h-3 w-3" /> Wyczyść
+                </button>
+              </div>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {basket.map((b) => (
+                  <div key={b.code} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Package className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="font-mono truncate">{b.code}</span>
+                      {b.name && <span className="text-muted-foreground truncate">{b.name}</span>}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => updateQty(b.code, -1)} className="rounded border px-1 text-xs hover:bg-accent font-mono">−</button>
+                      <span className="w-4 text-center font-mono font-semibold">{b.qty}</span>
+                      <button onClick={() => updateQty(b.code, 1)} className="rounded border px-1 text-xs hover:bg-accent font-mono">+</button>
+                      <button onClick={() => removeItem(b.code)} className="text-destructive ml-1"><X className="h-3 w-3" /></button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          <button onClick={finishScan} disabled={basket.length === 0} className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground disabled:opacity-50">Zakończ inwentaryzację</button>
+          {/* Finish button */}
+          <button
+            onClick={finishScan}
+            disabled={basket.length === 0 || loading}
+            className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground disabled:opacity-50 touch-target inline-flex items-center justify-center gap-2"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {loading ? "Przetwarzanie…" : `Zakończ inwentaryzację (${totalQty} szt.)`}
+          </button>
         </div>
       )}
 
+      {/* === REPORT === */}
       {step === "report" && report && (
         <div className="space-y-4">
-          <h2 className="text-lg font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" />Raport</h2>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Raport
+          </h2>
+
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-green-50 p-3 text-center"><div className="text-2xl font-bold text-green-700">{report.summary.matched}</div><div className="text-xs text-green-600">Zgodne</div></div>
-            <div className="rounded-lg bg-red-50 p-3 text-center"><div className="text-2xl font-bold text-red-700">{report.summary.missing}</div><div className="text-xs text-red-600">Brak</div></div>
-            <div className="rounded-lg bg-orange-50 p-3 text-center"><div className="text-2xl font-bold text-orange-700">{report.summary.extra}</div><div className="text-xs text-orange-600">Nadwyżka</div></div>
-            <div className="rounded-lg bg-amber-50 p-3 text-center"><div className="text-2xl font-bold text-amber-700">{report.summary.quantityDiff}</div><div className="text-xs text-amber-600">Ilość różna</div></div>
+            <div className="rounded-lg bg-green-50 p-3 text-center">
+              <div className="text-2xl font-bold text-green-700">{report.summary.matched}</div>
+              <div className="text-xs text-green-600">Zgodne</div>
+            </div>
+            <div className="rounded-lg bg-red-50 p-3 text-center">
+              <div className="text-2xl font-bold text-red-700">{report.summary.missing}</div>
+              <div className="text-xs text-red-600">Brak</div>
+            </div>
+            <div className="rounded-lg bg-orange-50 p-3 text-center">
+              <div className="text-2xl font-bold text-orange-700">{report.summary.extra}</div>
+              <div className="text-xs text-orange-600">Nadwyżka</div>
+            </div>
+            <div className="rounded-lg bg-amber-50 p-3 text-center">
+              <div className="text-2xl font-bold text-amber-700">{report.summary.quantityDiff}</div>
+              <div className="text-xs text-amber-600">Ilość różna</div>
+            </div>
           </div>
 
           {report.missing.length > 0 && (
             <div>
               <SectionTitle title={`Brakujące (${report.missing.length})`} />
-              {report.missing.map((p: any) => <div key={p.id} className="flex items-center gap-2 text-xs py-1 border-b"><AlertTriangle className="h-3 w-3 text-red-500" /><span className="font-mono">{p.symbol}</span><span className="text-muted-foreground">{p.name}</span><span className="ml-auto">×{p.qty}</span></div>)}
+              {report.missing.map((p) => (
+                <div key={p.id} className="flex items-center gap-2 text-xs py-1 border-b">
+                  <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                  <span className="font-mono">{p.symbol}</span>
+                  <span className="text-muted-foreground truncate">{p.name}</span>
+                  <span className="ml-auto">×{p.qty}</span>
+                </div>
+              ))}
             </div>
           )}
 
           {report.extra.length > 0 && (
             <div>
               <SectionTitle title={`Nadwyżki (${report.extra.length})`} />
-              {report.extra.map((e: any, i: number) => <div key={i} className="flex items-center gap-2 text-xs py-1 border-b"><TrendingUp className="h-3 w-3 text-orange-500" /><span className="font-mono">{e.code}</span><span className="ml-auto">×{e.qty}</span></div>)}
+              {report.extra.map((e, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs py-1 border-b">
+                  <TrendingUp className="h-3 w-3 text-orange-500 shrink-0" />
+                  <span className="font-mono">{e.code}</span>
+                  {e.name && <span className="text-muted-foreground">{e.name}</span>}
+                  <span className="ml-auto">×{e.qty}</span>
+                </div>
+              ))}
             </div>
           )}
 
           {report.quantityDiff.length > 0 && (
             <div>
               <SectionTitle title={`Różnice ilości (${report.quantityDiff.length})`} />
-              {report.quantityDiff.map((d: any) => <div key={d.id} className="flex items-center gap-2 text-xs py-1 border-b"><TrendingDown className="h-3 w-3 text-amber-500" /><span className="font-mono">{d.symbol}</span><span className="text-muted-foreground">oczek. {d.expectedQty}, jest {d.scannedQty}</span></div>)}
+              {report.quantityDiff.map((d) => (
+                <div key={d.id} className="flex items-center gap-2 text-xs py-1 border-b">
+                  <TrendingDown className="h-3 w-3 text-amber-500 shrink-0" />
+                  <span className="font-mono">{d.symbol}</span>
+                  <span className="text-muted-foreground">
+                    oczek. {d.qty}, jest {d.scannedQty}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
 
-          <button onClick={() => { setStep("setup"); setBasket([]); setReport(null); setExpected(null); setLocation(""); }} className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground">Nowa inwentaryzacja</button>
+          <button
+            onClick={resetAll}
+            className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground touch-target"
+          >
+            Nowa inwentaryzacja
+          </button>
         </div>
       )}
     </div>

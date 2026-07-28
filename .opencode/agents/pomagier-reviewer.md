@@ -86,7 +86,7 @@ Weryfikuj, czy przed zgłoszeniem zakończenia wycinka:
 - lint przechodzi,
 - typecheck przechodzi,
 - testy przechodzą,
-- UI zachowuje spójność z prototypem Lovable,
+- UI zachowuje spójność z design systemem,
 - flow działa od początku do końca,
 - backend nie jest zasymulowany bez wyraźnego oznaczenia,
 - mock i realny adapter mają oddzielne implementacje,

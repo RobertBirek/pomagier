@@ -51,7 +51,7 @@
 - [ ] Lint przechodzi
 - [ ] Typecheck przechodzi
 - [ ] Testy przechodzą
-- [ ] UI zachowuje spójność z prototypem Lovable
+- [ ] UI zachowuje spójność z design systemem
 - [ ] Flow działa od początku do końca
 - [ ] Mock i realny adapter mają oddzielne implementacje
 - [ ] Błędy są obsłużone

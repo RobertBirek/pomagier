@@ -2,7 +2,7 @@
   "name": "PomagierGT",
   "short_name": "Pomagier",
   "description": "Terminal magazynowy dla Insert Subiekt GT",
-  "start_url": "/mobile/login",
+  "start_url": "https://pomagier.ilovelighting.hmcloud.pl/mobile/login",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#1e40af",

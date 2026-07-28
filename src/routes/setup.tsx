@@ -1,11 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Smartphone, Monitor, Globe, Wifi, AlertTriangle, CheckCircle2, ScanLine } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Download,
+  Smartphone,
+  Monitor,
+  Globe,
+  Wifi,
+  AlertTriangle,
+  CheckCircle2,
+  ScanLine,
+} from "lucide-react";
 
 export const Route = createFileRoute("/setup")({
   component: SetupPage,
 });
 
 function SetupPage() {
+  const [serverIp, setServerIp] = useState("pomagier.ilovelighting.hmcloud.pl");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hostname !== "pomagier.local") {
+      setServerIp(window.location.hostname);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -17,9 +35,14 @@ function SetupPage() {
         </div>
 
         {/* Step 1: Download CA */}
-        <Section number={1} title="Pobierz certyfikat bezpieczeństwa" icon={<Download className="h-5 w-5" />}>
+        <Section
+          number={1}
+          title="Pobierz certyfikat bezpieczeństwa"
+          icon={<Download className="h-5 w-5" />}
+        >
           <p className="text-sm text-muted-foreground mb-3">
-            Certyfikat root CA pozwala przeglądarce zaufać lokalnemu serwerowi. Bez niego kamera i instalacja PWA nie zadziałają.
+            Certyfikat root CA pozwala przeglądarce zaufać lokalnemu serwerowi. Bez niego kamera i
+            instalacja PWA nie zadziałają.
           </p>
           <a
             href="/ca"
@@ -29,16 +52,29 @@ function SetupPage() {
             Pobierz rootCA.pem
           </a>
           <p className="text-xs text-muted-foreground mt-2">
-            Lub szybka strona z przyciskiem: <a href="/ca" className="underline">/ca</a>
+            Lub szybka strona z przyciskiem:{" "}
+            <a href="/ca" className="underline">
+              /ca
+            </a>
           </p>
         </Section>
 
         {/* Step 2: Android */}
         <Section number={2} title="Android" icon={<Smartphone className="h-5 w-5" />}>
           <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Otwórz <a href="/ca" className="text-primary underline">/ca</a> i kliknij <strong>"Pobierz rootCA.crt"</strong></li>
-            <li>Nazwa certyfikatu: <strong>PomagierGT</strong></li>
-            <li>Użycie: wybierz <strong>"VPN i aplikacje"</strong></li>
+            <li>
+              Otwórz{" "}
+              <a href="/ca" className="text-primary underline">
+                /ca
+              </a>{" "}
+              i kliknij <strong>"Pobierz rootCA.crt"</strong>
+            </li>
+            <li>
+              Nazwa certyfikatu: <strong>PomagierGT</strong>
+            </li>
+            <li>
+              Użycie: wybierz <strong>"VPN i aplikacje"</strong>
+            </li>
             <li>Potwierdź PIN-em, odciskiem palca lub wzorem</li>
             <li className="text-xs text-muted-foreground">
               <AlertTriangle className="inline h-3 w-3 mr-1" />
@@ -52,17 +88,22 @@ function SetupPage() {
           <ol className="list-decimal space-y-2 pl-5 text-sm">
             <li>
               Otwórz <strong>Safari</strong> i wejdź na{" "}
-              <code className="rounded bg-muted px-1 font-mono text-xs">https://pomagier.local/api/ca</code>
+              <code className="rounded bg-muted px-1 font-mono text-xs">
+                https://pomagier.local/api/ca
+              </code>
             </li>
             <li>Zezwól na pobranie profilu konfiguracyjnego</li>
             <li>
-              Otwórz <strong>Ustawienia</strong> → na górze zobaczysz <strong>"Pobrany profil"</strong> → kliknij
+              Otwórz <strong>Ustawienia</strong> → na górze zobaczysz{" "}
+              <strong>"Pobrany profil"</strong> → kliknij
               <strong>Zainstaluj</strong>
             </li>
             <li>
               Następnie: <strong>Ustawienia → Ogólne → Informacje → Certyfikaty</strong>
             </li>
-            <li>Znajdź <strong>mkcert</strong> i włącz przełącznik</li>
+            <li>
+              Znajdź <strong>mkcert</strong> i włącz przełącznik
+            </li>
           </ol>
         </Section>
 
@@ -76,8 +117,12 @@ function SetupPage() {
               </a>
             </li>
             <li>Kliknij dwukrotnie pobrany plik</li>
-            <li>Kliknij <strong>"Zainstaluj certyfikat"</strong></li>
-            <li>Wybierz <strong>"Komputer lokalny"</strong> → Dalej</li>
+            <li>
+              Kliknij <strong>"Zainstaluj certyfikat"</strong>
+            </li>
+            <li>
+              Wybierz <strong>"Komputer lokalny"</strong> → Dalej
+            </li>
             <li>
               Wybierz <strong>"Umieść w następującym magazynie"</strong> → Przeglądaj →
               <strong>"Zaufane główne urzędy certyfikacji"</strong>
@@ -85,8 +130,8 @@ function SetupPage() {
             <li>Dalej → Zakończ → potwierdź</li>
             <li className="text-xs text-muted-foreground">
               <AlertTriangle className="inline h-3 w-3 mr-1" />
-              Jeśli Windows nie widzi domeny .local, zainstaluj{" "}
-              <strong>Bonjour</strong> (dołączony do iTunes)
+              Jeśli Windows nie widzi domeny .local, zainstaluj <strong>Bonjour</strong> (dołączony
+              do iTunes)
             </li>
           </ol>
         </Section>
@@ -96,79 +141,144 @@ function SetupPage() {
           <ol className="list-decimal space-y-2 pl-5 text-sm">
             <li>
               Pobierz certyfikat:{" "}
-              <a href="/api/ca?format=crt" className="text-primary underline font-medium">rootCA.crt</a>
+              <a href="/api/ca?format=crt" className="text-primary underline font-medium">
+                rootCA.crt
+              </a>
             </li>
-            <li>Otwórz Firefox → <strong>☰ Menu → Ustawienia</strong></li>
-            <li><strong>Prywatność i bezpieczeństwo</strong> → przewiń do "Certyfikaty"</li>
-            <li>Kliknij <strong>"Wyświetl certyfikaty"</strong></li>
-            <li>Zakładka <strong>"Urzędy certyfikacji"</strong> → <strong>"Importuj"</strong></li>
-            <li>Wybierz pobrany plik <code className="rounded bg-muted px-1 font-mono text-xs">rootCA.crt</code></li>
-            <li>Zaznacz <strong>"Zaufanie przy identyfikacji stron internetowych"</strong> → OK</li>
+            <li>
+              Otwórz Firefox → <strong>☰ Menu → Ustawienia</strong>
+            </li>
+            <li>
+              <strong>Prywatność i bezpieczeństwo</strong> → przewiń do "Certyfikaty"
+            </li>
+            <li>
+              Kliknij <strong>"Wyświetl certyfikaty"</strong>
+            </li>
+            <li>
+              Zakładka <strong>"Urzędy certyfikacji"</strong> → <strong>"Importuj"</strong>
+            </li>
+            <li>
+              Wybierz pobrany plik{" "}
+              <code className="rounded bg-muted px-1 font-mono text-xs">rootCA.crt</code>
+            </li>
+            <li>
+              Zaznacz <strong>"Zaufanie przy identyfikacji stron internetowych"</strong> → OK
+            </li>
           </ol>
         </Section>
 
         {/* Step: Open app */}
         <Section number={6} title="Otwórz aplikację" icon={<Globe className="h-5 w-5" />}>
-          <p className="text-sm mb-3">Po zainstalowaniu certyfikatu, otwórz aplikację przez domenę lokalną:</p>
+          <p className="text-sm mb-3">
+            Po zainstalowaniu certyfikatu, otwórz aplikację przez domenę lokalną:
+          </p>
           <div className="rounded-lg bg-primary/10 p-4 text-center">
             <code className="text-lg font-bold font-mono text-primary">https://pomagier.local</code>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Dalej możesz również korzystać przez adres IP: <code className="font-mono">https://192.168.1.174</code>
+            Dalej możesz również korzystać przez adres IP:{" "}
+            <code className="font-mono">https://{serverIp}</code>
           </p>
         </Section>
 
         {/* Step 6: Install PWA */}
-        <Section number={7} title="Zainstaluj jako aplikację (PWA)" icon={<Download className="h-5 w-5" />}>
+        <Section
+          number={7}
+          title="Zainstaluj jako aplikację (PWA)"
+          icon={<Download className="h-5 w-5" />}
+        >
           <ol className="list-decimal space-y-2 pl-5 text-sm">
             <li>
-              W <strong>Chrome</strong> otwórz <code className="rounded bg-muted px-1 font-mono text-xs">https://pomagier.local</code>
+              W <strong>Chrome</strong> otwórz{" "}
+              <code className="rounded bg-muted px-1 font-mono text-xs">
+                https://pomagier.local
+              </code>
             </li>
-            <li>Kliknij menu (⋮) → <strong>"Dodaj do ekranu głównego"</strong></li>
-            <li>Lub: <strong>"Zainstaluj aplikację"</strong></li>
+            <li>
+              Kliknij menu (⋮) → <strong>"Dodaj do ekranu głównego"</strong>
+            </li>
+            <li>
+              Lub: <strong>"Zainstaluj aplikację"</strong>
+            </li>
             <li>Aplikacja otworzy się na pełnym ekranie, bez paska adresu</li>
             <li>Ikona "P" na niebieskim tle pojawi się na pulpicie</li>
           </ol>
         </Section>
 
         {/* Zebra terminal */}
-        <Section number={8} title="Konfiguracja terminala Zebra M3 SL20" icon={<ScanLine className="h-5 w-5" />}>
+        <Section
+          number={8}
+          title="Konfiguracja terminala Zebra M3 SL20"
+          icon={<ScanLine className="h-5 w-5" />}
+        >
           <p className="text-sm text-muted-foreground mb-3">
-            Terminal Zebra z wbudowanym skanerem kodów kreskowych. Skonfiguruj DataWedge do automatycznego wysyłania kodów z Enter.
+            Terminal Zebra z wbudowanym skanerem kodów kreskowych. Skonfiguruj DataWedge do
+            automatycznego wysyłania kodów z Enter.
           </p>
           <div className="space-y-4">
             <div>
               <div className="text-sm font-semibold mb-2">1. Zainstaluj certyfikat CA</div>
               <ol className="list-decimal space-y-1 pl-5 text-sm">
-                <li>Otwórz Chrome i wejdź na <a href="/ca" className="text-primary underline">/ca</a> — kliknij "Pobierz rootCA.crt"</li>
-                <li>Pobierz plik <strong>rootCA.crt</strong></li>
+                <li>
+                  Otwórz Chrome i wejdź na{" "}
+                  <a href="/ca" className="text-primary underline">
+                    /ca
+                  </a>{" "}
+                  — kliknij "Pobierz rootCA.crt"
+                </li>
+                <li>
+                  Pobierz plik <strong>rootCA.crt</strong>
+                </li>
                 <li>Ustawienia → Bezpieczeństwo → Zainstaluj certyfikat</li>
-                <li>Nazwa: <strong>PomagierGT</strong>, użycie: <strong>VPN i aplikacje</strong></li>
+                <li>
+                  Nazwa: <strong>PomagierGT</strong>, użycie: <strong>VPN i aplikacje</strong>
+                </li>
               </ol>
             </div>
             <div>
               <div className="text-sm font-semibold mb-2">2. Skonfiguruj DataWedge</div>
               <ol className="list-decimal space-y-1 pl-5 text-sm">
-                <li>Otwórz aplikację <strong>DataWedge</strong> (preinstalowana)</li>
+                <li>
+                  Otwórz aplikację <strong>DataWedge</strong> (preinstalowana)
+                </li>
                 <li>Utwórz nowy profil lub edytuj domyślny</li>
-                <li><strong>Input</strong> → Barcode: włączone</li>
-                <li><strong>Output</strong> → Keystroke: włączone</li>
-                <li>W ustawieniach Keystroke dodaj <strong>Enter (keycode 13)</strong> jako suffix</li>
-                <li><strong>Associated apps</strong>: wybierz Chrome</li>
+                <li>
+                  <strong>Input</strong> → Barcode: włączone
+                </li>
+                <li>
+                  <strong>Output</strong> → Keystroke: włączone
+                </li>
+                <li>
+                  W ustawieniach Keystroke dodaj <strong>Enter (keycode 13)</strong> jako suffix
+                </li>
+                <li>
+                  <strong>Associated apps</strong>: wybierz Chrome
+                </li>
                 <li>Zapisz profil</li>
               </ol>
             </div>
             <div>
               <div className="text-sm font-semibold mb-2">3. Zainstaluj PWA</div>
               <ol className="list-decimal space-y-1 pl-5 text-sm">
-                <li>Otwórz <code className="rounded bg-muted px-1 font-mono text-xs">https://192.168.1.174</code> w Chrome</li>
-                <li>Menu (⋮) → <strong>Dodaj do ekranu głównego</strong></li>
+                <li>
+                  Otwórz{" "}
+                  <code className="rounded bg-muted px-1 font-mono text-xs">
+                    https://{serverIp}
+                  </code>{" "}
+                  w Chrome
+                </li>
+                <li>
+                  Menu (⋮) → <strong>Dodaj do ekranu głównego</strong>
+                </li>
                 <li>Aplikacja otwiera się na pełnym ekranie</li>
                 <li>Skaner automatycznie wpisuje kod + Enter → pole skanowania odbiera kod</li>
               </ol>
             </div>
             <div className="rounded bg-blue-50 border border-blue-200 p-3 text-sm">
-              <strong>Wskazówka:</strong> Po zainstalowaniu PWA, aplikacja działa jak natywna — pełny ekran, własna ikona, skaner jako klawiatura. Nie potrzebuje certyfikatu jeśli używasz IP. Certyfikat CA potrzebny tylko dla domeny <code className="font-mono">pomagier.local</code>.
+              <strong>Wskazówka:</strong> Po zainstalowaniu PWA, aplikacja działa jak natywna —
+              pełny ekran, własna ikona, skaner jako klawiatura. Nie potrzebuje certyfikatu jeśli
+              używasz IP. Certyfikat CA potrzebny tylko dla domeny{" "}
+              <code className="font-mono">pomagier.local</code>.
             </div>
           </div>
         </Section>

@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getWarehouses } from "@/lib/api";
-import { KpiCard, StatusBadge, SectionTitle, EmptyState, ErrorState, LoadingRow } from "@/components/pomagier/primitives";
+import {
+  KpiCard,
+  StatusBadge,
+  SectionTitle,
+  EmptyState,
+  ErrorState,
+  LoadingRow,
+} from "@/components/pomagier/primitives";
 import { MapPin, Home, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/warehouses")({
@@ -9,7 +16,11 @@ export const Route = createFileRoute("/admin/warehouses")({
 });
 
 function AdminWarehouses() {
-  const { data: warehouses, isLoading, error } = useQuery({
+  const {
+    data: warehouses,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["warehouses"],
     queryFn: getWarehouses,
     refetchInterval: 30_000,
@@ -23,8 +34,18 @@ function AdminWarehouses() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <KpiCard label="Liczba magazynów" value={String(warehouses?.length ?? 0)} icon={<MapPin className="h-4 w-4" />} tone="primary" />
-        <KpiCard label="Główny" value={warehouses?.find((w) => w.isMain)?.symbol ?? "—"} icon={<Home className="h-4 w-4" />} tone="success" />
+        <KpiCard
+          label="Liczba magazynów"
+          value={String(warehouses?.length ?? 0)}
+          icon={<MapPin className="h-4 w-4" />}
+          tone="primary"
+        />
+        <KpiCard
+          label="Główny"
+          value={warehouses?.find((w) => w.isMain)?.symbol ?? "—"}
+          icon={<Home className="h-4 w-4" />}
+          tone="success"
+        />
       </div>
 
       {isLoading && <LoadingRow />}
@@ -47,15 +68,22 @@ function AdminWarehouses() {
                 )}
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
-                <div>Symbol: <span className="font-mono font-semibold text-foreground">{w.symbol}</span></div>
-                <div>ID: <span className="font-mono">{w.id}</span></div>
+                <div>
+                  Symbol:{" "}
+                  <span className="font-mono font-semibold text-foreground">{w.symbol}</span>
+                </div>
+                <div>
+                  ID: <span className="font-mono">{w.id}</span>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {warehouses && warehouses.length === 0 && <EmptyState title="Brak magazynów" description="Subiekt GT nie zwrócił danych" />}
+      {warehouses && warehouses.length === 0 && (
+        <EmptyState title="Brak magazynów" description="Subiekt GT nie zwrócił danych" />
+      )}
     </div>
   );
 }

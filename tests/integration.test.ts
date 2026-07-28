@@ -7,7 +7,8 @@ describe("Critical flow: login → scan → assign", () => {
 
   beforeAll(async () => {
     const r = await fetch(`${BASE}/api/login`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subiektUzId: 1, pin: "0000" }),
     });
     const data = await r.json();
@@ -21,7 +22,8 @@ describe("Critical flow: login → scan → assign", () => {
 
   it("should reject wrong PIN", async () => {
     const r = await fetch(`${BASE}/api/login`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subiektUzId: 1, pin: "9999" }),
     });
     expect(r.status).toBe(401);
@@ -29,18 +31,20 @@ describe("Critical flow: login → scan → assign", () => {
 
   it("should scan a product by EAN", async () => {
     const r = await fetch(`${BASE}/api/scan`, {
-      method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ code: "5901124350468" }),
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ code: "5905316604070" }),
     });
     expect(r.status).toBe(200);
     const data = await r.json();
     expect(data.found).toBe(true);
-    expect(data.products[0].name).toContain("Forever");
+    expect(data.products[0].name).toContain("RONDOO");
   });
 
   it("should return not found for unknown EAN", async () => {
     const r = await fetch(`${BASE}/api/scan`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: "0000000000000" }),
     });
     const data = await r.json();
@@ -50,8 +54,8 @@ describe("Critical flow: login → scan → assign", () => {
   it("should assign product to location", async () => {
     const r = await fetch(`${BASE}/api/locations/assign`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ codes: ["5901124350468"], location: "A 1-1-1-1" }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ codes: ["5905316604070"], location: "A 1-1-1-1" }),
     });
     expect(r.status).toBe(200);
     const data = await r.json();

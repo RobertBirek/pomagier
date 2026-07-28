@@ -14,7 +14,7 @@ Pierwsza wersja implementuje moduł **"Informacja o towarze po skanie"** — ope
 
 - VPS: Ubuntu 26.04, 6.2 GB RAM, 57 GB SSD, Docker v29.6.2, Node.js v22
 - MSSQL Subiekt GT: dostępny w sieci lokalnej, 44 towary, 2 magazyny (MAG, MAP)
-- Wzorzec UI: 32 trasy w referencji Lovable (React 19, TanStack Start, Tailwind 4, shadcn/ui)
+- UI: React 19, TanStack Router, Tailwind 4, shadcn/ui
 - Repo produkcyjne: `/pomagier` na branchu `feat/mvp-foundation`
 
 ## 4. Założenia

@@ -28,8 +28,8 @@ function AdminLogin() {
         return;
       }
       const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
-      auth.login(result.token, result.user, name, "");
-      toast.success(`Witaj, ${name.split(" ")[0]}!`);
+      auth.login(result.user, name, "");
+      toast.success(`Witaj, ${name}!`);
       nav({ to: "/admin/dashboard" });
     } catch (err: any) {
       toast.error(err.message || "Błąd logowania");
@@ -40,7 +40,9 @@ function AdminLogin() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-4">
         <div className="text-center">
-          <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">P</div>
+          <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">
+            P
+          </div>
           <h1 className="text-lg font-bold">PomagierGT</h1>
           <p className="text-xs text-muted-foreground">Panel administracyjny</p>
         </div>
@@ -54,7 +56,9 @@ function AdminLogin() {
         ) : (
           <>
             <div>
-              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Wybierz administratora</div>
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Wybierz administratora
+              </div>
               <div className="space-y-1">
                 {admins.map((u) => (
                   <button
@@ -64,7 +68,9 @@ function AdminLogin() {
                   >
                     <User className="h-4 w-4 text-muted-foreground" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold">{u.firstName} {u.lastName}</div>
+                      <div className="text-sm font-semibold">
+                        {u.firstName} {u.lastName}
+                      </div>
                       <div className="text-xs text-muted-foreground">Administrator</div>
                     </div>
                     {selectedId === u.subiektId && <Shield className="h-4 w-4 text-primary" />}
@@ -76,7 +82,10 @@ function AdminLogin() {
             {selected && (
               <div className="rounded-lg border bg-card p-3">
                 <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  PIN dla: <b className="text-foreground">{selected.firstName || selected.lastName}</b>
+                  PIN dla:{" "}
+                  <b className="text-foreground">
+                    {[selected.firstName, selected.lastName].filter(Boolean).join(" ") || `ID ${selected.subiektId}`}
+                  </b>
                 </div>
                 <PinPad onSubmit={submit} />
               </div>
@@ -84,8 +93,12 @@ function AdminLogin() {
           </>
         )}
 
-        <Link to="/mobile/login" className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-3 w-3" />Panel operatora
+        <Link
+          to="/mobile/login"
+          className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Panel operatora
         </Link>
       </div>
     </div>

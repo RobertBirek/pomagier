@@ -37,10 +37,16 @@ function RootComponent() {
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Link to="/setup" className="text-xs font-medium underline hover:no-underline whitespace-nowrap">
+            <Link
+              to="/setup"
+              className="text-xs font-medium underline hover:no-underline whitespace-nowrap"
+            >
               Jak skonfigurować
             </Link>
-            <button onClick={() => setBannerDismissed(true)} className="touch-target rounded p-1 hover:bg-warning/20">
+            <button
+              onClick={() => setBannerDismissed(true)}
+              className="touch-target rounded p-1 hover:bg-warning/20"
+            >
               <X className="h-3.5 w-3.5" />
             </button>
           </div>

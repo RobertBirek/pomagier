@@ -51,13 +51,19 @@ export function MobileShell() {
             </div>
             <div className="flex items-center gap-2">
               <ConnectionStatus online={online} />
-              <button onClick={toggleDark} className="touch-target rounded p-1 hover:bg-accent" title={dark ? "Jasny" : "Ciemny"}>
+              <button
+                onClick={toggleDark}
+                className="touch-target rounded p-1 hover:bg-accent"
+                title={dark ? "Jasny" : "Ciemny"}
+              >
                 {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
               </button>
-              {queueCount > 0 && (
-                <StatusBadge tone="warning">{queueCount}</StatusBadge>
-              )}
-              <button onClick={handleLogout} className="touch-target rounded p-1 hover:bg-accent" title="Wyloguj">
+              {queueCount > 0 && <StatusBadge tone="warning">{queueCount}</StatusBadge>}
+              <button
+                onClick={handleLogout}
+                className="touch-target rounded p-1 hover:bg-accent"
+                title="Wyloguj"
+              >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -78,7 +84,7 @@ export function MobileShell() {
                 to={t.to}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors",
-                  (pathname === t.to || pathname.startsWith(t.to + "/"))
+                  pathname === t.to || pathname.startsWith(t.to + "/")
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground",
                 )}

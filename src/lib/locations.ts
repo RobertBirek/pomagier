@@ -2,12 +2,12 @@
 
 export interface LocationParsed {
   raw: string;
-  area: string;       // A, B, C...
-  aisle: number;      // Alejka
-  rack: number;       // Regał/Rząd
-  shelf: number;      // Półka
-  spot: number;       // Miejsce na półce (zawsze 1)
-  label: string;      // "Obszar A, Alejka 3, Regał 2, Półka 5"
+  area: string; // A, B, C...
+  aisle: number; // Alejka
+  rack: number; // Regał/Rząd
+  shelf: number; // Półka
+  spot: number; // Miejsce na półce (zawsze 1)
+  label: string; // "Obszar A, Alejka 3, Regał 2, Półka 5"
 }
 
 const LOCATION_RE = /^([A-Z])\s*(\d+)-(\d+)-(\d+)-(\d+)$/;

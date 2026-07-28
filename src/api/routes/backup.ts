@@ -1,6 +1,7 @@
 import type express from "express";
 import { getDb, schema } from "../../db/index.js";
 import { requireAdmin } from "../auth-middleware.js";
+import { logger } from "../../lib/logger.js";
 
 function validateBackupFilename(name: unknown): name is string {
   return (
@@ -107,7 +108,12 @@ export function registerBackupRoutes(app: express.Express) {
     try {
       const { listS3Files } = await import("../../lib/backup-s3.js");
       const files = await listS3Files();
-      s3 = files.map((f: string) => ({ name: f, size: 0, date: new Date().toISOString(), source: "s3" }));
+      s3 = files.map((f: string) => ({
+        name: f,
+        size: 0,
+        date: new Date().toISOString(),
+        source: "s3",
+      }));
     } catch {}
 
     res.json(
@@ -181,12 +187,27 @@ export function registerBackupRoutes(app: express.Express) {
     try {
       const { execSync } = await import("node:child_process");
       const localPath = `/backups/local/${filename}`;
+
+      // Safety: auto-backup current state before restore
+      const preRestoreName = `pre-restore-${Date.now()}.tar.gz`;
+      try {
+        execSync(
+          `docker exec pomagier-db pg_dump -U pomagier pomagier > /tmp/pre-restore.sql && cd /tmp && tar -czf "${preRestoreName}" pre-restore.sql && mv "${preRestoreName}" /backups/local/ && rm -f /tmp/pre-restore.sql`,
+          { timeout: 60000 },
+        );
+        logger.info({ preRestoreName }, "Pre-restore safety backup created");
+      } catch (e) {
+        logger.warn({ err: e }, "Pre-restore backup failed — proceeding anyway");
+      }
+
       execSync(`cd /tmp && tar -xzf "${localPath}"`, { timeout: 30000 });
       const sqlFile = filename.replace(".tar.gz", ".sql");
       execSync(`docker exec -i pomagier-db psql -U pomagier pomagier < /tmp/${sqlFile}`, {
         timeout: 60000,
       });
       execSync(`rm -f /tmp/${sqlFile} /tmp/config_*.tar.gz`);
+
+      logger.warn({ filename }, "Database restored from backup");
       res.json({
         ok: true,
         message: "Baza przywrócona. Zrestartuj API aby załadować nową konfigurację.",

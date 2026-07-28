@@ -9,7 +9,7 @@ Ten skill dokumentuje wzorce projektowania interfejsów PWA na terminale magazyn
 
 ## Stan
 
-[Do weryfikacji po audycie UI z Lovable] — skill zostanie rozwinięty podczas implementacji klienta magazynowego.
+Stan: Aktywny — dokumentuje wzorce PWA dla terminali magazynowych.
 
 ## Główne obszary do udokumentowania
 

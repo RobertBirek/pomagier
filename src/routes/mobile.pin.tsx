@@ -37,16 +37,18 @@ function PinChange() {
 
   return (
     <div className="mx-auto max-w-md p-4">
-      <Link to="/mobile/dashboard" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft className="h-3 w-3" />Powrót
+      <Link
+        to="/mobile/dashboard"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        Powrót
       </Link>
 
       <div className="text-center mb-4">
         <Key className="mx-auto h-8 w-8 text-primary mb-2" />
         <h1 className="text-lg font-bold">Zmień PIN</h1>
-        <p className="text-xs text-muted-foreground mt-1">
-          {auth.operatorName}
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">{auth.operatorName}</p>
       </div>
 
       <div className="rounded-lg border bg-card p-3">

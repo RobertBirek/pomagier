@@ -12,7 +12,7 @@ Modularny monolit, nie mikroserwisy. Podział na warstwy logiczne, nie na osobne
 ┌─────────────────────────────────────────────┐
 │               Przeglądarka / PWA             │
 │  React + TypeScript + TanStack Router        │
-│  Tailwind CSS + komponenty z Lovable         │
+│  Tailwind CSS + shadcn/ui                     │
 │  Service Worker (offline cache)              │
 └──────────────────┬──────────────────────────┘
                    │ HTTPS + token JWT / cookie

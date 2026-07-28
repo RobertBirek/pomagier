@@ -1,4 +1,13 @@
-import { pgTable, text, integer, timestamp, uuid, varchar, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  uuid,
+  varchar,
+  boolean,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -12,7 +21,9 @@ export const users = pgTable("users", {
 
 export const sessions = pgTable("sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").references(() => users.id).notNull(),
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .notNull(),
   token: text("token").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -46,15 +57,21 @@ export const locations = pgTable("locations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const productLocations = pgTable("product_locations", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  productId: integer("product_id").notNull(),
-  locationId: uuid("location_id").references(() => locations.id).notNull(),
-  quantity: integer("quantity").default(1),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (t) => ({
-  uniqueProductLocation: uniqueIndex("unique_product_location").on(t.productId, t.locationId),
-}));
+export const productLocations = pgTable(
+  "product_locations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: integer("product_id").notNull(),
+    locationId: uuid("location_id")
+      .references(() => locations.id)
+      .notNull(),
+    quantity: integer("quantity").default(1),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    uniqueProductLocation: uniqueIndex("unique_product_location").on(t.productId, t.locationId),
+  }),
+);
 
 export const productMovements = pgTable("product_movements", {
   id: uuid("id").defaultRandom().primaryKey(),
