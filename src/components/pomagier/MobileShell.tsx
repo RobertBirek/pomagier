@@ -41,7 +41,7 @@ export function MobileShell() {
   return (
     <div className="flex min-h-screen flex-col bg-muted/50">
       {!hideChrome && (
-        <header className="sticky top-0 z-30 border-b bg-card safe-top">
+        <header className="sticky top-0 z-30 border-b bg-card safe-top min-h-[2.5rem]">
           <div className="flex items-center justify-between px-3 py-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
