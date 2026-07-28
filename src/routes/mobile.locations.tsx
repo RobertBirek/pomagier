@@ -5,6 +5,7 @@ import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { LocationPicker } from "@/components/pomagier/LocationPicker";
 import { MapPin, Package, X, CheckCircle2, Trash2, History, RotateCcw, ChevronDown, ArrowRightLeft, BarChart3, Lightbulb, AlertTriangle, MoveRight, Layers } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 interface BasketItem { code: string; name?: string; qty: number; }
 interface HistoryEntry { codes: string[]; location: string; timestamp: number; products: { id: number; symbol: string }[]; }
@@ -38,6 +39,8 @@ const MODES: { key: Mode; label: string; icon: typeof MapPin; color: string }[] 
 ];
 
 function LocationsPage() {
+  const auth = useAuth();
+  const isAdmin = auth.user?.role === "admin";
   const [mode, setMode] = useState<Mode>("assign");
   const [showModeModal, setShowModeModal] = useState(false);
   const [basket, setBasket] = useState<BasketItem[]>([]);
@@ -134,7 +137,7 @@ function LocationsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowModeModal(false)}>
           <div className="w-64 rounded-xl bg-card p-4 shadow-xl space-y-2" onClick={e => e.stopPropagation()}>
             <div className="text-sm font-bold mb-2">Tryb działania</div>
-            {MODES.map(m => (
+            {MODES.filter(m => m.key !== "reset" || isAdmin).map(m => (
               <button key={m.key} onClick={() => { setMode(m.key); setShowModeModal(false); setBasket([]); setPendingLocation(null); setTransferSource(null); setTransferTarget(null); setResetLocation(null); }} className={`w-full flex items-center gap-3 rounded-lg p-3 text-left text-sm font-semibold transition-colors ${mode === m.key ? `${m.color} text-white` : "hover:bg-accent"}`}>
                 <m.icon className="h-5 w-5" />{m.label}
               </button>
