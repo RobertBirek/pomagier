@@ -11,7 +11,7 @@
 | Reverse proxy | Caddy (HTTPS, port 443) | ✓ Produkcyjny |
 | mDNS | avahi-daemon (pomagier.local) | ✓ Produkcyjny |
 | Testy | Vitest (15/15) | ✓ Aktywne |
-| Deployment | systemd (pomagier-api, pomagier-vite) | ✓ Produkcyjny |
+| Deployment | systemd (pomagier-api), Caddy static files (frontend) | ✓ Produkcyjny |
 
 ## Workflow projektu
 
@@ -47,10 +47,10 @@
 | `ARCHITECTURE.md` | Diagram warstw, topologia, odpowiedzialności |
 | `SECURITY.md` | Sekrety, RBAC, OWASP, ochrona ERP |
 | `TESTING.md` | Poziomy testów, scenariusze, kryteria akceptacji |
-| `PLAN.md` | Szablon planu v0 (do wypełnienia) |
+| `PLAN.md` | Plan projektu — architektura, moduły, ryzyka, decyzje otwarte |
 | `DECISIONS.md` | Rejestr decyzji architektonicznych |
-| `DB_SCHEMA.md` | Schemat bazy aplikacyjnej (do zaprojektowania) |
-| `API.md` | Projekt API (do zaprojektowania) |
+| `DB_SCHEMA.md` | Schemat bazy aplikacyjnej (Postgres + Drizzle) |
+| `API.md` | Dokumentacja endpointów API |
 | `DEPLOYMENT.md` | Deployment (do weryfikacji) |
 | `CHANGELOG.md` | Historia zmian |
 | `TASKS.md` | Dziennik wykonanych zadań |

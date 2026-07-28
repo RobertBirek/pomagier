@@ -1,110 +1,147 @@
-# Plan v0 — PomagierGT
+# Plan — PomagierGT
 
-## Stan: W trakcie implementacji (Faza 1 — feat/mvp-foundation)
+## Stan: v1.2.0 Production (ciągłe usprawnienia)
+
+MVP (v1.0.0) został osiągnięty 2026-07-26. Projekt jest w fazie ciągłych usprawnień — kolejne moduły magazynowe rozwijane są jako pionowe przyrosty.
 
 ## 1. Podsumowanie projektu
 
 PomagierGT — aplikacja PWA dla magazynu, stanowiąca warstwę operacyjną między operatorami terminali a systemem ERP Insert Subiekt GT.
 
-## 2. Cel pierwszej wersji
+## 2. Cel obecnej fazy
 
-Pierwsza wersja implementuje moduł **"Informacja o towarze po skanie"** — operator loguje się PIN-em, skanuje kod EAN, aplikacja odczytuje dane z MSSQL Subiekta GT i wyświetla kartę produktu ze stanami magazynowymi.
+Rozwój kolejnych modułów magazynowych: inwentaryzacja, kompletacja, przyjęcie dostaw — przy zachowaniu stabilności produkcyjnej.
 
 ## 3. Ustalone fakty
 
 - VPS: Ubuntu 26.04, 6.2 GB RAM, 57 GB SSD, Docker v29.6.2, Node.js v22
-- MSSQL Subiekt GT: dostępny w sieci lokalnej, 44 towary, 2 magazyny (MAG, MAP)
-- UI: React 19, TanStack Router, Tailwind 4, shadcn/ui
-- Repo produkcyjne: `/pomagier` na branchu `feat/mvp-foundation`
+- MSSQL Subiekt GT: dostępny przez sieć lokalną, bezpośrednie połączenie TDS
+- Backend: Express 5 (port 3000), zarządzany przez systemd (pomagier-api)
+- Frontend: React 19 SPA, serwowany statycznie przez Caddy z `/pomagier/dist/`
+- Reverse proxy: Caddy (HTTPS, port 443, HTTP/3)
+- mDNS: avahi-daemon (pomagier.local)
+- Baza aplikacyjna: Postgres 16 z Drizzle ORM
+- Repo produkcyjne: `/pomagier`, branch `main`
+- Publiczny URL: `https://pomagier.ilovelighting.hmcloud.pl`
 
 ## 4. Założenia
 
-- `[Założenie robocze: MSSQL dostępny w sieci lokalnej z kontenera Docker — używa credentials z MCP]`
-- `[Założenie robocze: Postgres 16 jako baza aplikacyjna]`
-- `[Założenie robocze: Auth przez PIN (demo), JWT do API]`
+- `[Założenie robocze: MSSQL dostępny z VPS — health check potwierdzony, ~250ms latency]`
+- `[Założenie robocze: Operatory logują się PIN-em (bcrypt) na terminalach Android]`
+- `[Założenie robocze: Lokalizacje przechowywane w Postgres + synchronizowane do tw_Pole1 Subiekta]`
 
 ## 5. Ograniczenia
 
-- `[Ograniczenie: Tylko odczyt MSSQL — bez zapisów]`
-- `[Ograniczenie: Brak Sfery GT — tylko bezpośredni odczyt MSSQL]`
-- `[Ograniczenie: Brak offline / Service Worker]`
-- `[Ograniczenie: Admin panel to statyczne makiety]`
+- `[Ograniczenie: Brak Sfery GT — tylko bezpośredni MSSQL (odczyt i whitelist zapis)]`
+- `[Ograniczenie: `trustServerCertificate: true` dla MSSQL — akceptowalne tylko w LAN]`
+- `[Ograniczenie: Service Worker cache obejmuje tylko wybrane endpointy API]`
 
-## 6. Pierwszy pionowy wycinek
+## 6. Moduły zrealizowane
 
-**Informacja o towarze po skanie EAN**
+- [x] Informacja o towarze po skanie EAN
+- [x] Lokalizacja towaru (przypisywanie, przenoszenie, reset, weryfikacja, mapa)
+- [x] Zarządzanie użytkownikami (import z Subiekta, PIN, role admin/operator)
+- [x] Panel administracyjny (dashboard, produkty, użytkownicy, magazyny, terminale, ERP config, backup)
+- [x] Logi i audyt (audit_log, product_movements)
+- [x] PWA (Service Worker, offline queue IndexedDB, instalowalna na Android)
+- [x] Backup (lokalny + S3, planowanie, przywracanie)
+- [x] Deployment wizard (5 kroków, auto-detekcja)
+- [x] Własny CA (mkcert, certyfikat dla pomagier.local)
+- [x] WireGuard VPN client + health check
 
-Flow:
-1. Operator wybiera profil + PIN → logowanie
-2. Dashboard mobilny z kafelkami modułów
-3. Skaner → skan EAN / wpisanie ręczne
-4. `scanCode()` server function → adapter MSSQL → `tw__Towar` + `tw_Stan` + `sl_Magazyn`
-5. Karta produktu: symbol, nazwa, jednostka, stany per magazyn
+## 7. Moduły w trakcie rozwoju
 
-## 7. Elementy poza zakresem pierwszej iteracji
+- [ ] Inwentaryzacja — szkielet UI istnieje (`/mobile/inventory`), brak pełnego flow
+- [ ] Kompletacja — szkielet UI istnieje (`/mobile/picking`, `picking-flow.tsx`)
+- [ ] Przyjęcie dostaw — szkielet UI istnieje (`/mobile/receiving`)
+- [ ] Obsługa zadań magazynowych — szkielet (`/mobile/my-tasks`)
+- [ ] Synchronizacja operacji z Subiektem GT — częściowa (lokalizacje do tw_Pole1)
 
-- Kompletacja, inwentaryzacja, dostawy (makiety)
-- Sfera GT, offline, Service Worker
-- Produkcyjny deployment (tylko Docker Compose dev)
-- RBAC (tylko szkielet z PIN-ami)
-
-## 8. Architektura logiczna
+## 8. Architektura logiczna (aktualna)
 
 ```
-Przeglądarka / PWA (React 19, TanStack Start, Tailwind CSS 4, shadcn/ui)
-    │
-    ▼
-Nitro Server (SSR + API — server functions)
-    ├── Postgres 16 (Drizzle ORM: users, roles, sessions, audit_log)
-    └── MSSQL Adapter (odczyt Subiekt GT)
+┌─────────────────────────────────────────────┐
+│               Przeglądarka / PWA             │
+│  React 19, TypeScript, TanStack Router       │
+│  Tailwind CSS 4, shadcn/ui                   │
+│  Service Worker (Workbox, offline cache)     │
+└──────────────────┬──────────────────────────┘
+                   │ HTTPS (Caddy) + JWT httpOnly cookie
+┌──────────────────▼──────────────────────────┐
+│              Express 5 API (VPS Linux)       │
+│  - Walidacja (Zod), RBAC, rate limiting      │
+│  - Kolejka offline, idempotencja             │
+│  - Structured logging (Pino)                 │
+│  - Embedded MSSQL adapter                    │
+└──────┬───────────────────────┬──────────────┘
+       │                       │
+┌──────▼──────┐     ┌──────────▼──────────────┐
+│  Postgres 16│     │   Insert Subiekt GT       │
+│  (Drizzle)  │     │   MSSQL (TDS)             │
+│  - users    │     │   - tw__Towar, tw_Stan    │
+│  - sessions │     │   - sl_Magazyn            │
+│  - locations│     │   - pd_Uzytkownik         │
+│  - audit    │     │   - vwFeniksFirmaSync     │
+│  - config   │     │   - uf_SynchroKodyKresk   │
+└─────────────┘     └──────────────────────────┘
 ```
 
 ## 9. Topologia wdrożenia
 
-- Docker Compose: `app` (Vite dev + HMR) + `postgres:16-alpine`
-- MSSQL: zewnętrzny serwer w sieci lokalnej
-- Dev: Vite HMR na `:5173`, Postgres na `:5432`
+- **API**: systemd `pomagier-api` — `tsx src/api/server.ts`, auto-restart, port 3000
+- **Frontend**: statyczne pliki z `dist/`, serwowane przez Caddy
+- **Caddy**: HTTPS reverse proxy (port 443), HTTP/3, własny certyfikat mkcert
+- **Postgres**: lokalnie na VPS, port 5432
+- **MSSQL Subiekt**: zewnętrzny serwer Windows w sieci lokalnej, port 1433
+- **Docker Compose**: dostępny dla developmentu, nieużywany w produkcji
 
 ## 10. Granice odpowiedzialności
 
-| Komponent | Odpowiada za |
-|---|---|
-| PWA / SSR | UI, routing, auth (JWT), wywoływanie server functions |
-| Nitro Server | SSR, server functions (scanCode, healthCheck) |
-| MSSQL Adapter | Bezpieczny odczyt `tw__Towar`, `tw_Stan`, `sl_Magazyn` |
-| Postgres | Użytkownicy aplikacji, role, sesje, audit log |
+| Komponent | Odpowiada za | NIE odpowiada za |
+|---|---|---|
+| PWA / SPA | UI, skanowanie (ScanHeader), kolejka offline, Service Worker | Bezpośrednie zapytania do MSSQL |
+| Express API | Auth (JWT, bcrypt), RBAC (admin/operator), walidacja, logi, trasy | Logika biznesowa ERP |
+| MSSQL Adapter | Bezpieczny odczyt i whitelist-zapis do Subiekta GT, parametryzowane zapytania | Autoryzacja, rate limiting |
+| Postgres | Users, sessions, locations, audit_log, config, product_movements | Dane ERP (towary, dokumenty) |
 
 ## 11. Model komunikacji z ERP
 
-- Przeglądarka → Nitro: server function (`createServerFn`)
-- Nitro → MSSQL: `mssql` package, parametryzowane zapytania, timeout 10s
-- Tylko read-only, konto z MCP
+- Przeglądarka → Caddy: HTTPS/2, HTTP/3
+- Caddy → Express API: HTTP reverse proxy (localhost:3000)
+- Express → MSSQL: TDS, parametryzowane zapytania, timeout 10s
+- Konto MSSQL: read-write z whitelist walidacją pól (np. `tw_Pole1` dla lokalizacji)
+- Idempotencja: `X-Idempotency-Key` nagłówek, 5-minutowy TTL w pamięci
 
-## 15. Strategia uwierzytelniania
+## 12. Strategia uwierzytelniania
 
-- Demo: PIN (4 cyfry) z mock-data
-- JWT token, httpOnly cookie
-- Timeout sesji: 15 minut
-- `[Poza zakresem MVP: produkcyjne auth]`
+- PIN (4-8 cyfr), hashowany bcrypt (10 rund)
+- JWT token w httpOnly cookie (`sameSite: strict`, 15-min timeout)
+- PIN lockout: 5 nieudanych prób = 5 minut blokady per `subiektUzId` (in-memory)
+- Role: `admin` (pełny dostęp) i `operator` (tylko mobile)
+- Użytkownicy importowani z `pd_Uzytkownik` Subiekta
 
-## 18. Ryzyka
+## 13. Ryzyka
 
-- `[Ryzyko: MSSQL może być niedostępny z kontenera Docker — fallback na mock adapter]`
-- `[Ryzyko: @tanstack/react-start jest w wersji beta — API może się zmienić]`
+- `[Ryzyko: Bezpośredni zapis do MSSQL omija logikę biznesową Subiekta — whitelist walidacja ogranicza, ale nie eliminuje ryzyka]`
+- `[Ryzyko: PIN lockout in-memory — nie przetrwa restartu serwera (akceptowalne dla obecnej skali)]`
+- `[Ryzyko: `trustServerCertificate: true` dla MSSQL — bezpieczne tylko w LAN, ryzykowne dla WAN]`
 
-## 19. Decyzje otwarte
+## 14. Decyzje otwarte
 
-- `[Wymaga decyzji: Produkcyjne uwierzytelnianie — LDAP/AD/SSO?]`
-- `[Wymaga decyzji: Sfera GT — dostępna?]`
-- `[Nieznane: Modele terminali, DataWedge?]`
+- `[Wymaga decyzji: Kolejność implementacji modułów — inwentaryzacja, kompletacja, czy przyjęcie dostaw?]`
+- `[Nieznane: Modele terminali, wersje Androida, DataWedge — czy skanery używane w produkcji?]`
+- `[Nieznane: Skala produkcyjna — liczba operatorów, skanów/min, liczba magazynów]`
 
-## 22. Kryteria akceptacji
+## 15. Następny krok
+
+Po decyzji użytkownika co do priorytetu modułu — implementacja pionowego wycinka (np. pełny flow inwentaryzacji: wybór zakresu → skanowanie → raport).
+
+## 16. Kryteria akceptacji (bieżące)
 
 - [x] `npm run build` — przechodzi
-- [x] `npm run typecheck` — czysto
-- [x] `npm run lint` — czysto
-- [ ] `docker compose up` — aplikacja na `localhost:5173`
-- [ ] Flow end-to-end: login PIN → skan → karta produktu
-- [ ] Mock adapter działa bez MSSQL
-- [ ] MSSQL adapter działa z bazą testową
-- [ ] Brak sekretów w repo — tylko `{{PLACEHOLDERS}}`
+- [x] `npx vitest run` — 15/15 przechodzi
+- [x] `npx tsc --noEmit` — czysto
+- [x] `pomagier-api` — active (systemd), health check OK
+- [x] Publiczny URL odpowiada 200 OK
+- [x] MSSQL adapter łączy się z Subiektem GT
+- [x] Brak sekretów w repo — tylko `{{PLACEHOLDERS}}`
