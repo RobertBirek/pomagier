@@ -42,7 +42,6 @@ function LocationsPage() {
   const auth = useAuth();
   const isAdmin = auth.user?.role === "admin";
   const [mode, setMode] = useState<Mode>("assign");
-  const [scrolled, setScrolled] = useState(false);
   const [showModeModal, setShowModeModal] = useState(false);
   const [basket, setBasket] = useState<BasketItem[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -66,11 +65,6 @@ function LocationsPage() {
 
   useEffect(() => { refocus(); fetch("/api/locations/duplicates").then(r => r.json()).then(setDuplicates).catch(() => {}); }, []);
   useEffect(() => { const h = () => refocus(); document.addEventListener("click", h); document.addEventListener("touchstart", h); return () => { document.removeEventListener("click", h); document.removeEventListener("touchstart", h); }; }, []);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const currentMode = MODES.find(m => m.key === mode)!;
 
@@ -118,15 +112,13 @@ function LocationsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Sticky header with input + mode button */}
-      <div className={`sticky top-[36px] z-20 bg-card border-b border-t transition-all duration-200 ${scrolled ? "py-1.5" : "py-2"}`}>
-        {/* Page title — hidden when scrolled */}
-        {!scrolled && (
-          <div className="px-3 pb-1">
+      <div className="bg-card border-b py-2">
+        {/* Page title */}
+        <div className="px-3 pb-1">
             <h1 className="text-sm font-bold">Lokalizacje · <span className="text-muted-foreground font-normal">{currentMode.label}</span></h1>
             {mode === "transfer" && transferSource && <span className="text-xs font-mono text-green-600">{transferSource} → {transferTarget || "?"}</span>}
             {mode === "reset" && resetLocation && <span className="text-xs font-mono text-red-600">{resetLocation}</span>}
           </div>
-        )}
         {/* Input row */}
         <div className="flex items-center gap-2 px-3">
           {/* Scan input */}
