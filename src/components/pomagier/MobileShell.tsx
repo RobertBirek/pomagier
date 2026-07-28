@@ -16,7 +16,7 @@ const tabs = [
   { to: "/mobile/sync", label: "Sync", icon: RefreshCw },
 ];
 
-export function MobileShell() {
+export function MobileShell({ headerSlot }: { headerSlot?: React.ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const hideChrome = pathname === "/mobile/login";
   const { operatorName, warehouse, logout } = useAuth();
@@ -75,6 +75,7 @@ export function MobileShell() {
               </button>
             </div>
           </div>
+          {headerSlot}
         </header>
       )}
 

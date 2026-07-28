@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as MobileRouteImport } from './routes/mobile'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as WizardRouteImport } from './routes/wizard'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -55,11 +54,6 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MobileRoute = MobileRouteImport.update({
-  id: '/mobile',
-  path: '/mobile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SetupRoute = SetupRouteImport.update({
@@ -168,75 +162,74 @@ const AdminWarehousesRoute = AdminWarehousesRouteImport.update({
   getParentRoute: () => AdminRoute,
 } as any)
 const MobileIndexRoute = MobileIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/',
+  path: '/mobile/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileDashboardRoute = MobileDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/dashboard',
+  path: '/mobile/dashboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileInventoryRoute = MobileInventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/inventory',
+  path: '/mobile/inventory',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileLocationsRoute = MobileLocationsRouteImport.update({
-  id: '/locations',
-  path: '/locations',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/locations',
+  path: '/mobile/locations',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileLoginRoute = MobileLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/login',
+  path: '/mobile/login',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileMyTasksRoute = MobileMyTasksRouteImport.update({
-  id: '/my-tasks',
-  path: '/my-tasks',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/my-tasks',
+  path: '/mobile/my-tasks',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobilePickingRoute = MobilePickingRouteImport.update({
-  id: '/picking',
-  path: '/picking',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/picking',
+  path: '/mobile/picking',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobilePinRoute = MobilePinRouteImport.update({
-  id: '/pin',
-  path: '/pin',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/pin',
+  path: '/mobile/pin',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileReceivingRoute = MobileReceivingRouteImport.update({
-  id: '/receiving',
-  path: '/receiving',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/receiving',
+  path: '/mobile/receiving',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileScanRoute = MobileScanRouteImport.update({
-  id: '/scan',
-  path: '/scan',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/scan',
+  path: '/mobile/scan',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileSyncRoute = MobileSyncRouteImport.update({
-  id: '/sync',
-  path: '/sync',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/sync',
+  path: '/mobile/sync',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileLocationCodeRoute = MobileLocationCodeRouteImport.update({
-  id: '/location/$code',
-  path: '/location/$code',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/location/$code',
+  path: '/mobile/location/$code',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MobileProductCodeRoute = MobileProductCodeRouteImport.update({
-  id: '/product/$code',
-  path: '/product/$code',
-  getParentRoute: () => MobileRoute,
+  id: '/mobile/product/$code',
+  path: '/mobile/product/$code',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/mobile': typeof MobileRouteWithChildren
   '/setup': typeof SetupRoute
   '/wizard': typeof WizardRoute
   '/admin/alerts': typeof AdminAlertsRoute
@@ -313,7 +306,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/mobile': typeof MobileRouteWithChildren
   '/setup': typeof SetupRoute
   '/wizard': typeof WizardRoute
   '/admin/alerts': typeof AdminAlertsRoute
@@ -354,7 +346,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/mobile'
     | '/setup'
     | '/wizard'
     | '/admin/alerts'
@@ -430,7 +421,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/mobile'
     | '/setup'
     | '/wizard'
     | '/admin/alerts'
@@ -470,9 +460,21 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  MobileRoute: typeof MobileRouteWithChildren
   SetupRoute: typeof SetupRoute
   WizardRoute: typeof WizardRoute
+  MobileDashboardRoute: typeof MobileDashboardRoute
+  MobileInventoryRoute: typeof MobileInventoryRoute
+  MobileLocationsRoute: typeof MobileLocationsRoute
+  MobileLoginRoute: typeof MobileLoginRoute
+  MobileMyTasksRoute: typeof MobileMyTasksRoute
+  MobilePickingRoute: typeof MobilePickingRoute
+  MobilePinRoute: typeof MobilePinRoute
+  MobileReceivingRoute: typeof MobileReceivingRoute
+  MobileScanRoute: typeof MobileScanRoute
+  MobileSyncRoute: typeof MobileSyncRoute
+  MobileIndexRoute: typeof MobileIndexRoute
+  MobileLocationCodeRoute: typeof MobileLocationCodeRoute
+  MobileProductCodeRoute: typeof MobileProductCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -489,13 +491,6 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mobile': {
-      id: '/mobile'
-      path: '/mobile'
-      fullPath: '/mobile'
-      preLoaderRoute: typeof MobileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/setup': {
@@ -647,94 +642,94 @@ declare module '@tanstack/react-router' {
     }
     '/mobile/': {
       id: '/mobile/'
-      path: '/'
+      path: '/mobile'
       fullPath: '/mobile/'
       preLoaderRoute: typeof MobileIndexRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/dashboard': {
       id: '/mobile/dashboard'
-      path: '/dashboard'
+      path: '/mobile/dashboard'
       fullPath: '/mobile/dashboard'
       preLoaderRoute: typeof MobileDashboardRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/inventory': {
       id: '/mobile/inventory'
-      path: '/inventory'
+      path: '/mobile/inventory'
       fullPath: '/mobile/inventory'
       preLoaderRoute: typeof MobileInventoryRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/locations': {
       id: '/mobile/locations'
-      path: '/locations'
+      path: '/mobile/locations'
       fullPath: '/mobile/locations'
       preLoaderRoute: typeof MobileLocationsRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/login': {
       id: '/mobile/login'
-      path: '/login'
+      path: '/mobile/login'
       fullPath: '/mobile/login'
       preLoaderRoute: typeof MobileLoginRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/my-tasks': {
       id: '/mobile/my-tasks'
-      path: '/my-tasks'
+      path: '/mobile/my-tasks'
       fullPath: '/mobile/my-tasks'
       preLoaderRoute: typeof MobileMyTasksRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/picking': {
       id: '/mobile/picking'
-      path: '/picking'
+      path: '/mobile/picking'
       fullPath: '/mobile/picking'
       preLoaderRoute: typeof MobilePickingRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/pin': {
       id: '/mobile/pin'
-      path: '/pin'
+      path: '/mobile/pin'
       fullPath: '/mobile/pin'
       preLoaderRoute: typeof MobilePinRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/receiving': {
       id: '/mobile/receiving'
-      path: '/receiving'
+      path: '/mobile/receiving'
       fullPath: '/mobile/receiving'
       preLoaderRoute: typeof MobileReceivingRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/scan': {
       id: '/mobile/scan'
-      path: '/scan'
+      path: '/mobile/scan'
       fullPath: '/mobile/scan'
       preLoaderRoute: typeof MobileScanRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/sync': {
       id: '/mobile/sync'
-      path: '/sync'
+      path: '/mobile/sync'
       fullPath: '/mobile/sync'
       preLoaderRoute: typeof MobileSyncRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/location/$code': {
       id: '/mobile/location/$code'
-      path: '/location/$code'
+      path: '/mobile/location/$code'
       fullPath: '/mobile/location/$code'
       preLoaderRoute: typeof MobileLocationCodeRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
     '/mobile/product/$code': {
       id: '/mobile/product/$code'
-      path: '/product/$code'
+      path: '/mobile/product/$code'
       fullPath: '/mobile/product/$code'
       preLoaderRoute: typeof MobileProductCodeRouteImport
-      parentRoute: typeof MobileRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -785,23 +780,11 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface MobileRouteChildren {
-  MobileDashboardRoute: typeof MobileDashboardRoute
-  MobileInventoryRoute: typeof MobileInventoryRoute
-  MobileLocationsRoute: typeof MobileLocationsRoute
-  MobileLoginRoute: typeof MobileLoginRoute
-  MobileMyTasksRoute: typeof MobileMyTasksRoute
-  MobilePickingRoute: typeof MobilePickingRoute
-  MobilePinRoute: typeof MobilePinRoute
-  MobileReceivingRoute: typeof MobileReceivingRoute
-  MobileScanRoute: typeof MobileScanRoute
-  MobileSyncRoute: typeof MobileSyncRoute
-  MobileIndexRoute: typeof MobileIndexRoute
-  MobileLocationCodeRoute: typeof MobileLocationCodeRoute
-  MobileProductCodeRoute: typeof MobileProductCodeRoute
-}
-
-const MobileRouteChildren: MobileRouteChildren = {
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  SetupRoute: SetupRoute,
+  WizardRoute: WizardRoute,
   MobileDashboardRoute: MobileDashboardRoute,
   MobileInventoryRoute: MobileInventoryRoute,
   MobileLocationsRoute: MobileLocationsRoute,
@@ -815,17 +798,6 @@ const MobileRouteChildren: MobileRouteChildren = {
   MobileIndexRoute: MobileIndexRoute,
   MobileLocationCodeRoute: MobileLocationCodeRoute,
   MobileProductCodeRoute: MobileProductCodeRoute,
-}
-
-const MobileRouteWithChildren =
-  MobileRoute._addFileChildren(MobileRouteChildren)
-
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
-  MobileRoute: MobileRouteWithChildren,
-  SetupRoute: SetupRoute,
-  WizardRoute: WizardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
