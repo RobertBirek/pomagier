@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { ScanHeader, type ScanHeaderTool } from "@/components/pomagier/ScanHeader";
 import { parseLocation } from "@/lib/locations";
@@ -11,11 +11,13 @@ import {
   Package,
   X,
   CheckCircle2,
-  Trash2,
   History,
   RotateCcw,
   ArrowRightLeft,
   BarChart3,
+  Minus,
+  Plus,
+  PackageOpen,
 } from "lucide-react";
 
 interface BasketItem {
@@ -90,6 +92,7 @@ function LocationsPage() {
   const [transferring, setTransferring] = useState(false);
   const [resetLocation, setResetLocation] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [flashCodes, setFlashCodes] = useState<Set<string>>(new Set());
 
   const totalQty = basket.reduce((s, b) => s + b.qty, 0);
   const currentMode = MODES.find((m) => m.key === mode)!;
@@ -104,7 +107,6 @@ function LocationsPage() {
         if (mode === "reset") {
           if (!resetLocation) {
             setResetLocation(loc.raw);
-            toast.success(`Reset na: ${loc.raw}`);
             return true;
           }
           if (resetLocation === loc.raw && basket.length > 0) {
@@ -117,12 +119,10 @@ function LocationsPage() {
         if (mode === "transfer") {
           if (!transferSource) {
             setTransferSource(loc.raw);
-            toast.success(`Źródło: ${loc.raw}`);
             return true;
           }
           if (!transferTarget && basket.length > 0) {
             setTransferTarget(loc.raw);
-            toast.success(`Cel: ${loc.raw}`);
             return true;
           }
           toast.error("Najpierw zeskanuj towary");
@@ -148,7 +148,15 @@ function LocationsPage() {
         const product = await lookupProduct(code);
         setBasket((b) => [...b, { code, name: product?.name, qty: 1 }]);
       }
-      toast.success(`Dodano: ${code}`, { duration: 800 });
+      // Flash animation for newly added item
+      setFlashCodes((prev) => new Set(prev).add(code));
+      setTimeout(() => {
+        setFlashCodes((prev) => {
+          const next = new Set(prev);
+          next.delete(code);
+          return next;
+        });
+      }, 800);
       return true;
     },
     [mode, basket, resetLocation, transferSource, transferTarget],
@@ -178,9 +186,6 @@ function LocationsPage() {
       if (result.ok) {
         beep(1000, 80);
         setTimeout(() => beep(1200, 120), 100);
-        toast.success(`Przypisano ${result.totalQuantity} do ${result.location}`, {
-          duration: 3000,
-        });
         setHistory((h) =>
           [
             {
@@ -230,9 +235,7 @@ function LocationsPage() {
         body: JSON.stringify({ codes, fromLocation: transferSource, toLocation: transferTarget }),
       });
       if (r.ok) {
-        const d = await r.json();
         beep(1000, 80);
-        toast.success(`Przeniesiono ${d.moved} ${transferSource} → ${transferTarget}`);
         setBasket([]);
         setTransferSource(null);
         setTransferTarget(null);
@@ -259,8 +262,6 @@ function LocationsPage() {
         body: JSON.stringify({ codes, location: resetLocation }),
       });
       if (r.ok) {
-        const d = await r.json();
-        toast.success(`Reset: ${d.reset} → ${resetLocation}`);
         setBasket([]);
         setResetLocation(null);
       } else toast.error((await r.json()).error);
@@ -281,7 +282,6 @@ function LocationsPage() {
       });
       if (r.ok) {
         beep(600, 150);
-        toast.success("Cofnięto");
         setHistory((h) => h.filter((e) => e.timestamp !== entry.timestamp));
       } else {
         beep(200, 300);
@@ -396,49 +396,68 @@ function LocationsPage() {
         {/* Basket */}
         {basket.length > 0 && (
           <div className="rounded-lg border bg-card">
-            <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 text-sm font-semibold">
-              Koszyk ({totalQty} szt.)
+            <div className="flex items-center justify-between px-3 py-2.5 border-b bg-muted/30">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <PackageOpen className="h-4 w-4 text-primary" />
+                Koszyk ({totalQty} szt.)
+              </div>
+              <button
+                onClick={() => {
+                  setBasket([]);
+                  setPendingLocation(null);
+                }}
+                className="touch-target rounded px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 active:scale-95 transition-all"
+              >
+                Wyczyść
+              </button>
             </div>
-            <div className="divide-y max-h-48 overflow-y-auto">
+            <div className="divide-y">
               {basket.map((item) => (
                 <div
                   key={item.code}
-                  className="flex items-center justify-between px-3 py-1.5 text-sm"
+                  className={`flex flex-col px-3 py-2.5 transition-colors duration-500 ${
+                    flashCodes.has(item.code) ? "bg-green-100" : ""
+                  }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <div className="min-w-0">
-                      <span className="font-mono text-xs truncate">{item.code}</span>
-                      {item.name && (
-                        <span className="text-xs text-muted-foreground ml-1.5 truncate">
-                          {item.name}
-                        </span>
-                      )}
+                  {/* Row 1: code + controls */}
+                  <div className="flex items-center gap-1.5">
+                    <Package className="h-4 w-4 text-primary/60 shrink-0" />
+                    <span className="font-mono text-[13px] font-medium truncate flex-1 min-w-0">
+                      {item.code}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => updateQty(item.code, -1)}
+                        className="touch-target h-10 w-10 rounded-lg bg-secondary hover:bg-secondary/80 active:scale-90 transition-all inline-flex items-center justify-center"
+                        aria-label="Zmniejsz ilość"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="min-w-[1.75rem] text-center text-base font-bold tabular-nums">
+                        {item.qty}
+                      </span>
+                      <button
+                        onClick={() => updateQty(item.code, 1)}
+                        className="touch-target h-10 w-10 rounded-lg bg-secondary hover:bg-secondary/80 active:scale-90 transition-all inline-flex items-center justify-center"
+                        aria-label="Zwiększ ilość"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => removeItem(item.code)}
+                        className="touch-target h-10 w-10 rounded-lg hover:bg-destructive/10 active:scale-90 transition-all inline-flex items-center justify-center ml-0.5"
+                        aria-label="Usuń z koszyka"
+                      >
+                        <X className="h-4 w-4 text-destructive/70" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => updateQty(item.code, -1)}
-                      className="touch-target rounded border px-1.5 py-0.5 text-xs hover:bg-accent font-mono"
-                    >
-                      −
-                    </button>
-                    <span className="w-5 text-center font-mono text-xs font-semibold">
-                      {item.qty}
-                    </span>
-                    <button
-                      onClick={() => updateQty(item.code, 1)}
-                      className="touch-target rounded border px-1.5 py-0.5 text-xs hover:bg-accent font-mono"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => removeItem(item.code)}
-                      className="touch-target rounded p-1 hover:bg-accent ml-1"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  {/* Row 2: product name */}
+                  {item.name && (
+                    <div className="text-[11px] text-muted-foreground truncate ml-[22px] mt-0.5">
+                      {item.name}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
