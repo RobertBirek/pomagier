@@ -19,6 +19,8 @@ import {
   ChevronDown,
   ArrowRightLeft,
   BarChart3,
+  Lightbulb,
+  AlertTriangle,
   MoveRight,
   Trash2,
 } from "lucide-react";
@@ -74,6 +76,7 @@ function LocationsPage() {
     assigned: number;
     inSubiekt: number;
   } | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateItem[]>([]);
   const [hasLocation, setHasLocation] = useState<{
     code: string;
     locations: string[];
@@ -91,6 +94,12 @@ function LocationsPage() {
   };
 
   // --- Data loading ---
+  useEffect(() => {
+    fetch("/api/locations/duplicates")
+      .then((r) => r.json())
+      .then(setDuplicates)
+      .catch(() => {});
+  }, []);
 
   // --- Helpers ---
   const idempotencyKey = useCallback(() => crypto.randomUUID(), []);
@@ -402,6 +411,156 @@ function LocationsPage() {
       )}
 
       {/* Duplicates suggestions */}
+      {duplicates.length > 0 && basket.length === 0 && !pendingLocation && (
+        <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-amber-800 mb-2">
+            <Lightbulb className="h-4 w-4" />
+            Sugestie ({duplicates.length})
+          </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {duplicates.slice(0, 3).map((d) => (
+              <div key={d.productId} className="rounded bg-white/70 p-2 text-xs">
+                <div className="flex items-center gap-1 font-semibold">
+                  <AlertTriangle className="h-3 w-3 text-amber-600" />
+                  {d.name || d.symbol || `ID ${d.productId}`}
+                </div>
+                <div className="mt-1 space-y-0.5 text-muted-foreground">
+                  {d.locations.map((l: { code: string; quantity: number }) => (
+                    <div key={l.code} className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {l.code}: {l.quantity} szt.
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    remember(d.suggestion);
+                    toast.info(`Ustawiono lokalizację: ${d.suggestion}`);
+                  }}
+                  className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-200 px-2 py-0.5 text-amber-900 hover:bg-amber-300 touch-target"
+                >
+                  <MoveRight className="h-3 w-3" />
+                  Konsoliduj do {d.suggestion}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Last location + picker */}
+      {basket.length > 0 && !pendingLocation && (
+        <div className="flex gap-2">
+          {lastLocation && (
+            <button
+              onClick={handleLastLocation}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-blue-50 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 touch-target active:scale-95 transition-all"
+            >
+              <MapPin className="h-4 w-4" />
+              Przypisz do {lastLocation}
+            </button>
+          )}
+          <button
+            onClick={() => setShowPicker(true)}
+            className="flex items-center justify-center gap-1 rounded-lg border px-4 py-3 text-sm hover:bg-accent touch-target"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Location picker modal */}
+      {showPicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/50"
+          onClick={() => setShowPicker(false)}
+        >
+          <div
+            className="w-full max-h-[80vh] overflow-y-auto rounded-t-xl bg-background p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <LocationPicker onSelect={handleLocationPick} />
+          </div>
+        </div>
+      )}
+
+      {/* Scan input */}
+      <ScanInput
+        inputRef={inputRef}
+        inputValue={inputValue}
+        onInputChange={setInputValue}
+        onSubmit={handleScan}
+        placeholder={getPlaceholder()}
+        mode={mode}
+        totalQty={totalQty}
+      />
+
+      {/* Existing location badge */}
+      {hasLocation && (
+        <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs">
+          <MapPin className="h-3.5 w-3.5 text-blue-600" />
+          <span className="text-blue-700">
+            <strong>{hasLocation.code}</strong> już w:{" "}
+            {hasLocation.locations.slice(0, 3).join(", ")}
+            {hasLocation.locations.length > 3 ? ` +${hasLocation.locations.length - 3}` : ""}
+          </span>
+          <button onClick={() => setHasLocation(null)} className="ml-auto">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Basket */}
+      <BasketPanel
+        items={basket}
+        totalQty={totalQty}
+        onUpdateQty={updateQty}
+        onRemove={removeItem}
+        onClear={clearBasket}
+      />
+
+      {/* Stock verification */}
+      {stockInfo && basket.length === 0 && (
+        <div className="rounded-lg border bg-card p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold mb-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Weryfikacja stanu — {stockInfo.location}
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded bg-muted/50 p-2">
+              <div className="text-muted-foreground">Przypisane</div>
+              <div className="font-bold text-lg">{stockInfo.assigned}</div>
+            </div>
+            <div className="rounded bg-muted/50 p-2">
+              <div className="text-muted-foreground">W Subiekt GT</div>
+              <div className="font-bold text-lg">{stockInfo.inSubiekt}</div>
+            </div>
+          </div>
+          <div
+            className={`mt-2 text-xs font-medium ${stockInfo.assigned === stockInfo.inSubiekt ? "text-success" : "text-warning"}`}
+          >
+            {stockInfo.assigned === stockInfo.inSubiekt
+              ? "✅ Stan zgodny"
+              : `⚠️ Różnica: ${Math.abs(stockInfo.assigned - stockInfo.inSubiekt)} szt.`}
+          </div>
+        </div>
+      )}
+
+      {/* Reset confirmation */}
+      {resetMode && resetLocation && basket.length > 0 && (
+        <ConfirmCard
+          variant="reset"
+          location={resetLocation}
+          totalQty={totalQty}
+          loading={resetting}
+          onConfirm={handleReset}
+          onCancel={() => {
+            setResetLocation(null);
+            refocus();
+          }}
+        />
+      )}
+
       {/* Transfer confirmation */}
       {transferMode && transferSource && transferTarget && basket.length > 0 && (
         <ConfirmCard
