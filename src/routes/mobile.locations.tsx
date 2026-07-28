@@ -110,6 +110,13 @@ function LocationsPage() {
     <div className="flex flex-col min-h-screen">
       {/* Sticky header with input + mode button */}
       <div className="sticky top-0 z-30 bg-card border-b safe-top px-3 py-2 space-y-2">
+        {/* Page title + mode label */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-sm font-bold">Lokalizacje · <span className="text-muted-foreground font-normal">{currentMode.label}</span></h1>
+          {mode === "transfer" && transferSource && <span className="text-xs font-mono text-green-600">{transferSource} → {transferTarget || "?"}</span>}
+          {mode === "reset" && resetLocation && <span className="text-xs font-mono text-red-600">{resetLocation}</span>}
+        </div>
+        {/* Input row */}
         <div className="flex items-center gap-2">
           {/* Scan input */}
           <input ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }} placeholder="Skanuj EAN lub lokalizację..." autoComplete="off" className="flex-1 rounded-lg border-2 border-primary/40 bg-background px-4 py-3 text-base font-mono font-bold shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors" />
@@ -119,12 +126,6 @@ function LocationsPage() {
           <button onClick={() => setShowModeModal(true)} className={`shrink-0 grid place-items-center rounded-lg w-12 h-12 ${currentMode.color} text-white shadow active:scale-95 transition-transform`}>
             <currentMode.icon className="h-6 w-6" />
           </button>
-        </div>
-        {/* Mode status */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{currentMode.label}</span>
-          {mode === "transfer" && transferSource && <span className="font-mono text-green-600">{transferSource} → {transferTarget || "?"}</span>}
-          {mode === "reset" && resetLocation && <span className="font-mono text-red-600">{resetLocation}</span>}
         </div>
       </div>
 
