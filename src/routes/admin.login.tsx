@@ -28,7 +28,7 @@ function AdminLogin() {
         return;
       }
       const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
-      auth.login(result.user, name, "");
+      auth.login(result.token, result.user, name, "");
       toast.success(`Witaj, ${name}!`);
       nav({ to: "/admin/dashboard" });
     } catch (err: any) {
