@@ -1,609 +1,225 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { LocationPicker } from "@/components/pomagier/LocationPicker";
-import { ScanInput } from "@/components/pomagier/ScanInput";
-import { BasketPanel } from "@/components/pomagier/BasketPanel";
-import { ConfirmCard } from "@/components/pomagier/ConfirmCard";
-import { HistoryPanel } from "@/components/pomagier/HistoryPanel";
-import { useBasket } from "@/hooks/use-basket";
-import { useScanFocus } from "@/hooks/use-scan-focus";
-import { useLocationMemory } from "@/hooks/use-location-memory";
-import { beep } from "@/lib/utils";
-import {
-  MapPin,
-  Package,
-  X,
-  ChevronDown,
-  ArrowRightLeft,
-  BarChart3,
-  Lightbulb,
-  AlertTriangle,
-  MoveRight,
-  Trash2,
-} from "lucide-react";
+import { MapPin, Package, X, CheckCircle2, Trash2, History, RotateCcw, ChevronDown, ArrowRightLeft, BarChart3, Lightbulb, AlertTriangle, MoveRight, Layers } from "lucide-react";
 
-interface HistoryEntry {
-  codes: string[];
-  location: string;
-  timestamp: number;
-  products: { id: number; symbol: string }[];
+interface BasketItem { code: string; name?: string; qty: number; }
+interface HistoryEntry { codes: string[]; location: string; timestamp: number; products: { id: number; symbol: string }[]; }
+interface DuplicateItem { productId: number; symbol: string; name: string; locations: { code: string; area: string; aisle: number; rack: number; quantity: number }[]; suggestion: string; }
+
+const LAST_LOC_KEY = "pomagier-last-location";
+
+type Mode = "assign" | "transfer" | "reset";
+
+async function assignProducts(codes: string[], location: string) {
+  const r = await fetch("/api/locations/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes, location }) });
+  return r.json();
 }
-
-interface DuplicateItem {
-  productId: number;
-  symbol: string;
-  name: string;
-  locations: { code: string; quantity: number }[];
-  suggestion: string;
+async function lookupProduct(code: string) {
+  try {
+    const r = await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+    if (r.ok) { const d = await r.json(); return d.products?.[0]; }
+  } catch {}
+  return null;
+}
+function beep(freq: number, duration = 120) {
+  try { const ctx = new AudioContext(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value = freq; o.type = "square"; g.gain.setValueAtTime(0.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000); o.start(); o.stop(ctx.currentTime + duration / 1000); } catch {}
 }
 
 export const Route = createFileRoute("/mobile/locations")({ component: LocationsPage });
 
-function LocationsPage() {
-  // --- Hooks ---
-  const { basket, totalQty, flatCodes, addToBasket, removeItem, updateQty, clearBasket } =
-    useBasket();
-  const { inputRef, refocus } = useScanFocus();
-  const { lastLocation, remember } = useLocationMemory();
+const MODES: { key: Mode; label: string; icon: typeof MapPin; color: string }[] = [
+  { key: "assign", label: "Przypisz towary", icon: MapPin, color: "bg-blue-500" },
+  { key: "transfer", label: "Przenieś towary", icon: ArrowRightLeft, color: "bg-amber-500" },
+  { key: "reset", label: "Reset lokalizacji", icon: RotateCcw, color: "bg-red-500" },
+];
 
-  // --- State ---
+function LocationsPage() {
+  const [mode, setMode] = useState<Mode>("assign");
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [basket, setBasket] = useState<BasketItem[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [pendingLocation, setPendingLocation] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-
-  // Modes
-  const [transferMode, setTransferMode] = useState(false);
-  const [resetMode, setResetMode] = useState(false);
-  const [resetLocation, setResetLocation] = useState<string | null>(null);
-
-  // Transfer
+  const [undoing, setUndoing] = useState(false);
+  const [lastLocation, setLastLocation] = useState<string | null>(() => localStorage.getItem(LAST_LOC_KEY));
+  const [showPicker, setShowPicker] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateItem[]>([]);
+  const [stockInfo, setStockInfo] = useState<{ location: string; assigned: number; inSubiekt: number } | null>(null);
+  const [hasLocation, setHasLocation] = useState<{ code: string; locations: string[] } | null>(null);
   const [transferSource, setTransferSource] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState<string | null>(null);
-
-  // Loading states
-  const [saving, setSaving] = useState(false);
-  const [undoing, setUndoing] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const [transferring, setTransferring] = useState(false);
+  const [resetLocation, setResetLocation] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const refocus = () => setTimeout(() => inputRef.current?.focus(), 50);
+  const totalQty = basket.reduce((s, b) => s + b.qty, 0);
 
-  // Data panels
-  const [showPicker, setShowPicker] = useState(false);
-  const [stockInfo, setStockInfo] = useState<{
-    location: string;
-    assigned: number;
-    inSubiekt: number;
-  } | null>(null);
-  const [duplicates, setDuplicates] = useState<DuplicateItem[]>([]);
-  const [hasLocation, setHasLocation] = useState<{
-    code: string;
-    locations: string[];
-  } | null>(null);
+  useEffect(() => { refocus(); fetch("/api/locations/duplicates").then(r => r.json()).then(setDuplicates).catch(() => {}); }, []);
+  useEffect(() => { const h = () => refocus(); document.addEventListener("click", h); document.addEventListener("touchstart", h); return () => { document.removeEventListener("click", h); document.removeEventListener("touchstart", h); }; }, []);
 
-  // --- Derived ---
-  const mode: "scan" | "locate" =
-    basket.length > 0 && !pendingLocation && !(transferMode && transferTarget) ? "locate" : "scan";
+  const currentMode = MODES.find(m => m.key === mode)!;
 
-  const getPlaceholder = () => {
-    if (transferMode && !transferSource) return "Zeskanuj lokalizację źródłową...";
-    if (transferMode && transferSource && !transferTarget)
-      return "Skanuj towary, potem lokalizację celu...";
-    return mode === "scan" ? "Zeskanuj EAN towaru..." : "Teraz zeskanuj lokalizację";
-  };
-
-  // --- Data loading ---
-  useEffect(() => {
-    fetch("/api/locations/duplicates")
-      .then((r) => r.json())
-      .then(setDuplicates)
-      .catch(() => {});
-  }, []);
-
-  // --- Helpers ---
-  const idempotencyKey = useCallback(() => crypto.randomUUID(), []);
-
-  const checkExistingLocation = async (code: string) => {
-    try {
-      const res = await fetch(`/api/locations/check-product?code=${encodeURIComponent(code)}`);
-      if (res.ok) {
-        const { found, locations } = await res.json();
-        if (found) setHasLocation({ code, locations });
-      }
-    } catch {
-      /* stock verification is non-critical — silently ignore */
-    }
-  };
-
-  // --- Scan handler ---
-  const handleScan = async () => {
-    const trimmed = inputValue.trim();
+  const addToBasket = async (code: string) => {
+    const trimmed = code.trim();
     if (!trimmed) return;
-    setInputValue("");
-
+    beep(800, 100);
     const loc = parseLocation(trimmed);
-
     if (loc) {
-      // --- Location scanned ---
-      if (resetMode) {
-        if (!resetLocation) {
-          setResetLocation(loc.raw);
-          toast.success(`Reset na: ${loc.raw}`, { duration: 1500 });
-          refocus();
-          return;
-        }
-        return; // Handled by ConfirmCard
-      }
-
-      if (transferMode) {
-        if (!transferSource) {
-          setTransferSource(loc.raw);
-          toast.success(`Źródło: ${loc.raw}`, { duration: 1500 });
-          refocus();
-          return;
-        }
-        if (!transferTarget && basket.length > 0) {
-          setTransferTarget(loc.raw);
-          toast.success(`Cel: ${loc.raw}`, { duration: 1500 });
-          refocus();
-          return;
-        }
-        beep(200, 300);
-        toast.error("Najpierw zeskanuj towary");
-        return;
-      }
-
-      if (basket.length === 0) {
-        beep(200, 300);
-        toast.error("Najpierw zeskanuj towary");
-        return;
-      }
-
-      setPendingLocation(loc.raw);
-      remember(loc.raw);
-      return;
+      if (mode === "reset") { if (!resetLocation) { setResetLocation(loc.raw); toast.success(`Reset na: ${loc.raw}`); } else if (resetLocation === loc.raw && basket.length > 0) { return; } else { toast.error(`Oczekiwano: ${resetLocation}`); beep(200, 300); } setInputValue(""); refocus(); return; }
+      if (mode === "transfer") { if (!transferSource) { setTransferSource(loc.raw); toast.success(`Źródło: ${loc.raw}`); } else if (!transferTarget && basket.length > 0) { setTransferTarget(loc.raw); toast.success(`Cel: ${loc.raw}`); } else { toast.error("Najpierw zeskanuj towary"); beep(200, 300); } setInputValue(""); refocus(); return; }
+      if (basket.length === 0) { toast.error("Najpierw zeskanuj towary"); beep(200, 300); return; }
+      setPendingLocation(loc.raw); setLastLocation(loc.raw); localStorage.setItem(LAST_LOC_KEY, loc.raw); return;
     }
-
-    // --- Product scanned ---
-    await checkExistingLocation(trimmed);
-    await addToBasket(trimmed);
-    refocus();
+    const existing = basket.find(b => b.code === trimmed);
+    if (existing) { setBasket(b => b.map(i => i.code === trimmed ? { ...i, qty: i.qty + 1 } : i)); }
+    else { const product = await lookupProduct(trimmed); setBasket(b => [...b, { code: trimmed, name: product?.name, qty: 1 }]); }
+    toast.success(`Dodano: ${trimmed}`, { duration: 800 });
+    setInputValue(""); refocus();
   };
+  const handleSubmit = () => addToBasket(inputValue);
+  const removeItem = (code: string) => { setBasket(b => b.filter(i => i.code !== code)); refocus(); };
+  const updateQty = (code: string, delta: number) => { setBasket(b => b.map(i => { if (i.code !== code) return i; const q = Math.max(0, i.qty + delta); return q === 0 ? null : { ...i, qty: q }; }).filter(Boolean) as BasketItem[]); };
 
-  // --- Actions ---
   const handleSave = async () => {
-    if (!pendingLocation || basket.length === 0) return;
-    setSaving(true);
+    if (!pendingLocation || basket.length === 0) return; setSaving(true);
     try {
-      const res = await fetch("/api/locations/assign", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": idempotencyKey(),
-        },
-        body: JSON.stringify({ codes: flatCodes, location: pendingLocation }),
-      });
-      const result = await res.json();
-
-      if (result.ok) {
-        beep(1000, 80);
-        setTimeout(() => beep(1200, 120), 100);
-        toast.success(`Przypisano ${result.totalQuantity} towarów do ${result.location}`, {
-          duration: 3000,
-        });
-        setHistory((h) =>
-          [
-            {
-              codes: flatCodes.slice(),
-              location: pendingLocation,
-              timestamp: Date.now(),
-              products: result.products || [],
-            },
-            ...h,
-          ].slice(0, 5),
-        );
-
-        try {
-          const stockRes = await fetch(
-            `/api/locations/verify?location=${encodeURIComponent(pendingLocation)}`,
-          );
-          const stock = await stockRes.json();
-          if (stock.comparison) setStockInfo(stock.comparison);
-        } catch {
-          /* ignore — product location check is non-critical */
-        }
-
-        clearBasket();
-        setPendingLocation(null);
-      } else {
-        beep(200, 400);
-        toast.error(result.error || "Błąd");
-        if (result.notFound?.length) toast.error(`Nie znaleziono: ${result.notFound.join(", ")}`);
-      }
-    } catch {
-      beep(200, 400);
-      toast.error("Błąd sieci");
-      for (const code of flatCodes) {
-        await addScanToQueue(code, pendingLocation);
-      }
-      toast.warning("Offline — zapisano w kolejce", { description: `${basket.length} skanów` });
-    } finally {
-      setSaving(false);
-      refocus();
-    }
+      const codes = basket.flatMap(b => Array(b.qty).fill(b.code));
+      const result = await assignProducts(codes, pendingLocation);
+      if (result.ok) { beep(1000, 80); setTimeout(() => beep(1200, 120), 100); toast.success(`Przypisano ${result.totalQuantity} do ${result.location}`, { duration: 3000 }); setHistory(h => [{ codes: codes.slice(), location: pendingLocation, timestamp: Date.now(), products: result.products || [] }, ...h].slice(0, 5)); try { const sr = await fetch(`/api/locations/verify?location=${encodeURIComponent(pendingLocation)}`); const st = await sr.json(); if (st.comparison) setStockInfo(st.comparison); } catch {} setBasket([]); }
+      else { beep(200, 400); toast.error(result.error || "Błąd"); if (result.notFound?.length) toast.error(`Nie znaleziono: ${result.notFound.join(", ")}`); }
+    } catch (e: any) { beep(200, 400); toast.error(e.message); for (const item of basket) { await addScanToQueue(item.code, pendingLocation); } toast.warning("Offline — zapisano w kolejce"); }
+    finally { setSaving(false); setPendingLocation(null); refocus(); }
   };
 
-  const handleUndo = async (entry: HistoryEntry) => {
-    setUndoing(true);
-    try {
-      const res = await fetch("/api/locations/undo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location: entry.location, codes: entry.codes }),
-      });
-      if (res.ok) {
-        beep(600, 150);
-        toast.success("Cofnięto ostatnią operację");
-        setHistory((h) => h.filter((e) => e.timestamp !== entry.timestamp));
-      } else {
-        beep(200, 300);
-        toast.error("Nie udało się cofnąć");
-      }
-    } catch {
-      beep(200, 300);
-      toast.error("Błąd sieci");
-    } finally {
-      setUndoing(false);
-      refocus();
-    }
-  };
+  const handleTransfer = async () => { if (!transferSource || !transferTarget || basket.length === 0) return; setTransferring(true); try { const codes = basket.flatMap(b => Array(b.qty).fill(b.code)); const r = await fetch("/api/locations/transfer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes, fromLocation: transferSource, toLocation: transferTarget }) }); if (r.ok) { const d = await r.json(); beep(1000, 80); toast.success(`Przeniesiono ${d.moved} ${transferSource} → ${transferTarget}`); setBasket([]); setTransferSource(null); setTransferTarget(null); } else { beep(200, 400); toast.error((await r.json()).error); } } catch (e: any) { beep(200, 400); toast.error(e.message); } finally { setTransferring(false); refocus(); } };
 
-  const handleReset = async () => {
-    if (!resetLocation || basket.length === 0) return;
-    setResetting(true);
-    try {
-      const res = await fetch("/api/locations/reset", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": idempotencyKey(),
-        },
-        body: JSON.stringify({ codes: flatCodes, location: resetLocation }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        beep(1000, 80);
-        toast.success(`Reset: ${data.reset} towarów → ${resetLocation}`);
-        clearBasket();
-        setResetLocation(null);
-      } else {
-        beep(200, 400);
-        toast.error(data.error);
-      }
-    } catch {
-      beep(200, 400);
-      toast.error("Błąd sieci");
-    } finally {
-      setResetting(false);
-      refocus();
-    }
-  };
+  const handleReset = async () => { if (!resetLocation || basket.length === 0) return; setResetting(true); try { const codes = basket.flatMap(b => Array(b.qty).fill(b.code)); const r = await fetch("/api/locations/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes, location: resetLocation }) }); if (r.ok) { const d = await r.json(); toast.success(`Reset: ${d.reset} → ${resetLocation}`); setBasket([]); setResetLocation(null); } else toast.error((await r.json()).error); } catch (e: any) { toast.error(e.message); } finally { setResetting(false); refocus(); } };
 
-  const handleTransfer = async () => {
-    if (!transferSource || !transferTarget || basket.length === 0) return;
-    setTransferring(true);
-    try {
-      const res = await fetch("/api/locations/transfer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": idempotencyKey(),
-        },
-        body: JSON.stringify({
-          codes: flatCodes,
-          fromLocation: transferSource,
-          toLocation: transferTarget,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        beep(1000, 80);
-        setTimeout(() => beep(1200, 120), 100);
-        toast.success(`Przeniesiono ${data.moved} szt. ${transferSource} → ${transferTarget}`);
-        clearBasket();
-        setTransferSource(null);
-        setTransferTarget(null);
-      } else {
-        beep(200, 400);
-        toast.error(data.error);
-      }
-    } catch {
-      beep(200, 400);
-      toast.error("Błąd sieci");
-    } finally {
-      setTransferring(false);
-      refocus();
-    }
-  };
+  const handleUndo = async (entry: HistoryEntry) => { setUndoing(true); try { const r = await fetch("/api/locations/undo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: entry.location, codes: entry.codes }) }); if (r.ok) { beep(600, 150); toast.success("Cofnięto"); setHistory(h => h.filter(e => e.timestamp !== entry.timestamp)); } else { beep(200, 300); toast.error("Nie udało się cofnąć"); } } catch { beep(200, 300); toast.error("Błąd"); } finally { setUndoing(false); refocus(); } };
 
-  const handleLocationPick = (code: string) => {
-    setPendingLocation(code);
-    remember(code);
-    setShowPicker(false);
-  };
+  const handleLocationPick = (code: string) => { setPendingLocation(code); setLastLocation(code); localStorage.setItem(LAST_LOC_KEY, code); setShowPicker(false); };
+  const handleLastLocation = () => { if (!lastLocation) return; setPendingLocation(lastLocation); };
 
-  const handleLastLocation = () => {
-    if (!lastLocation) return;
-    setPendingLocation(lastLocation);
-  };
-
-  // --- Render ---
   return (
-    <div className="mx-auto max-w-md p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold">Przypisz towary</h1>
-        {basket.length > 0 && (
-          <button
-            onClick={clearBasket}
-            className="touch-target inline-flex items-center gap-1 rounded-md border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 active:scale-95 transition-all"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Wyczyść ({totalQty})
+    <div className="flex flex-col min-h-screen">
+      {/* Sticky header with input + mode button */}
+      <div className="sticky top-0 z-30 bg-card border-b safe-top px-3 py-2 space-y-2">
+        <div className="flex items-center gap-2">
+          {/* Mode button */}
+          <button onClick={() => setShowModeModal(true)} className={`shrink-0 grid place-items-center rounded-lg w-12 h-12 ${currentMode.color} text-white shadow active:scale-95 transition-transform`}>
+            <currentMode.icon className="h-6 w-6" />
           </button>
-        )}
+          {/* Scan input */}
+          <input ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }} placeholder="Skanuj EAN lub lokalizację..." autoComplete="off" className="flex-1 rounded-lg border-2 border-primary/40 bg-background px-4 py-3 text-base font-mono font-bold shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors" />
+          {/* Basket badge */}
+          {totalQty > 0 && <span className="shrink-0 grid place-items-center rounded-full bg-primary w-7 h-7 text-xs font-bold text-primary-foreground">{totalQty}</span>}
+        </div>
+        {/* Mode status */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">{currentMode.label}</span>
+          {mode === "transfer" && transferSource && <span className="font-mono text-green-600">{transferSource} → {transferTarget || "?"}</span>}
+          {mode === "reset" && resetLocation && <span className="font-mono text-red-600">{resetLocation}</span>}
+        </div>
       </div>
 
-      {/* Mode toggles */}
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={transferMode}
-          onChange={(e) => setTransferMode(e.target.checked)}
-          className="h-4 w-4 rounded border-primary"
-        />
-        <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-        Tryb przenoszenia
-      </label>
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <input
-          type="checkbox"
-          checked={resetMode}
-          onChange={(e) => {
-            setResetMode(e.target.checked);
-            setResetLocation(null);
-          }}
-          className="h-4 w-4 rounded border-primary"
-        />
-        <MapPin className="h-4 w-4 text-muted-foreground" />
-        Reset lokalizacji
-      </label>
-
-      {/* Reset status */}
-      {resetMode && (
-        <div className="flex gap-2 text-xs">
-          <div
-            className={`flex-1 rounded-lg border px-3 py-2 ${resetLocation ? "border-green-300 bg-green-50" : "border-dashed border-muted-foreground/30"}`}
-          >
-            <div className="text-muted-foreground">Reset do</div>
-            <div className="font-mono font-bold">{resetLocation || "—"}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Transfer status */}
-      {transferMode && (
-        <div className="flex gap-2 text-xs">
-          <div
-            className={`flex-1 rounded-lg border px-3 py-2 ${transferSource ? "border-green-300 bg-green-50" : "border-dashed border-muted-foreground/30"}`}
-          >
-            <div className="text-muted-foreground">Źródło</div>
-            <div className="font-mono font-bold">{transferSource || "—"}</div>
-          </div>
-          <div className="flex items-center text-muted-foreground">→</div>
-          <div
-            className={`flex-1 rounded-lg border px-3 py-2 ${transferTarget ? "border-blue-300 bg-blue-50" : "border-dashed border-muted-foreground/30"}`}
-          >
-            <div className="text-muted-foreground">Cel</div>
-            <div className="font-mono font-bold">{transferTarget || "—"}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Duplicates suggestions */}
-      {duplicates.length > 0 && basket.length === 0 && !pendingLocation && (
-        <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-amber-800 mb-2">
-            <Lightbulb className="h-4 w-4" />
-            Sugestie ({duplicates.length})
-          </div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {duplicates.slice(0, 3).map((d) => (
-              <div key={d.productId} className="rounded bg-white/70 p-2 text-xs">
-                <div className="flex items-center gap-1 font-semibold">
-                  <AlertTriangle className="h-3 w-3 text-amber-600" />
-                  {d.name || d.symbol || `ID ${d.productId}`}
-                </div>
-                <div className="mt-1 space-y-0.5 text-muted-foreground">
-                  {d.locations.map((l: { code: string; quantity: number }) => (
-                    <div key={l.code} className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {l.code}: {l.quantity} szt.
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => {
-                    remember(d.suggestion);
-                    toast.info(`Ustawiono lokalizację: ${d.suggestion}`);
-                  }}
-                  className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-200 px-2 py-0.5 text-amber-900 hover:bg-amber-300 touch-target"
-                >
-                  <MoveRight className="h-3 w-3" />
-                  Konsoliduj do {d.suggestion}
-                </button>
-              </div>
+      {/* Mode selection modal */}
+      {showModeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowModeModal(false)}>
+          <div className="w-64 rounded-xl bg-card p-4 shadow-xl space-y-2" onClick={e => e.stopPropagation()}>
+            <div className="text-sm font-bold mb-2">Tryb działania</div>
+            {MODES.map(m => (
+              <button key={m.key} onClick={() => { setMode(m.key); setShowModeModal(false); setBasket([]); setPendingLocation(null); setTransferSource(null); setTransferTarget(null); setResetLocation(null); }} className={`w-full flex items-center gap-3 rounded-lg p-3 text-left text-sm font-semibold transition-colors ${mode === m.key ? `${m.color} text-white` : "hover:bg-accent"}`}>
+                <m.icon className="h-5 w-5" />{m.label}
+              </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Last location + picker */}
-      {basket.length > 0 && !pendingLocation && (
-        <div className="flex gap-2">
-          {lastLocation && (
-            <button
-              onClick={handleLastLocation}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-blue-50 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 touch-target active:scale-95 transition-all"
-            >
-              <MapPin className="h-4 w-4" />
-              Przypisz do {lastLocation}
-            </button>
-          )}
-          <button
-            onClick={() => setShowPicker(true)}
-            className="flex items-center justify-center gap-1 rounded-lg border px-4 py-3 text-sm hover:bg-accent touch-target"
-          >
-            <ChevronDown className="h-4 w-4" />
+      {/* Content */}
+      <div className="flex-1 p-3 space-y-3">
+        {/* Last location quick button */}
+        {lastLocation && basket.length > 0 && !pendingLocation && mode === "assign" && (
+          <button onClick={handleLastLocation} className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-blue-50 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 touch-target active:scale-95 transition-all">
+            <MapPin className="h-4 w-4" />Przypisz do {lastLocation}
           </button>
-        </div>
-      )}
+        )}
 
-      {/* Location picker modal */}
-      {showPicker && (
-        <div
-          className="fixed inset-0 z-50 flex items-end bg-black/50"
-          onClick={() => setShowPicker(false)}
-        >
-          <div
-            className="w-full max-h-[80vh] overflow-y-auto rounded-t-xl bg-background p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <LocationPicker onSelect={handleLocationPick} />
+        {/* Transfer status */}
+        {mode === "transfer" && (
+          <div className="flex gap-2 text-xs">
+            <div className={`flex-1 rounded-lg border px-3 py-2 ${transferSource ? "border-green-300 bg-green-50" : "border-dashed"}`}><div className="text-muted-foreground">Źródło</div><div className="font-mono font-bold">{transferSource || "—"}</div></div>
+            <div className="flex items-center">→</div>
+            <div className={`flex-1 rounded-lg border px-3 py-2 ${transferTarget ? "border-blue-300 bg-blue-50" : "border-dashed"}`}><div className="text-muted-foreground">Cel</div><div className="font-mono font-bold">{transferTarget || "—"}</div></div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Scan input */}
-      <ScanInput
-        inputRef={inputRef}
-        inputValue={inputValue}
-        onInputChange={setInputValue}
-        onSubmit={handleScan}
-        placeholder={getPlaceholder()}
-        mode={mode}
-        totalQty={totalQty}
-      />
+        {/* Reset status */}
+        {mode === "reset" && resetLocation && <div className="rounded-lg border-2 border-red-200 bg-red-50 p-3 text-sm font-mono font-bold text-red-700 text-center">Reset do: {resetLocation}</div>}
 
-      {/* Existing location badge */}
-      {hasLocation && (
-        <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs">
-          <MapPin className="h-3.5 w-3.5 text-blue-600" />
-          <span className="text-blue-700">
-            <strong>{hasLocation.code}</strong> już w:{" "}
-            {hasLocation.locations.slice(0, 3).join(", ")}
-            {hasLocation.locations.length > 3 ? ` +${hasLocation.locations.length - 3}` : ""}
-          </span>
-          <button onClick={() => setHasLocation(null)} className="ml-auto">
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )}
-
-      {/* Basket */}
-      <BasketPanel
-        items={basket}
-        totalQty={totalQty}
-        onUpdateQty={updateQty}
-        onRemove={removeItem}
-        onClear={clearBasket}
-      />
-
-      {/* Stock verification */}
-      {stockInfo && basket.length === 0 && (
-        <div className="rounded-lg border bg-card p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold mb-2">
-            <BarChart3 className="h-4 w-4 text-primary" />
-            Weryfikacja stanu — {stockInfo.location}
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded bg-muted/50 p-2">
-              <div className="text-muted-foreground">Przypisane</div>
-              <div className="font-bold text-lg">{stockInfo.assigned}</div>
-            </div>
-            <div className="rounded bg-muted/50 p-2">
-              <div className="text-muted-foreground">W Subiekt GT</div>
-              <div className="font-bold text-lg">{stockInfo.inSubiekt}</div>
+        {/* Basket */}
+        {basket.length > 0 && (
+          <div className="rounded-lg border bg-card">
+            <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 text-sm font-semibold">Koszyk ({totalQty} szt.)</div>
+            <div className="divide-y max-h-48 overflow-y-auto">
+              {basket.map(item => (
+                <div key={item.code} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0"><span className="font-mono text-xs truncate">{item.code}</span>{item.name && <span className="text-xs text-muted-foreground ml-1.5 truncate">{item.name}</span>}</div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => updateQty(item.code, -1)} className="touch-target rounded border px-1.5 py-0.5 text-xs hover:bg-accent font-mono">−</button>
+                    <span className="w-5 text-center font-mono text-xs font-semibold">{item.qty}</span>
+                    <button onClick={() => updateQty(item.code, 1)} className="touch-target rounded border px-1.5 py-0.5 text-xs hover:bg-accent font-mono">+</button>
+                    <button onClick={() => removeItem(item.code)} className="touch-target rounded p-1 hover:bg-accent ml-1"><X className="h-3 w-3" /></button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div
-            className={`mt-2 text-xs font-medium ${stockInfo.assigned === stockInfo.inSubiekt ? "text-success" : "text-warning"}`}
-          >
-            {stockInfo.assigned === stockInfo.inSubiekt
-              ? "✅ Stan zgodny"
-              : `⚠️ Różnica: ${Math.abs(stockInfo.assigned - stockInfo.inSubiekt)} szt.`}
+        )}
+
+        {/* Confirmation: assign */}
+        {pendingLocation && mode === "assign" && (
+          <div className="rounded-lg border-2 border-success bg-success/5 p-4">
+            <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 text-success shrink-0" /><div className="flex-1"><div className="font-semibold text-sm">Potwierdź przypisanie</div><div className="mt-1 font-mono text-lg font-bold">{pendingLocation}</div><div className="text-xs text-muted-foreground mt-1">{totalQty} towarów</div><div className="mt-3 flex gap-2"><button onClick={handleSave} disabled={saving} className="touch-target inline-flex items-center gap-1.5 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground flex-1 justify-center"><CheckCircle2 className="h-4 w-4" />{saving ? "Zapisuję…" : "Zapisz"}</button><button onClick={() => { setPendingLocation(null); refocus(); }} className="touch-target rounded-md border px-4 py-2.5 text-sm"><X className="h-4 w-4" /></button></div></div></div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Reset confirmation */}
-      {resetMode && resetLocation && basket.length > 0 && (
-        <ConfirmCard
-          variant="reset"
-          location={resetLocation}
-          totalQty={totalQty}
-          loading={resetting}
-          onConfirm={handleReset}
-          onCancel={() => {
-            setResetLocation(null);
-            refocus();
-          }}
-        />
-      )}
+        {/* Confirmation: transfer */}
+        {mode === "transfer" && transferSource && transferTarget && basket.length > 0 && (
+          <div className="rounded-lg border-2 border-success bg-success/5 p-4"><div className="flex items-start gap-3"><ArrowRightLeft className="mt-0.5 h-5 w-5 text-success shrink-0" /><div className="flex-1"><div className="font-semibold text-sm">Potwierdź przeniesienie</div><div className="mt-1 font-mono text-sm">{transferSource} → <span className="font-bold">{transferTarget}</span></div><div className="text-xs text-muted-foreground mt-1">{totalQty} towarów</div><div className="mt-3 flex gap-2"><button onClick={handleTransfer} disabled={transferring} className="touch-target inline-flex items-center gap-1.5 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground flex-1 justify-center"><CheckCircle2 className="h-4 w-4" />{transferring ? "Przenoszę…" : "Wykonaj"}</button><button onClick={() => { setTransferSource(null); setTransferTarget(null); refocus(); }} className="touch-target rounded-md border px-4 py-2.5 text-sm"><X className="h-4 w-4" /></button></div></div></div>
+          </div>
+        )}
 
-      {/* Transfer confirmation */}
-      {transferMode && transferSource && transferTarget && basket.length > 0 && (
-        <ConfirmCard
-          variant="transfer"
-          location={transferTarget}
-          sourceLocation={transferSource}
-          totalQty={totalQty}
-          loading={transferring}
-          onConfirm={handleTransfer}
-          onCancel={() => {
-            setTransferSource(null);
-            setTransferTarget(null);
-            refocus();
-          }}
-        />
-      )}
+        {/* Confirmation: reset */}
+        {mode === "reset" && resetLocation && basket.length > 0 && (
+          <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4"><div className="flex items-start gap-3"><RotateCcw className="mt-0.5 h-5 w-5 text-red-600 shrink-0" /><div className="flex-1"><div className="font-semibold text-sm text-red-800">Potwierdź reset</div><div className="mt-1 font-mono text-lg font-bold">{resetLocation}</div><div className="text-xs text-muted-foreground mt-1">⚠️ Usuwa wszystkie inne lokalizacje dla {totalQty} towarów</div><div className="mt-3 flex gap-2"><button onClick={handleReset} disabled={resetting} className="touch-target inline-flex items-center gap-1.5 rounded-md bg-red-600 px-6 py-2.5 text-sm font-medium text-white flex-1 justify-center">{resetting ? "Resetuję…" : "Resetuj"}</button><button onClick={() => { setResetLocation(null); refocus(); }} className="touch-target rounded-md border px-4 py-2.5 text-sm"><X className="h-4 w-4" /></button></div></div></div>
+          </div>
+        )}
 
-      {/* Assign confirmation */}
-      {pendingLocation && (
-        <ConfirmCard
-          variant="assign"
-          location={pendingLocation}
-          totalQty={totalQty}
-          loading={saving}
-          onConfirm={handleSave}
-          onCancel={() => {
-            setPendingLocation(null);
-            refocus();
-          }}
-        />
-      )}
+        {/* Stock verification */}
+        {stockInfo && basket.length === 0 && (
+          <div className="rounded-lg border bg-card p-3"><div className="flex items-center gap-2 text-sm font-semibold mb-2"><BarChart3 className="h-4 w-4 text-primary" />Weryfikacja — {stockInfo.location}</div><div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded bg-muted/50 p-2"><div className="text-muted-foreground">Przypisane</div><div className="font-bold text-lg">{stockInfo.assigned}</div></div><div className="rounded bg-muted/50 p-2"><div className="text-muted-foreground">W Subiekt GT</div><div className="font-bold text-lg">{stockInfo.inSubiekt}</div></div></div><div className={`mt-2 text-xs font-medium ${stockInfo.assigned === stockInfo.inSubiekt ? "text-success" : "text-warning"}`}>{stockInfo.assigned === stockInfo.inSubiekt ? "✅ Stan zgodny" : `⚠️ Różnica: ${Math.abs(stockInfo.assigned - stockInfo.inSubiekt)} szt.`}</div></div>
+        )}
 
-      {/* History */}
-      <HistoryPanel entries={history} loading={undoing} onUndo={handleUndo} />
+        {/* History */}
+        {history.length > 0 && (
+          <div className="rounded-lg border bg-card p-3"><div className="flex items-center gap-2 mb-2 text-xs font-medium text-muted-foreground"><History className="h-3.5 w-3.5" />Ostatnie operacje</div><div className="divide-y">{history.map(e => (<div key={e.timestamp} className="flex items-center justify-between py-1.5 text-xs"><div className="min-w-0"><span className="font-mono font-semibold">{e.location}</span><span className="text-muted-foreground ml-2">{e.codes.length} kodów</span></div><button onClick={() => handleUndo(e)} disabled={undoing} className="touch-target inline-flex items-center gap-1 rounded border px-2 py-0.5 hover:bg-accent text-destructive"><RotateCcw className="h-3 w-3" />Cofnij</button></div>))}</div></div>
+        )}
 
-      {/* Empty state */}
-      {basket.length === 0 && !pendingLocation && (
-        <div className="text-center py-8 text-muted-foreground">
-          <Package className="mx-auto h-12 w-12 opacity-20 mb-2" />
-          <p className="text-sm">Zeskanuj EAN towaru aby dodać do koszyka</p>
-          <p className="text-xs mt-1">Następnie zeskanuj kod lokalizacji aby zapisać</p>
-        </div>
-      )}
+        {/* Empty */}
+        {basket.length === 0 && !pendingLocation && !stockInfo && (
+          <div className="text-center py-12 text-muted-foreground"><Package className="mx-auto h-12 w-12 opacity-20 mb-2" /><p className="text-sm">Zeskanuj EAN lub kod lokalizacji</p></div>
+        )}
+      </div>
     </div>
   );
 }
