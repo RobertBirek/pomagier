@@ -1,7 +1,18 @@
-# TASKS — PomagierGT v1.1.0
+# TASKS — PomagierGT v1.2.0
 
 | Data | Zadanie | Status |
 |---|---|---|
+| 2026-07-28 | ScanHeader: unified scan input component (sticky, flash, autocomplete, tools, camera) | ✅ |
+| 2026-07-28 | ScanHeader: inputmode="none" — no Android keyboard on scanner terminals | ✅ |
+| 2026-07-28 | ScanHeader: tools modal — repeat last, manual toggle, camera scanner, recent codes | ✅ |
+| 2026-07-28 | ScanHeader: haptic feedback + scanBus integration | ✅ |
+| 2026-07-28 | Refactor /mobile/scan → ScanHeader (279→154 lines) | ✅ |
+| 2026-07-28 | Refactor /mobile/locations → ScanHeader (229→273 lines) | ✅ |
+| 2026-07-28 | Refactor /mobile/inventory → ScanHeader (466→204 lines) | ✅ |
+| 2026-07-28 | Remove old ScanInput.tsx | ✅ |
+| 2026-07-28 | New: useRecentCodes.ts hook + haptic() utility | ✅ |
+| 2026-07-28 | Lint: 270→130 problems (auto-fix 122 prettier), fix any types in wizard | ✅ |
+| 2026-07-28 | Unified placeholder: "Zeskanuj kod" across all pages | ✅ |
 | 2026-07-27 | Security: SQL Injection fix (whitelist locationField) | ✅ |
 | 2026-07-27 | Security: Token removed from localStorage (httpOnly cookie only) | ✅ |
 | 2026-07-27 | Security: PIN brute-force lockout (5 attempts/5 min) | ✅ |

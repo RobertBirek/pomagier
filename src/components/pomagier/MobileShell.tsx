@@ -84,7 +84,7 @@ export function MobileShell() {
                 to={t.to}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-2.5 text-[12px] font-semibold transition-colors",
-                  (pathname === t.to || pathname.startsWith(t.to + "/"))
+                  pathname === t.to || pathname.startsWith(t.to + "/")
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground",
                 )}

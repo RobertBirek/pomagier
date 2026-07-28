@@ -1,5 +1,35 @@
 # CHANGELOG — PomagierGT
 
+## [1.2.0] — 2026-07-28 ScanHeader Unification
+
+### Features
+- New `ScanHeader` component — unified scan input used on all mobile pages (scan, locations, inventory)
+  - `inputmode="none"` prevents Android system keyboard on terminal scanners
+  - Flash animation (green/red) for scan feedback
+  - Autocomplete suggestions from `/api/products/quick-search` (debounce 300ms)
+  - Tools modal (wrench button): repeat last scan, toggle manual/keyboard mode, camera scanner, recent codes, page-specific tools
+  - Camera scanner integration via html5-qrcode (fullscreen overlay)
+  - Haptic feedback (`navigator.vibrate`) for scan confirmations
+  - ScanBus integration for programmatic scan triggers
+  - Recent codes persisted per user in localStorage (8h TTL)
+  - Focus guard — never steals focus from open modals
+  - Unified placeholder: "Zeskanuj kod" on all pages
+- New `useRecentCodes()` shared hook for scan history management
+- New `haptic()` utility in `lib/utils.ts` for vibration feedback
+
+### Refactors
+- `/mobile/scan`: 279→154 lines — removed inline input, flash, beep, recent codes logic
+- `/mobile/locations`: 229→273 lines — mode selector moved to tools modal, removed sticky header duplication
+- `/mobile/inventory`: 466→204 lines — ScanHeader in scan phase, setup and report phases unchanged
+- Removed old `ScanInput.tsx` component (replaced by `ScanHeader`)
+- All page `onSubmit` handlers now return `Promise<boolean>` — ScanHeader manages all feedback
+
+### Cleanup
+- Lint: 270→130 problems (auto-fixed 122 prettier errors)
+- `wizard.tsx`: 3× `useState<any>` → concrete types
+- `mobile.locations.tsx`: 3× `catch (e: any)` → `catch (e: unknown)`
+- `mobile.inventory.tsx`: 1× `catch (e: any)` → `catch (e: unknown)`
+
 ## [1.1.0] — 2026-07-27 Security Hardening & UX
 
 ### Security

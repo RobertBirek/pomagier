@@ -110,7 +110,11 @@ function Login() {
       {selected && (
         <div className="rounded-lg border bg-card p-3">
           <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            PIN dla: <b className="text-foreground">{[selected.firstName, selected.lastName].filter(Boolean).join(" ") || `ID ${selected.subiektId}`}</b>
+            PIN dla:{" "}
+            <b className="text-foreground">
+              {[selected.firstName, selected.lastName].filter(Boolean).join(" ") ||
+                `ID ${selected.subiektId}`}
+            </b>
           </div>
           <PinPad onSubmit={submit} />
         </div>

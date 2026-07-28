@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useScanFocus } from "@/hooks/use-scan-focus";
-import { useBasket } from "@/hooks/use-basket";
-import { parseLocation } from "@/lib/locations";
-import { beep, cn } from "@/lib/utils";
-import { addScanToQueue } from "@/lib/offline-queue";
-import { toast } from "sonner";
 import { useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
+import { ScanHeader } from "@/components/pomagier/ScanHeader";
+import { parseLocation } from "@/lib/locations";
+import { useBasket } from "@/hooks/use-basket";
+import { beep, cn } from "@/lib/utils";
 import {
   MapPin,
   Package,
@@ -30,19 +29,28 @@ interface ExpectedProduct {
   qty: number;
   subiektStock: number;
   locations: string[];
-  /** How many already scanned */
   scannedQty: number;
 }
 
 interface InventoryResult {
-  summary: { expected: number; scanned: number; matched: number; missing: number; extra: number; quantityDiff: number };
+  summary: {
+    expected: number;
+    scanned: number;
+    matched: number;
+    missing: number;
+    extra: number;
+    quantityDiff: number;
+  };
   matched: ExpectedProduct[];
   missing: ExpectedProduct[];
   extra: { code: string; qty: number; name?: string }[];
   quantityDiff: (ExpectedProduct & { scannedQty: number })[];
 }
 
-async function fetchExpected(loc: { area: string; aisle?: number; rack?: number; shelf?: number }, scope: string) {
+async function fetchExpected(
+  loc: { area: string; aisle?: number; rack?: number; shelf?: number },
+  scope: string,
+) {
   const params = new URLSearchParams({ scope, area: loc.area });
   if (loc.aisle != null) params.set("aisle", String(loc.aisle));
   if (loc.rack != null) params.set("rack", String(loc.rack));
@@ -51,7 +59,11 @@ async function fetchExpected(loc: { area: string; aisle?: number; rack?: number;
   return r.json() as Promise<{ products: ExpectedProduct[] }>;
 }
 
-async function submitReport(scope: string, loc: { area: string; aisle?: number; rack?: number; shelf?: number }, codes: string[]) {
+async function submitReport(
+  scope: string,
+  loc: { area: string; aisle?: number; rack?: number; shelf?: number },
+  codes: string[],
+) {
   const r = await fetch("/api/inventory/report", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -78,18 +90,16 @@ const SCOPES = [
 ] as const;
 
 function InventoryPage() {
-  const { inputRef, refocus } = useScanFocus();
-  const { basket, totalQty, flatCodes, addToBasket, removeItem, updateQty, clearBasket } = useBasket();
+  const { basket, totalQty, flatCodes, addToBasket, removeItem, updateQty, clearBasket } =
+    useBasket();
 
   const [step, setStep] = useState<"setup" | "scan" | "report">("setup");
   const [scope, setScope] = useState("exact");
   const [location, setLocation] = useState("");
   const [expected, setExpected] = useState<ExpectedProduct[]>([]);
   const [report, setReport] = useState<InventoryResult | null>(null);
-  const [inputFlash, setInputFlash] = useState<"ok" | "err" | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Build scan map: barcode → expected qty (for matching during scan)
   const expectedByBarcode = useMemo(() => {
     const map = new Map<string, ExpectedProduct>();
     for (const p of expected) {
@@ -99,7 +109,6 @@ function InventoryPage() {
     return map;
   }, [expected]);
 
-  // Compute scanned qty per product from basket
   const scannedMap = useMemo(() => {
     const map = new Map<number, number>();
     for (const code of flatCodes) {
@@ -109,22 +118,17 @@ function InventoryPage() {
     return map;
   }, [flatCodes, expectedByBarcode]);
 
-  // Products with scan progress
-  const productsWithProgress = useMemo(() => {
-    return expected.map((p) => ({
-      ...p,
-      scannedQty: scannedMap.get(p.id) || 0,
-      done: (scannedMap.get(p.id) || 0) >= p.qty,
-    }));
-  }, [expected, scannedMap]);
-
+  const productsWithProgress = useMemo(
+    () =>
+      expected.map((p) => ({
+        ...p,
+        scannedQty: scannedMap.get(p.id) || 0,
+        done: (scannedMap.get(p.id) || 0) >= p.qty,
+      })),
+    [expected, scannedMap],
+  );
   const matchedCount = productsWithProgress.filter((p) => p.done).length;
   const progress = expected.length > 0 ? Math.round((matchedCount / expected.length) * 100) : 0;
-
-  const flash = (kind: "ok" | "err") => {
-    setInputFlash(kind);
-    setTimeout(() => setInputFlash(null), 500);
-  };
 
   const startScan = async () => {
     if (!location.trim()) return;
@@ -146,39 +150,33 @@ function InventoryPage() {
       setStep("scan");
       beep(800, 100);
       clearBasket();
-      refocus();
     } catch {
       toast.error("Błąd pobierania danych");
     }
     setLoading(false);
   };
 
-  const [inputValue, setInputValue] = useState("");
-
-  const handleInputSubmit = useCallback(async () => {
-    const code = inputValue.trim();
-    if (!code || loading) return;
-    setInputValue("");
-    setLoading(true);
-
-    // Check if this code matches an expected product
-    const ep = expectedByBarcode.get(code);
-    if (ep) {
-      beep(800, 100);
-      setTimeout(() => beep(1000, 80), 120);
-      flash("ok");
-      await addToBasket(code);
-      toast.success(ep.name || ep.symbol, { duration: 800, description: `${(scannedMap.get(ep.id) || 0) + 1}/${ep.qty}` });
-    } else {
-      beep(200, 300);
-      flash("err");
-      // Still add — it's an extra product (might be found during report)
-      await addToBasket(code);
-      toast.warning("Nieoczekiwany produkt", { duration: 1200, description: code });
-    }
-    setLoading(false);
-    refocus();
-  }, [inputValue, loading, expectedByBarcode, addToBasket, scannedMap]);
+  // ── Submit handler for ScanHeader ──
+  const handleSubmit = useCallback(
+    async (code: string): Promise<boolean> => {
+      const ep = expectedByBarcode.get(code);
+      if (ep) {
+        beep(800, 100);
+        setTimeout(() => beep(1000, 80), 120);
+        await addToBasket(code);
+        toast.success(ep.name || ep.symbol, {
+          duration: 800,
+          description: `${(scannedMap.get(ep.id) || 0) + 1}/${ep.qty}`,
+        });
+        return true;
+      } else {
+        await addToBasket(code);
+        toast.warning("Nieoczekiwany produkt", { duration: 1200, description: code });
+        return false;
+      }
+    },
+    [expectedByBarcode, addToBasket, scannedMap],
+  );
 
   const finishScan = async () => {
     if (basket.length === 0) return;
@@ -190,9 +188,9 @@ function InventoryPage() {
       setStep("report");
       beep(1000, 80);
       setTimeout(() => beep(1200, 120), 120);
-    } catch (e: any) {
+    } catch (e: unknown) {
       beep(200, 400);
-      toast.error(e.message || "Błąd");
+      toast.error(e instanceof Error ? e.message : "Błąd");
     }
     setLoading(false);
   };
@@ -205,68 +203,19 @@ function InventoryPage() {
     setLocation("");
   };
 
-  const inputBorderClass = cn(
-    "w-full rounded-lg border-2 bg-background px-4 py-5 text-center text-lg font-mono shadow-inner outline-none transition-all duration-200",
-    inputFlash === "ok" && "border-green-500 bg-green-50 ring-2 ring-green-500/20",
-    inputFlash === "err" && "border-red-400 bg-red-50 ring-2 ring-red-400/20",
-    !inputFlash && "border-primary/40 focus:border-primary focus:ring-primary/20",
-  );
+  // ── Scan phase with ScanHeader ──
+  if (step === "scan") {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <ScanHeader
+          pageTitle="Inwentaryzacja"
+          pageSubtitle={`${matchedCount}/${expected.length}`}
+          onSubmit={handleSubmit}
+          hint={`🟢 Zeskanowano ${totalQty} szt. — Enter aby dodać`}
+        />
 
-  return (
-    <div className="mx-auto max-w-md p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold">Inwentaryzacja</h1>
-        {step !== "setup" && (
-          <button onClick={resetAll} className="touch-target inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs hover:bg-accent">
-            <ArrowLeft className="h-3.5 w-3.5" /> Nowa
-          </button>
-        )}
-      </div>
-
-      {/* === SETUP === */}
-      {step === "setup" && (
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">Wybierz zakres inwentaryzacji:</p>
-          <div className="space-y-2">
-            {SCOPES.map((s) => (
-              <label
-                key={s.key}
-                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer touch-target ${scope === s.key ? "border-primary bg-primary/5" : "hover:bg-muted/30"}`}
-              >
-                <input type="radio" name="scope" checked={scope === s.key} onChange={() => setScope(s.key)} className="mt-0.5" />
-                <div>
-                  <div className="text-sm font-semibold">{s.label}</div>
-                  <div className="text-xs text-muted-foreground">{s.desc}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-          <div>
-            <label className="text-xs font-medium">Lokalizacja bazowa</label>
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") startScan(); }}
-              placeholder="np. A 1-2-3-1"
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-4 text-center text-lg font-mono shadow-inner outline-none focus:border-primary"
-            />
-          </div>
-          <button
-            onClick={startScan}
-            disabled={!location.trim() || loading}
-            className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground disabled:opacity-50 touch-target"
-          >
-            {loading ? "⏳ Ładowanie…" : "Rozpocznij inwentaryzację"}
-          </button>
-        </div>
-      )}
-
-      {/* === SCAN === */}
-      {step === "scan" && (
-        <div className="space-y-4">
-          {/* Progress */}
+        <div className="flex-1 p-4 space-y-4">
+          {/* Progress bar */}
           <div className="rounded-lg border bg-card p-3">
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="font-semibold flex items-center gap-1.5">
@@ -283,24 +232,7 @@ function InventoryPage() {
             </div>
           </div>
 
-          {/* Scan input */}
-          <div className="relative">
-            <input
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleInputSubmit(); }}
-              placeholder="Skanuj EAN towaru…"
-              autoComplete="off"
-              disabled={loading}
-              className={inputBorderClass}
-            />
-            <p className="mt-1 text-center text-xs text-muted-foreground">
-              {loading ? "⏳ Szukam…" : `🟢 Zeskanowano ${totalQty} szt. — Enter aby dodać`}
-            </p>
-          </div>
-
-          {/* Products list with scan progress */}
+          {/* Products list */}
           <div className="rounded-lg border bg-card divide-y max-h-64 overflow-y-auto">
             {productsWithProgress.map((p) => (
               <div
@@ -310,10 +242,12 @@ function InventoryPage() {
                   p.done && "bg-green-50",
                 )}
               >
-                <div className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors",
-                  p.done ? "bg-green-500 border-green-500" : "border-muted-foreground/30",
-                )}>
+                <div
+                  className={cn(
+                    "w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors",
+                    p.done ? "bg-green-500 border-green-500" : "border-muted-foreground/30",
+                  )}
+                >
                   {p.done && <CheckCircle2 className="h-3 w-3 text-white" />}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -328,7 +262,9 @@ function InventoryPage() {
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <div className={cn("font-bold", p.done ? "text-green-700" : "text-muted-foreground")}>
+                  <div
+                    className={cn("font-bold", p.done ? "text-green-700" : "text-muted-foreground")}
+                  >
                     {p.scannedQty}/{p.qty}
                   </div>
                   {p.subiektStock > 0 && (
@@ -337,17 +273,17 @@ function InventoryPage() {
                 </div>
               </div>
             ))}
-            {expected.length === 0 && (
-              <div className="p-4 text-center text-xs text-muted-foreground">Brak produktów</div>
-            )}
           </div>
 
-          {/* Basket summary */}
+          {/* Basket */}
           {basket.length > 0 && (
             <div className="rounded-lg border bg-card p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold">Koszyk ({totalQty} szt.)</span>
-                <button onClick={clearBasket} className="touch-target text-xs text-destructive hover:underline inline-flex items-center gap-1">
+                <button
+                  onClick={clearBasket}
+                  className="touch-target text-xs text-destructive hover:underline inline-flex items-center gap-1"
+                >
                   <Trash2 className="h-3 w-3" /> Wyczyść
                 </button>
               </div>
@@ -360,10 +296,22 @@ function InventoryPage() {
                       {b.name && <span className="text-muted-foreground truncate">{b.name}</span>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => updateQty(b.code, -1)} className="rounded border px-1 text-xs hover:bg-accent font-mono">−</button>
+                      <button
+                        onClick={() => updateQty(b.code, -1)}
+                        className="rounded border px-1 text-xs hover:bg-accent font-mono"
+                      >
+                        −
+                      </button>
                       <span className="w-4 text-center font-mono font-semibold">{b.qty}</span>
-                      <button onClick={() => updateQty(b.code, 1)} className="rounded border px-1 text-xs hover:bg-accent font-mono">+</button>
-                      <button onClick={() => removeItem(b.code)} className="text-destructive ml-1"><X className="h-3 w-3" /></button>
+                      <button
+                        onClick={() => updateQty(b.code, 1)}
+                        className="rounded border px-1 text-xs hover:bg-accent font-mono"
+                      >
+                        +
+                      </button>
+                      <button onClick={() => removeItem(b.code)} className="text-destructive ml-1">
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -371,7 +319,7 @@ function InventoryPage() {
             </div>
           )}
 
-          {/* Finish button */}
+          {/* Finish */}
           <button
             onClick={finishScan}
             disabled={basket.length === 0 || loading}
@@ -380,87 +328,153 @@ function InventoryPage() {
             <CheckCircle2 className="h-4 w-4" />
             {loading ? "Przetwarzanie…" : `Zakończ inwentaryzację (${totalQty} szt.)`}
           </button>
-        </div>
-      )}
 
-      {/* === REPORT === */}
-      {step === "report" && report && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Raport
-          </h2>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-green-50 p-3 text-center">
-              <div className="text-2xl font-bold text-green-700">{report.summary.matched}</div>
-              <div className="text-xs text-green-600">Zgodne</div>
-            </div>
-            <div className="rounded-lg bg-red-50 p-3 text-center">
-              <div className="text-2xl font-bold text-red-700">{report.summary.missing}</div>
-              <div className="text-xs text-red-600">Brak</div>
-            </div>
-            <div className="rounded-lg bg-orange-50 p-3 text-center">
-              <div className="text-2xl font-bold text-orange-700">{report.summary.extra}</div>
-              <div className="text-xs text-orange-600">Nadwyżka</div>
-            </div>
-            <div className="rounded-lg bg-amber-50 p-3 text-center">
-              <div className="text-2xl font-bold text-amber-700">{report.summary.quantityDiff}</div>
-              <div className="text-xs text-amber-600">Ilość różna</div>
-            </div>
-          </div>
-
-          {report.missing.length > 0 && (
-            <div>
-              <SectionTitle title={`Brakujące (${report.missing.length})`} />
-              {report.missing.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 text-xs py-1 border-b">
-                  <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
-                  <span className="font-mono">{p.symbol}</span>
-                  <span className="text-muted-foreground truncate">{p.name}</span>
-                  <span className="ml-auto">×{p.qty}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {report.extra.length > 0 && (
-            <div>
-              <SectionTitle title={`Nadwyżki (${report.extra.length})`} />
-              {report.extra.map((e, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs py-1 border-b">
-                  <TrendingUp className="h-3 w-3 text-orange-500 shrink-0" />
-                  <span className="font-mono">{e.code}</span>
-                  {e.name && <span className="text-muted-foreground">{e.name}</span>}
-                  <span className="ml-auto">×{e.qty}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {report.quantityDiff.length > 0 && (
-            <div>
-              <SectionTitle title={`Różnice ilości (${report.quantityDiff.length})`} />
-              {report.quantityDiff.map((d) => (
-                <div key={d.id} className="flex items-center gap-2 text-xs py-1 border-b">
-                  <TrendingDown className="h-3 w-3 text-amber-500 shrink-0" />
-                  <span className="font-mono">{d.symbol}</span>
-                  <span className="text-muted-foreground">
-                    oczek. {d.qty}, jest {d.scannedQty}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
+          {/* Back */}
           <button
             onClick={resetAll}
-            className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground touch-target"
+            className="w-full touch-target text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1"
           >
-            Nowa inwentaryzacja
+            <ArrowLeft className="h-3.5 w-3.5" /> Nowa inwentaryzacja
           </button>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  // ── Setup phase ──
+  if (step === "setup") {
+    return (
+      <div className="mx-auto max-w-md p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold">Inwentaryzacja</h1>
+        </div>
+        <p className="text-xs text-muted-foreground">Wybierz zakres inwentaryzacji:</p>
+        <div className="space-y-2">
+          {SCOPES.map((s) => (
+            <label
+              key={s.key}
+              className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer touch-target ${scope === s.key ? "border-primary bg-primary/5" : "hover:bg-muted/30"}`}
+            >
+              <input
+                type="radio"
+                name="scope"
+                checked={scope === s.key}
+                onChange={() => setScope(s.key)}
+                className="mt-0.5"
+              />
+              <div>
+                <div className="text-sm font-semibold">{s.label}</div>
+                <div className="text-xs text-muted-foreground">{s.desc}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+        <div>
+          <label className="text-xs font-medium">Lokalizacja bazowa</label>
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") startScan();
+            }}
+            placeholder="np. A 1-2-3-1"
+            autoComplete="off"
+            className="mt-1 w-full rounded-lg border-2 border-primary/40 bg-background px-4 py-4 text-center text-lg font-mono shadow-inner outline-none focus:border-primary"
+          />
+        </div>
+        <button
+          onClick={startScan}
+          disabled={!location.trim() || loading}
+          className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground disabled:opacity-50 touch-target"
+        >
+          {loading ? "⏳ Ładowanie…" : "Rozpocznij inwentaryzację"}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Report phase ──
+  if (step === "report" && report) {
+    return (
+      <div className="mx-auto max-w-md p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" /> Raport
+          </h2>
+          <button
+            onClick={resetAll}
+            className="touch-target inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Nowa
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg bg-green-50 p-3 text-center">
+            <div className="text-2xl font-bold text-green-700">{report.summary.matched}</div>
+            <div className="text-xs text-green-600">Zgodne</div>
+          </div>
+          <div className="rounded-lg bg-red-50 p-3 text-center">
+            <div className="text-2xl font-bold text-red-700">{report.summary.missing}</div>
+            <div className="text-xs text-red-600">Brak</div>
+          </div>
+          <div className="rounded-lg bg-orange-50 p-3 text-center">
+            <div className="text-2xl font-bold text-orange-700">{report.summary.extra}</div>
+            <div className="text-xs text-orange-600">Nadwyżka</div>
+          </div>
+          <div className="rounded-lg bg-amber-50 p-3 text-center">
+            <div className="text-2xl font-bold text-amber-700">{report.summary.quantityDiff}</div>
+            <div className="text-xs text-amber-600">Ilość różna</div>
+          </div>
+        </div>
+        {report.missing.length > 0 && (
+          <div>
+            <SectionTitle title={`Brakujące (${report.missing.length})`} />
+            {report.missing.map((p) => (
+              <div key={p.id} className="flex items-center gap-2 text-xs py-1 border-b">
+                <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                <span className="font-mono">{p.symbol}</span>
+                <span className="text-muted-foreground truncate">{p.name}</span>
+                <span className="ml-auto">×{p.qty}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {report.extra.length > 0 && (
+          <div>
+            <SectionTitle title={`Nadwyżki (${report.extra.length})`} />
+            {report.extra.map((e, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs py-1 border-b">
+                <TrendingUp className="h-3 w-3 text-orange-500 shrink-0" />
+                <span className="font-mono">{e.code}</span>
+                {e.name && <span className="text-muted-foreground">{e.name}</span>}
+                <span className="ml-auto">×{e.qty}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {report.quantityDiff.length > 0 && (
+          <div>
+            <SectionTitle title={`Różnice ilości (${report.quantityDiff.length})`} />
+            {report.quantityDiff.map((d) => (
+              <div key={d.id} className="flex items-center gap-2 text-xs py-1 border-b">
+                <TrendingDown className="h-3 w-3 text-amber-500 shrink-0" />
+                <span className="font-mono">{d.symbol}</span>
+                <span className="text-muted-foreground">
+                  oczek. {d.qty}, jest {d.scannedQty}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={resetAll}
+          className="w-full rounded-md bg-primary py-3 text-sm font-medium text-primary-foreground touch-target"
+        >
+          Nowa inwentaryzacja
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }

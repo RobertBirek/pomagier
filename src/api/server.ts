@@ -52,7 +52,11 @@ app.use(
     origin:
       process.env.NODE_ENV === "production"
         ? ["https://pomagier.ilovelighting.hmcloud.pl", "https://localhost"]
-        : ["https://pomagier.ilovelighting.hmcloud.pl", "https://localhost", "http://localhost:5173"],
+        : [
+            "https://pomagier.ilovelighting.hmcloud.pl",
+            "https://localhost",
+            "http://localhost:5173",
+          ],
     credentials: true,
   }),
 );
@@ -1174,13 +1178,15 @@ app.get("/api/terminals", requireAdmin, async (_req, res) => {
     const terminals = rows.filter((s) => new Date(s.expiresAt) > now);
 
     // Fetch user names from Subiekt
-    let userNameMap = new Map<string, string>();
+    const userNameMap = new Map<string, string>();
     if (pool) {
       const userIds = [...new Set(terminals.map((t) => t.userId))];
       const userRows = await db
         .select()
         .from(schema.users)
-        .where(sql`${schema.users.id} IN (${userIds.map(() => sql`?`).reduce((arr, p) => [...arr, p], [] as any)})`);
+        .where(
+          sql`${schema.users.id} IN (${userIds.map(() => sql`?`).reduce((arr, p) => [...arr, p], [] as any)})`,
+        );
       const subiektIds = userRows.map((u) => u.subiektUzId);
 
       if (subiektIds.length > 0) {

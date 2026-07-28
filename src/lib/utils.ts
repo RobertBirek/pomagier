@@ -24,6 +24,15 @@ export function beep(freq: number, duration = 120) {
   }
 }
 
+/** Short haptic feedback via vibration (Android terminals). No permissions needed. */
+export function haptic(duration = 50) {
+  try {
+    navigator.vibrate?.(duration);
+  } catch {
+    /* vibration API may not be available */
+  }
+}
+
 /** Get initials from full name. "Jan Kowalski" → "JK", "Anna" → "AN" */
 export function getInitials(name: string): string {
   const parts = name.split(" ").filter(Boolean);

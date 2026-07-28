@@ -29,7 +29,11 @@ function WizardPage() {
     user: "",
     password: "",
   });
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    latencyMs?: number;
+    error?: string;
+  } | null>(null);
   const [testing, setTesting] = useState(false);
   const [mappingField, setMappingField] = useState("tw_Pole1");
   const [clearTables, setClearTables] = useState<string[]>([
@@ -38,7 +42,14 @@ function WizardPage() {
     "product_movements",
   ]);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
+  const [importResult, setImportResult] = useState<{
+    ok: boolean;
+    error?: string;
+    results: Record<
+      string,
+      { imported?: number; skipped?: number; inserted?: number; seeded?: number }
+    >;
+  } | null>(null);
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
@@ -70,8 +81,8 @@ function WizardPage() {
       setTestResult(d);
       if (d.ok) toast.success(`Połączono (${d.latencyMs}ms)`);
       else toast.error(d.error);
-    } catch (e: any) {
-      setTestResult({ ok: false, error: e.message });
+    } catch (e: unknown) {
+      setTestResult({ ok: false, error: e instanceof Error ? e.message : "Unknown error" });
     } finally {
       setTesting(false);
     }

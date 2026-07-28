@@ -35,10 +35,7 @@ function saveBasket(items: BasketItem[], userId: string) {
     if (items.length === 0) {
       localStorage.removeItem(BASKET_KEY);
     } else {
-      localStorage.setItem(
-        BASKET_KEY,
-        JSON.stringify({ items, userId, savedAt: Date.now() }),
-      );
+      localStorage.setItem(BASKET_KEY, JSON.stringify({ items, userId, savedAt: Date.now() }));
     }
   } catch {
     /* storage full or unavailable */
@@ -66,9 +63,7 @@ export function useBasket() {
   const { user } = useAuth();
   const currentUserId = user?.id || "";
 
-  const [basket, setBasket] = useState<BasketItem[]>(() =>
-    loadBasket(currentUserId),
-  );
+  const [basket, setBasket] = useState<BasketItem[]>(() => loadBasket(currentUserId));
 
   // Auto-save on every change
   useEffect(() => {
@@ -85,17 +80,13 @@ export function useBasket() {
     setBasket((prev) => {
       const idx = prev.findIndex((b) => b.code === trimmed);
       if (idx >= 0) {
-        return prev.map((item, i) =>
-          i === idx ? { ...item, qty: item.qty + 1 } : item,
-        );
+        return prev.map((item, i) => (i === idx ? { ...item, qty: item.qty + 1 } : item));
       }
       lookupProduct(trimmed).then((product) => {
         if (product?.name) {
           setBasket((b) =>
             b.map((item) =>
-              item.code === trimmed && !item.name
-                ? { ...item, name: product.name }
-                : item,
+              item.code === trimmed && !item.name ? { ...item, name: product.name } : item,
             ),
           );
         }
