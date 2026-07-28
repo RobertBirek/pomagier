@@ -111,14 +111,14 @@ function LocationsPage() {
       {/* Sticky header with input + mode button */}
       <div className="sticky top-0 z-30 bg-card border-b safe-top px-3 py-2 space-y-2">
         <div className="flex items-center gap-2">
-          {/* Mode button */}
-          <button onClick={() => setShowModeModal(true)} className={`shrink-0 grid place-items-center rounded-lg w-12 h-12 ${currentMode.color} text-white shadow active:scale-95 transition-transform`}>
-            <currentMode.icon className="h-6 w-6" />
-          </button>
           {/* Scan input */}
           <input ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }} placeholder="Skanuj EAN lub lokalizację..." autoComplete="off" className="flex-1 rounded-lg border-2 border-primary/40 bg-background px-4 py-3 text-base font-mono font-bold shadow-inner outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors" />
           {/* Basket badge */}
           {totalQty > 0 && <span className="shrink-0 grid place-items-center rounded-full bg-primary w-7 h-7 text-xs font-bold text-primary-foreground">{totalQty}</span>}
+          {/* Mode button */}
+          <button onClick={() => setShowModeModal(true)} className={`shrink-0 grid place-items-center rounded-lg w-12 h-12 ${currentMode.color} text-white shadow active:scale-95 transition-transform`}>
+            <currentMode.icon className="h-6 w-6" />
+          </button>
         </div>
         {/* Mode status */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
