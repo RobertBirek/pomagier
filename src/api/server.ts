@@ -18,6 +18,10 @@ import { registerHealthRoutes } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerStatsRoutes } from "./routes/stats.js";
+import { registerScanRoutes } from "./routes/scan.js";
+import { registerProductsRoutes } from "./routes/products.js";
+import { registerErpConfigRoutes } from "./routes/erp-config.js";
+import { registerFieldMappingsRoutes } from "./routes/field-mappings.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {
@@ -80,282 +84,11 @@ app.use("/api/locations", globalLimiter);
 app.get("/api/health", rateLimit({ windowMs: 60000, max: 300 }));
 app.use("/api", globalLimiter);
 
-// --- Skanowanie ---
-app.post("/api/scan", async (req, res) => {
-  const { code } = req.body ?? {};
+// --- ERP Config + Test Connection routes ---
+registerErpConfigRoutes(app);
 
-  if (!code || typeof code !== "string" || code.length > 50) {
-    res
-      .status(422)
-      .json({ error: "Invalid code", found: false, barcode: code ?? "", products: [] });
-    return;
-  }
-
-  try {
-    const adapter = getAdapter();
-    const result = await adapter.scan(code.trim());
-    logger.info({ code, found: result.found }, "Scan completed");
-    res.json(result);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "ERP error";
-    logger.error({ err, code }, "Scan failed");
-    res.status(502).json({ error: message, found: false, barcode: code, products: [] });
-  }
-});
-
-// --- Test MSSQL connection with given params ---
-app.post("/api/test-connection", requireAdmin, async (req, res) => {
-  const { host, port, database, user, password } = req.body ?? {};
-  if (!host || !database || !user || !password) {
-    res
-      .status(400)
-      .json({ ok: false, error: "Brak wymaganych parametrów (host, database, user, password)" });
-    return;
-  }
-  try {
-    const { MssqlErpAdapter } = await import("../erp/mssql.adapter.js");
-    const testAdapter = new MssqlErpAdapter();
-    await testAdapter.reconnect({ host, port: parseInt(port) || 1433, database, user, password });
-    const health = await testAdapter.healthCheck();
-    res.json(health);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    res.json({ ok: false, error: message });
-  }
-});
-
-// --- Get ERP config (from Postgres, fallback to env) ---
-app.get("/api/erp-config", async (_req, res) => {
-  try {
-    const db = getDb();
-    const rows = await db.select().from(schema.config);
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-    res.json({
-      host: map.mssql_host || process.env.MSSQL_HOST || "",
-      port: parseInt(map.mssql_port) || parseInt(process.env.MSSQL_PORT || "1433"),
-      database: map.mssql_database || process.env.MSSQL_DATABASE || "",
-      user: map.mssql_user || process.env.MSSQL_USER || "",
-      password: "••••••••",
-    });
-  } catch {
-    res.json({
-      host: process.env.MSSQL_HOST || "",
-      port: parseInt(process.env.MSSQL_PORT || "1433"),
-      database: process.env.MSSQL_DATABASE || "",
-      user: process.env.MSSQL_USER || "",
-      password: "••••••••",
-    });
-  }
-});
-
-// --- Save ERP config ---
-app.post("/api/erp-config", async (req, res) => {
-  const { host, port, database, user, password } = req.body ?? {};
-  if (!host || !database || !user) {
-    res.status(400).json({ error: "Brak wymaganych parametrów" });
-    return;
-  }
-  try {
-    const db = getDb();
-    const entries = [
-      { key: "mssql_host", value: host },
-      { key: "mssql_port", value: String(port || 1433) },
-      { key: "mssql_database", value: database },
-      { key: "mssql_user", value: user },
-    ];
-    if (password && password !== "••••••••") {
-      entries.push({ key: "mssql_password", value: password });
-    }
-    for (const e of entries) {
-      await db
-        .insert(schema.config)
-        .values({ key: e.key, value: e.value })
-        .onConflictDoUpdate({ target: schema.config.key, set: { value: e.value } });
-    }
-
-    // Reconnect adapter with new config
-    const adapter = getAdapter();
-    const storedPwd =
-      password && password !== "••••••••"
-        ? password
-        : (await db.select().from(schema.config).where(eq(schema.config.key, "mssql_password")))[0]
-            ?.value ||
-          process.env.MSSQL_PASSWORD ||
-          "";
-    await adapter.reconnect?.({
-      host,
-      port: parseInt(String(port)) || 1433,
-      database,
-      user,
-      password: storedPwd,
-    });
-
-    logger.info("ERP config saved and reconnected");
-    res.json({ ok: true });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    logger.error({ err }, "Failed to save ERP config");
-    res.status(500).json({ error: message });
-  }
-});
-
-// --- Lista towarów (paginacja, wyszukiwanie, filtrowanie) ---
-app.get("/api/products", async (req, res) => {
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.json({ rows: [], total: 0, page: 1, pageSize: 50 });
-
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const pageSize = Math.min(200, Math.max(5, parseInt(req.query.pageSize as string) || 50));
-    const search = ((req.query.search as string) || "").trim();
-    const warehouseId = parseInt(req.query.warehouseId as string) || 0;
-    const offset = (page - 1) * pageSize;
-
-    let whereClause = "WHERE 1=1";
-    const params: { name: string; value: any }[] = [];
-
-    if (search) {
-      whereClause +=
-        " AND (t.tw_Symbol LIKE @search OR t.tw_Nazwa LIKE @search OR t.tw_PodstKodKresk LIKE @search)";
-      params.push({ name: "search", value: `%${search}%` });
-    }
-
-    const countQuery = `SELECT COUNT(*) AS total FROM tw__Towar t ${whereClause}`;
-    const dataQuery = `
-      SELECT
-        t.tw_Id AS id, t.tw_Symbol AS symbol, t.tw_Nazwa AS name,
-        t.tw_PodstKodKresk AS barcode, t.tw_JednMiary AS unit,
-        t.tw_Opis AS description,
-        ISNULL((SELECT SUM(st_Stan) FROM tw_Stan WHERE st_TowId = t.tw_Id), 0) AS stock,
-        ISNULL((SELECT SUM(st_StanRez) FROM tw_Stan WHERE st_TowId = t.tw_Id), 0) AS reserved
-      FROM tw__Towar t
-      ${whereClause}
-      ORDER BY t.tw_Symbol
-      OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
-    `;
-
-    const countReq = pool.request();
-    for (const p of params) {
-      countReq.input(p.name, p.value);
-    }
-    const countResult = await countReq.query(countQuery);
-    const total = (countResult.recordset[0] as any).total;
-
-    const dataReq = pool.request();
-    for (const p of params) {
-      dataReq.input(p.name, p.value);
-    }
-    dataReq.input("offset", offset);
-    dataReq.input("pageSize", pageSize);
-    if (warehouseId) dataReq.input("wh", warehouseId);
-
-    const dataResult = await dataReq.query(dataQuery);
-    let rows: any[] = [...dataResult.recordset];
-    try {
-      const db = getDb();
-      const productIds = rows.map((r: any) => r.id);
-      if (productIds.length > 0) {
-        const plRows = await db
-          .select({ productId: schema.productLocations.productId, code: schema.locations.code })
-          .from(schema.productLocations)
-          .leftJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
-        //.where(inArray(schema.productLocations.productId, productIds));
-
-        const locMap = new Map<number, string[]>();
-        for (const pl of plRows) {
-          if (pl.productId && pl.code) {
-            const list = locMap.get(pl.productId) || [];
-            list.push(pl.code);
-            locMap.set(pl.productId, list);
-          }
-        }
-        rows = rows.map((r: any) => ({
-          ...r,
-          locations: locMap.get(r.id) || [],
-        }));
-      }
-    } catch {
-      // Postgres might be down
-      rows = rows.map((r: any) => ({ ...r, locations: [] }));
-    }
-
-    res.json({
-      rows,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    });
-  } catch (err) {
-    logger.error({ err }, "Products query failed");
-    res.json({ rows: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
-  }
-});
-
-// --- Mapowanie pól Pomagier ↔ Subiekt GT ---
-app.get("/api/field-mappings", async (_req, res) => {
-  try {
-    const db = getDb();
-    const rows = await db
-      .select()
-      .from(schema.config)
-      .where(sql`${schema.config.key} LIKE 'fieldmap_%'`);
-    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.js");
-
-    const map = new Map(rows.map((r) => [r.key.replace("fieldmap_", ""), r.value]));
-    const result = DEFAULT_MAPPINGS.map((dm) => ({
-      ...dm,
-      subiektField: map.get(dm.key) || dm.subiektField,
-    }));
-    res.json(result);
-  } catch {
-    const { DEFAULT_MAPPINGS } = await import("../lib/field-mappings.js");
-    res.json(DEFAULT_MAPPINGS);
-  }
-});
-
-app.put("/api/field-mappings", requireAdmin, async (req, res) => {
-  const mappings = req.body as { key: string; subiektField: string }[];
-  if (!Array.isArray(mappings)) {
-    res.status(400).json({ error: "Oczekiwano tablicy" });
-    return;
-  }
-  try {
-    const db = getDb();
-    for (const m of mappings) {
-      await db
-        .insert(schema.config)
-        .values({ key: `fieldmap_${m.key}`, value: m.subiektField })
-        .onConflictDoUpdate({ target: schema.config.key, set: { value: m.subiektField } });
-    }
-    logger.info({ count: mappings.length }, "Field mappings saved");
-    res.json({ ok: true });
-  } catch (err) {
-    logger.error({ err }, "Failed to save field mappings");
-    res.status(500).json({ error: "Błąd zapisu" });
-  }
-});
-
-// --- Losowy kod towaru z Subiekta ---
-app.get("/api/products/random", async (_req, res) => {
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.json({ code: "5901234567890", name: "Demo" });
-
-    const result = await pool.request().query(`
-      SELECT TOP 1 tw_Symbol AS code, tw_Nazwa AS name
-      FROM tw__Towar
-      WHERE tw_PodstKodKresk IS NOT NULL AND tw_PodstKodKresk != ''
-      ORDER BY NEWID()
-    `);
-    const row = result.recordset[0];
-    res.json(row ? { code: row.code, name: row.name } : { code: "5901234567890", name: "Demo" });
-  } catch {
-    res.json({ code: "5901234567890", name: "Demo" });
-  }
-});
+// --- Field Mappings routes ---
+registerFieldMappingsRoutes(app);
 
 // --- Pobierz root CA do instalacji na urządzeniach ---
 app.get("/api/ca", async (_req, res) => {
@@ -373,31 +106,6 @@ app.get("/api/ca", async (_req, res) => {
     res.send(cert);
   } catch {
     res.status(404).json({ error: "CA cert not found" });
-  }
-});
-
-// --- Szybkie wyszukiwanie towarów (do auto-complete) ---
-app.get("/api/products/quick-search", async (req, res) => {
-  const q = ((req.query.q as string) || "").trim();
-  if (!q || q.length < 2) {
-    res.json([]);
-    return;
-  }
-
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.json([]);
-
-    const result = await pool.request().input("q", `%${q}%`).query(`
-      SELECT TOP 8 tw_Symbol AS code, tw_Nazwa AS name, tw_PodstKodKresk AS barcode
-      FROM tw__Towar
-      WHERE tw_Symbol LIKE @q OR tw_Nazwa LIKE @q OR tw_PodstKodKresk LIKE @q
-      ORDER BY CASE WHEN tw_Symbol LIKE @q+'%' THEN 0 ELSE 1 END, tw_Symbol
-    `);
-    res.json(result.recordset);
-  } catch {
-    res.json([]);
   }
 });
 
@@ -675,6 +383,12 @@ registerUsersRoutes(app);
 // --- Stats routes ---
 registerStatsRoutes(app);
 
+// --- Scan route ---
+registerScanRoutes(app);
+
+// --- Products routes ---
+registerProductsRoutes(app);
+
 // --- Location routes ---
 registerLocationsRoutes(app);
 
@@ -695,110 +409,6 @@ try {
 } catch (err) {
   logger.warn({ err }, "Migration skipped");
 }
-
-// --- Pełne dane produktu ---
-app.get("/api/products/:id", async (req, res) => {
-  const productId = parseInt(req.params.id as string);
-  if (!productId) {
-    res.status(400).json({ error: "Brak ID" });
-    return;
-  }
-  try {
-    const db = getDb();
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
-
-    const result = await pool.request().input("id", productId).query(`
-      SELECT tw_Id, tw_Symbol, tw_Nazwa, tw_Opis, tw_PodstKodKresk, tw_JednMiary,
-             tw_PKWiU, tw_KodTowaru, tw_StanMin, tw_JednStanMin, tw_StanMaks, tw_DniWaznosc,
-             tw_Masa, tw_MasaNetto, tw_CenaOtwarta, tw_ObjetySysKaucyjnym, tw_Zablokowany,
-             tw_Pole1, tw_Pole2, tw_Pole3, tw_IdGrupa, tw_IdVatSp, tw_UrzNazwa
-      FROM tw__Towar WHERE tw_Id = @id
-    `);
-    if (!result.recordset[0]) {
-      res.status(404).json({ error: "Nie znaleziono" });
-      return;
-    }
-    const row = result.recordset[0] as any;
-
-    // Stock per warehouse
-    const stockRows = await pool.request().input("id", productId).query(`
-      SELECT s.st_MagId, m.mag_Symbol, m.mag_Nazwa, s.st_Stan, s.st_StanRez, s.st_StanMin, s.st_StanMax
-      FROM tw_Stan s JOIN sl_Magazyn m ON m.mag_Id = s.st_MagId WHERE s.st_TowId = @id
-    `);
-
-    // Locations from Postgres
-    const plRows = await db
-      .select({
-        code: schema.locations.code,
-        area: schema.locations.area,
-        aisle: schema.locations.aisle,
-        rack: schema.locations.rack,
-        shelf: schema.locations.shelf,
-      })
-      .from(schema.productLocations)
-      .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
-      .where(eq(schema.productLocations.productId, productId));
-
-    // Movement history
-    const movements = await db
-      .select()
-      .from(schema.productMovements)
-      .where(eq(schema.productMovements.productId, productId))
-      .orderBy(sql`${schema.productMovements.createdAt} DESC`)
-      .limit(10);
-
-    // VAT rate lookup
-    let vatRate = "";
-    if (row.tw_IdVatSp) {
-      const vatRow = await pool
-        .request()
-        .input("id", row.tw_IdVatSp)
-        .query("SELECT vat_Nazwa FROM sl_StawkaVAT WHERE vat_Id = @id");
-      if (vatRow.recordset[0]) vatRate = (vatRow.recordset[0] as any).vat_Nazwa;
-    }
-
-    // Group name
-    let groupName = "";
-    if (row.tw_IdGrupa) {
-      const grRow = await pool
-        .request()
-        .input("id", row.tw_IdGrupa)
-        .query("SELECT grt_Nazwa FROM sl_GrupaTw WHERE grt_Id = @id");
-      if (grRow.recordset[0]) groupName = (grRow.recordset[0] as any).grt_Nazwa;
-    }
-
-    res.json({
-      id: row.tw_Id,
-      symbol: row.tw_Symbol,
-      name: row.tw_Nazwa,
-      description: row.tw_Opis,
-      barcode: row.tw_PodstKodKresk,
-      unit: row.tw_JednMiary,
-      pkwiu: row.tw_PKWiU,
-      productCode: row.tw_KodTowaru,
-      minStock: row.tw_StanMin,
-      minStockUnit: row.tw_JednStanMin,
-      maxStock: row.tw_StanMaks,
-      expiryDays: row.tw_DniWaznosc,
-      weight: row.tw_Masa,
-      netWeight: row.tw_MasaNetto,
-      openPrice: row.tw_CenaOtwarta,
-      depositSystem: row.tw_ObjetySysKaucyjnym,
-      blocked: row.tw_Zablokowany,
-      vatRate,
-      groupName,
-      producerCode: row.tw_UrzNazwa,
-      stocks: stockRows.recordset,
-      locations: plRows,
-      movements,
-    });
-  } catch (err) {
-    logger.error({ err }, "Product detail failed");
-    res.status(500).json({ error: "Błąd" });
-  }
-});
 
 // --- Raport inwentaryzacji ---
 app.post("/api/inventory/report", requireAdmin, async (req, res) => {
