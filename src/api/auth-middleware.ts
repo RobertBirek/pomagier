@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { getDb, schema } from "@/db/index";
 import { eq } from "drizzle-orm";
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
+/* eslint-disable @typescript-eslint/no-namespace */
 declare global {
   namespace Express {
     interface Request {
@@ -10,6 +10,7 @@ declare global {
     }
   }
 }
+/* eslint-enable @typescript-eslint/no-namespace */
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.token || (req.headers.authorization || "").replace("Bearer ", "");
