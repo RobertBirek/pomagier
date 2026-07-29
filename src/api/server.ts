@@ -14,6 +14,7 @@ import { authMiddleware, requireAdmin } from "./auth-middleware.js";
 import { registerBackupRoutes } from "./routes/backup.js";
 import { registerLocationsRoutes, getLocationField } from "./routes/locations.js";
 import { getEnv } from "../lib/env.js";
+import { registerHealthRoutes } from "./routes/health.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {
@@ -88,62 +89,6 @@ function verifyPin(pin: string, hash: string): boolean {
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
-
-// --- Health ---
-app.get("/api/health", async (_req, res) => {
-  const adapter = getAdapter();
-  const erpHealth = await adapter.healthCheck();
-  res.json({ status: "ok", timestamp: new Date().toISOString(), erp: erpHealth });
-});
-
-// --- Company info (z Subiekta) ---
-app.get("/api/company", async (_req, res) => {
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) {
-      return res.json({ name: "PomagierGT (no pool)", nip: "", regon: "" });
-    }
-    const result = await pool.request().query(`
-      SELECT TOP 1
-        adr_NazwaPelna AS name,
-        adr_Nazwa AS shortName,
-        adr_NIP AS nip,
-        CAST(pd_Regon AS varchar) AS regon,
-        adr_Ulica AS street,
-        adr_NrDomu AS houseNo,
-        adr_NrLokalu AS aptNo,
-        adr_Kod AS postalCode,
-        adr_Miejscowosc AS city,
-        adr_Telefon AS phone,
-        pd_WWW AS www,
-        pd_Email AS email,
-        NazwaBanku AS bankName,
-        NumerRachunku AS bankAccount
-      FROM vwFeniksFirmaSync
-    `);
-    const row = result.recordset[0];
-    res.json({
-      name: row?.name || row?.shortName || "Podmiot",
-      shortName: row?.shortName || "",
-      nip: row?.nip || "",
-      regon: row?.regon || "",
-      street: row?.street
-        ? `${row.street} ${row.houseNo || ""}${row.aptNo ? `/${row.aptNo}` : ""}`
-        : "",
-      postalCode: row?.postalCode || "",
-      city: row?.city || "",
-      phone: row?.phone || "",
-      www: row?.www || "",
-      email: row?.email || "",
-      bankName: row?.bankName || "",
-      bankAccount: row?.bankAccount || "",
-    });
-  } catch (err) {
-    logger.error({ err }, "Company query failed");
-    res.json({ name: "PomagierGT (demo)", nip: "", regon: "" });
-  }
-});
 
 // --- Użytkownicy (Subiekt + PIN z Postgres) ---
 app.get("/api/users", async (_req, res) => {
@@ -980,6 +925,9 @@ app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
     res.status(500).json({ error: "Import nie powiódł się" });
   }
 });
+
+// --- Health + Company routes ---
+registerHealthRoutes(app);
 
 // --- Location routes ---
 registerLocationsRoutes(app);
