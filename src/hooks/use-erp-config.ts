@@ -6,12 +6,20 @@ import { getStats, getCompany, healthCheck } from "@/lib/api";
 async function fetchErpConfig() {
   const res = await fetch("/api/erp-config");
   return res.json() as Promise<{
-    host: string; port: number; database: string; user: string; password: string;
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
   }>;
 }
 
 async function saveErpConfig(data: {
-  host: string; port: number; database: string; user: string; password: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
 }) {
   const res = await fetch("/api/erp-config", {
     method: "POST",
@@ -23,7 +31,11 @@ async function saveErpConfig(data: {
 }
 
 async function testConnection(data: {
-  host: string; port: number; database: string; user: string; password: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
 }) {
   const res = await fetch("/api/test-connection", {
     method: "POST",
@@ -85,13 +97,21 @@ export function useErpConfig() {
   const [form, setForm] = useState({ host: "", port: 1433, database: "", user: "", password: "" });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
-    ok: boolean; latencyMs?: number; error?: string;
+    ok: boolean;
+    latencyMs?: number;
+    error?: string;
   } | null>(null);
   const [fieldMap, setFieldMap] = useState<{ key: string; subiektField: string }[]>([]);
 
   useEffect(() => {
     if (config) {
-      setForm({ host: config.host, port: config.port, database: config.database, user: config.user, password: "" });
+      setForm({
+        host: config.host,
+        port: config.port,
+        database: config.database,
+        user: config.user,
+        password: "",
+      });
     }
   }, [config]);
 

@@ -4,7 +4,13 @@ import { Save } from "lucide-react";
 interface ErpConnectionFormProps {
   form: { host: string; port: number; database: string; user: string; password: string };
   saving: boolean;
-  onChange: (form: { host: string; port: number; database: string; user: string; password: string }) => void;
+  onChange: (form: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+  }) => void;
   onSubmit: () => void;
 }
 

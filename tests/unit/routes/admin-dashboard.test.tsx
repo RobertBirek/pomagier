@@ -10,9 +10,7 @@ vi.mock("../../../src/lib/use-status", () => ({
 }));
 
 vi.mock("../../../src/lib/api", () => ({
-  getStats: vi.fn(() =>
-    Promise.resolve({ products: 5, warehouses: 2, users: 3 }),
-  ),
+  getStats: vi.fn(() => Promise.resolve({ products: 5, warehouses: 2, users: 3 })),
   getCompany: vi.fn(() =>
     Promise.resolve({ name: "TestCo", nip: "1234567890", regon: "098765432" }),
   ),
@@ -26,12 +24,12 @@ describe("admin/dashboard route", () => {
         ok: true,
         json: () => Promise.resolve({ movements: [], scans: [], dailyStats: [] }),
       }),
-    ) as any;
+    );
   });
 
   it("renders without crash", async () => {
     const { Route } = await import("../../../src/routes/admin.dashboard");
-    const Component = (Route as any).options.component;
+    const Component = (Route as Record<string, unknown>).options.component;
 
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },

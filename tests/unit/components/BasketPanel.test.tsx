@@ -15,9 +15,7 @@ function renderWithClient(ui: React.ReactElement) {
 
 describe("BasketPanel", () => {
   it("renders without crash with items", () => {
-    const items = [
-      { code: "5901234567890", name: "Test Product", qty: 1 },
-    ];
+    const items = [{ code: "5901234567890", name: "Test Product", qty: 1 }];
     renderWithClient(
       <BasketPanel
         items={items}

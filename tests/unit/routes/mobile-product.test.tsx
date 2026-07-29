@@ -6,7 +6,7 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("../../../src/routes/mobile.product.$code", async (importOriginal) => {
-  const mod = (await importOriginal()) as any;
+  const mod = await importOriginal();
   mod.Route.useParams = vi.fn(() => ({ code: "5901234567890" }));
   return mod;
 });
@@ -22,12 +22,12 @@ describe("mobile/product route", () => {
             products: [{ productId: 1, name: "Test", symbol: "TST" }],
           }),
       }),
-    ) as any;
+    );
   });
 
   it("renders without crash", async () => {
     const { Route } = await import("../../../src/routes/mobile.product.$code");
-    const Component = (Route as any).options.component;
+    const Component = (Route as Record<string, unknown>).options.component;
 
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },

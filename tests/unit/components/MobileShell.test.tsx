@@ -31,7 +31,8 @@ vi.mock("@tanstack/react-router", () => {
       </a>
     ),
     Outlet: () => <div data-testid="outlet">Outlet</div>,
-    useRouterState: ({ select }: { select?: (s: any) => any } = {}) => {
+
+    useRouterState: ({ select }: { select?: (s: Record<string, unknown>) => unknown } = {}) => {
       const state = { location: { pathname: "/mobile/dashboard" } };
       if (select) return select(state);
       return state;
