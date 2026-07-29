@@ -1,4 +1,18 @@
-# TASKS — PomagierGT v1.3.0
+# TASKS — PomagierGT v1.5.0
+
+| Data | Zadanie | Status |
+|---|---|---|
+| 2026-07-29 | Frontend lint-zero: 0 błędów (było ~40), 3 ostrzeżenia | ✅ |
+| 2026-07-29 | admin.map.tsx: 662→56 linii, 7 komponentów, useMapData hook | ✅ |
+| 2026-07-29 | admin.erp.tsx: 434→121 linii, 3 komponenty, useErpConfig hook | ✅ |
+| 2026-07-29 | ScanHeader: wydzielony useScanInput hook | ✅ |
+| 2026-07-29 | Testy: RTL + jsdom, 10 render tests (85 total, 26 plików) | ✅ |
+| 2026-07-29 | E2E: Playwright, 3 scenariusze | ✅ |
+| 2026-07-29 | Build: ✅ | Typecheck: ✅ | Lint: 0E/3W | Tests: 85/85 | ✅ |
+
+---
+
+# TASKS — PomagierGT v1.4.0 (archived)
 
 | Data | Zadanie | Status |
 |---|---|---|

@@ -1,5 +1,21 @@
 # CHANGELOG — PomagierGT
 
+## [1.5.0] — 2026-07-29 Refaktoryzacja Frontendu
+
+### Lint
+- 0 błędów, 3 ostrzeżenia (react-hooks/exhaustive-deps — akceptowalne)
+- Usunięte ~40 `any`, 1 `no-unused-expressions`, 12 ostrzeżeń react-refresh
+
+### Deep Refactor
+- `admin.map.tsx`: 662 → 56 linii — rozbity na `useMapData` hook + 7 komponentów (MapGrid, MapControls, MapRack, MapShelf, MapProductCard, MapSidebar, VerifyModal)
+- `admin.erp.tsx`: 434 → 121 linii — rozbity na `useErpConfig` hook + 3 komponenty (ErpConnectionForm, ErpTestButton, ErpStatusBadge)
+- `ScanHeader.tsx`: wydzielony `useScanInput` hook
+
+### Testy
+- React Testing Library + jsdom — 10 nowych testów renderowania
+- 85 testów łącznie (26 plików)
+- Playwright E2E: 3 scenariusze (scan, map, erp config)
+
 ## [1.4.0] — 2026-07-29 Refaktoryzacja API
 
 ### API
