@@ -16,6 +16,8 @@ import { registerLocationsRoutes, getLocationField } from "./routes/locations.js
 import { getEnv } from "../lib/env.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerUsersRoutes } from "./routes/users.js";
+import { registerStatsRoutes } from "./routes/stats.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {
@@ -78,59 +80,6 @@ app.use("/api/locations", globalLimiter);
 app.get("/api/health", rateLimit({ windowMs: 60000, max: 300 }));
 app.use("/api", globalLimiter);
 
-// --- Użytkownicy (Subiekt + PIN z Postgres) ---
-app.get("/api/users", async (_req, res) => {
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.json([]);
-
-    const result = await pool.request().query(`
-      SELECT uz_Id AS id, uz_Imie AS firstName, uz_Nazwisko AS lastName, uz_Status AS active
-      FROM pd_Uzytkownik
-      ORDER BY uz_Id
-    `);
-
-    const db = getDb();
-    const appUsers = await db.select().from(schema.users);
-
-    const users = result.recordset.map((u: any) => {
-      const appUser = appUsers.find((a) => a.subiektUzId === u.id);
-      return {
-        subiektId: u.id,
-        firstName: u.firstName || "",
-        lastName: u.lastName || "",
-        active: u.active === true || u.active === 1,
-        hasPin: !!appUser,
-        role: appUser?.role || "operator",
-      };
-    });
-
-    res.json(users);
-  } catch (err) {
-    logger.error({ err }, "Failed to fetch users");
-    res.json([]);
-  }
-});
-
-// --- Magazyny (z Subiekta) ---
-app.get("/api/warehouses", async (_req, res) => {
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.json([]);
-
-    const result = await pool.request().query(`
-      SELECT mag_Id AS id, mag_Symbol AS symbol, mag_Nazwa AS name, mag_Glowny AS isMain
-      FROM sl_Magazyn
-      ORDER BY mag_Id
-    `);
-    res.json(result.recordset);
-  } catch {
-    res.json([]);
-  }
-});
-
 // --- Skanowanie ---
 app.post("/api/scan", async (req, res) => {
   const { code } = req.body ?? {};
@@ -151,27 +100,6 @@ app.post("/api/scan", async (req, res) => {
     const message = err instanceof Error ? err.message : "ERP error";
     logger.error({ err, code }, "Scan failed");
     res.status(502).json({ error: message, found: false, barcode: code, products: [] });
-  }
-});
-
-// --- KPI dla admina ---
-app.get("/api/stats", async (_req, res) => {
-  try {
-    const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    if (!pool) return res.json({ products: 0, warehouses: 0, users: 0 });
-    const [p, w, u] = await Promise.all([
-      pool.request().query("SELECT COUNT(*) AS cnt FROM tw__Towar"),
-      pool.request().query("SELECT COUNT(*) AS cnt FROM sl_Magazyn"),
-      pool.request().query("SELECT COUNT(*) AS cnt FROM pd_Uzytkownik WHERE uz_Status = 1"),
-    ]);
-    res.json({
-      products: p.recordset[0].cnt,
-      warehouses: w.recordset[0].cnt,
-      users: u.recordset[0].cnt,
-    });
-  } catch {
-    res.json({ products: 0, warehouses: 0, users: 0 });
   }
 });
 
@@ -740,6 +668,12 @@ registerHealthRoutes(app);
 
 // --- Auth routes (login, PIN, role) ---
 registerAuthRoutes(app);
+
+// --- Users + Warehouses routes ---
+registerUsersRoutes(app);
+
+// --- Stats routes ---
+registerStatsRoutes(app);
 
 // --- Location routes ---
 registerLocationsRoutes(app);
