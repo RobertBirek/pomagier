@@ -2,11 +2,12 @@
 
 ## Poziomy testów
 
-| Poziom | Odpowiedzialność | Narzędzia [Wymaga decyzji] |
+| Poziom | Odpowiedzialność | Narzędzia |
 |---|---|---|
-| Jednostkowe | Logika domenowa, walidacja, mapowanie | Vitest / Jest |
-| Integracyjne | API endpointy, adaptery ERP (mock + real) | Supertest / Vitest |
-| E2E | Pierwszy flow (happy path + edge case) | Playwright |
+| Jednostkowe (API) | Logika endpointów, walidacja Zod, błędy | Vitest + supertest |
+| Jednostkowe (Frontend) | Komponenty React, hooki, renderowanie | Vitest + React Testing Library |
+| Integracyjne | Pełne ścieżki Express, mock adaptera ERP | Vitest + supertest |
+| E2E | Krytyczne flow (scan, mapa, ERP config) | Playwright |
 
 ## Scenariusze testowe dla każdego flow
 
@@ -61,7 +62,8 @@
 
 ## Stan
 
-- [ ] Framework testowy wybrany i skonfigurowany
-- [ ] Testy pierwszego flow
-- [ ] Testy edge case
-- [ ] Testy adversarial
+- [x] Vitest skonfigurowany z coverage v8
+- [x] 85 testów: 65 API (18 plików) + 12 frontend (8 plików)
+- [x] React Testing Library + jsdom
+- [x] Playwright E2E: 3 scenariusze (scan, map, erp)
+- [x] Lint: 0 błędów, 3 ostrzeżenia

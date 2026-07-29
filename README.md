@@ -33,5 +33,6 @@ System składa się z dwóch części:
 - [x] Faza 0: Audyt repozytorium i środowiska — zakończona 2026-07-29
 - [x] MVP v1.0.0 — informacja o towarze, lokalizacje, użytkownicy, panel admina, PWA, backup
 - [x] v1.3.0 — UX, Sync Queue, BasketPanel, szkielet inwentaryzacji i kompletacji
-- [x] v1.4.0 — Refaktoryzacja API: modularne trasy, Zod walidacja, 65 testów, lint czysty (API)
-- Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy
+- [x] v1.4.0 — Refaktoryzacja API: modularne trasy, Zod walidacja, 65 testów, lint czysty
+- [x] v1.5.0 — Refaktoryzacja frontendu: komponenty, hooki, 85 testów, Playwright E2E, lint 0 błędów
+- Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy + Playwright

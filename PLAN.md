@@ -1,8 +1,8 @@
 # Plan — PomagierGT
 
-## Stan: v1.2.0 Production (ciągłe usprawnienia)
+## Stan: v1.5.0 Production
 
-MVP (v1.0.0) został osiągnięty 2026-07-26. Projekt jest w fazie ciągłych usprawnień — kolejne moduły magazynowe rozwijane są jako pionowe przyrosty.
+MVP (v1.0.0) osiągnięty 2026-07-26. Refaktoryzacja API (v1.4.0) i frontendu (v1.5.0) zakończona. Projekt gotowy na rozwój kolejnych modułów magazynowych.
 
 ## 1. Podsumowanie projektu
 

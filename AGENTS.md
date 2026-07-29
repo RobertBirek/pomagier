@@ -1,16 +1,16 @@
 # AGENTS.md — PomagierGT
 
-## Stan projektu: v1.3.0 Production
+## Stan projektu: v1.5.0 Production
 
 | Warstwa | Technologia | Stan |
 |---|---|---|
 | Frontend/PWA | React 19, TypeScript, TanStack Router, Tailwind CSS 4, shadcn/ui | ✓ Produkcyjny |
-| Backend API | Express 5 (port 3000) | ✓ Produkcyjny |
+| Backend API | Express 5 (port 3000), modularne trasy (14 plików), Zod walidacja | ✓ Produkcyjny |
 | Baza aplikacyjna | Postgres 16 (Drizzle ORM) | ✓ Produkcyjny |
 | ERP | Insert Subiekt GT (MSSQL read+write, whitelist-validated fields) | ✓ Produkcyjny |
 | Reverse proxy | Caddy (HTTPS, port 443) | ✓ Produkcyjny |
 | mDNS | avahi-daemon (pomagier.local) | ✓ Produkcyjny |
-| Testy | Vitest (15/15) | ✓ Aktywne |
+| Testy | Vitest (85/85), Playwright E2E, RTL render tests | ✓ Aktywne |
 | Deployment | systemd (pomagier-api), Caddy static files (frontend) | ✓ Produkcyjny |
 
 ## Workflow projektu
