@@ -19,8 +19,10 @@ import { useAuth } from "@/lib/auth";
 import { useMssqlStatus } from "@/lib/use-status";
 import { useDarkMode } from "@/lib/use-dark";
 import { useAutoLogout } from "@/lib/use-auto-logout";
+import { useScreenOrientation } from "@/hooks/use-screen-orientation";
 import { getQueueCount } from "@/lib/offline-queue";
 import { StatusBadge } from "./primitives";
+import { PortraitOverlay } from "./PortraitOverlay";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useMemo } from "react";
 
@@ -53,6 +55,7 @@ export function MobileShell() {
   const nav = useNavigate();
   const [queueCount, setQueueCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
+  const { isLandscape } = useScreenOrientation();
 
   useEffect(() => {
     const check = () => getQueueCount().then(setQueueCount);
@@ -79,6 +82,10 @@ export function MobileShell() {
     if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     return parts[0][0].toUpperCase();
   }, [operatorName]);
+
+  if (isLandscape) {
+    return <PortraitOverlay />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/50">
