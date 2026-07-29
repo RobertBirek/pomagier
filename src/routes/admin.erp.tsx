@@ -151,7 +151,7 @@ function AdminErp() {
       qc.invalidateQueries({ queryKey: ["company"] });
       refetchHealth();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
   const saveMappingsMut = useMutation({
     mutationFn: saveFieldMappings,
@@ -159,7 +159,7 @@ function AdminErp() {
       toast.success("Mapowanie zapisane");
       refetchMappings();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const handleTest = async () => {
@@ -170,9 +170,10 @@ function AdminErp() {
       setTestResult(r);
       if (r.ok) toast.success(`Połączono (${r.latencyMs} ms)`);
       else toast.error(r.error || "Błąd połączenia");
-    } catch (e: any) {
-      setTestResult({ ok: false, error: e.message });
-      toast.error(e.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setTestResult({ ok: false, error: msg });
+      toast.error(msg);
     } finally {
       setTesting(false);
     }
@@ -230,18 +231,18 @@ function AdminErp() {
               <span className="text-muted-foreground">REGON:</span>{" "}
               <span className="font-mono">{company.regon || "—"}</span>
             </div>
-            {(company as any).street && (
+            {company?.street && (
               <div>
                 <span className="text-muted-foreground">Adres:</span>{" "}
                 <span>
-                  {(company as any).street}, {(company as any).postalCode} {(company as any).city}
+                  {company.street}, {company.postalCode} {company.city}
                 </span>
               </div>
             )}
-            {(company as any).www && (
+            {company?.www && (
               <div>
                 <span className="text-muted-foreground">WWW:</span>{" "}
-                <span className="font-mono">{(company as any).www}</span>
+                <span className="font-mono">{company.www}</span>
               </div>
             )}
           </div>

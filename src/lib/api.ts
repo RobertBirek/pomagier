@@ -19,7 +19,15 @@ export async function healthCheck() {
 
 export async function getCompany() {
   const res = await fetch(`${BASE}/company`);
-  return res.json() as Promise<{ name: string; nip: string; regon: string }>;
+  return res.json() as Promise<{
+    name: string;
+    nip: string;
+    regon: string;
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    www?: string;
+  }>;
 }
 
 export async function getUsers() {
