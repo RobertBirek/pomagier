@@ -42,6 +42,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDemo() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useDemo must be used within DemoProvider");

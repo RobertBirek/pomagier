@@ -34,7 +34,7 @@ function Login() {
     if (warehouses.length > 0 && !warehouse) {
       setWarehouse(warehouses.find((w) => w.isMain)?.symbol || warehouses[0]?.symbol || "");
     }
-  }, [whSymbols, warehouse]);
+  }, [whSymbols, warehouse, warehouses]);
 
   const userMap = useMemo(() => new Map(users.map((u) => [u.subiektId, u])), [users]);
   const selected = selectedId != null ? userMap.get(selectedId) : null;

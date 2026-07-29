@@ -149,6 +149,7 @@ export function SectionTitle({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const eventIcon = {
   info: <Info className="h-4 w-4 text-info" />,
   warning: <AlertTriangle className="h-4 w-4 text-warning-foreground" />,

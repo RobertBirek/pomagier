@@ -74,6 +74,7 @@ export function CameraScanner({ onScan, onClose, inline }: CameraScannerProps) {
       stopped = true;
       stopScanner();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   // Inline mode

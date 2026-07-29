@@ -28,5 +28,6 @@ export function useAutoLogout(minutes = 15) {
       clearTimeout(timerRef.current);
       events.forEach((e) => document.removeEventListener(e, resetTimer));
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.user]);
 }
