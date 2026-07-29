@@ -6,5 +6,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      include: ["src/api/**/*.ts"],
+      exclude: ["src/api/adapter-provider.ts"],
+    },
   },
 });
