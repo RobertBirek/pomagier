@@ -25,6 +25,43 @@ interface GridData {
   };
 }
 
+interface CellProduct {
+  id: number;
+  symbol: string;
+  name: string;
+  barcode?: string;
+  unit: string;
+}
+
+interface VerifyDetail {
+  productId: number;
+  postgres: string[];
+  subiekt: string[];
+}
+
+interface VerifyResult {
+  totalProducts: number;
+  synced: number;
+  mismatches: number;
+  details: VerifyDetail[];
+}
+
+interface ImportData {
+  imported: number;
+}
+
+interface SyncData {
+  inserted: number;
+}
+
+interface FixData {
+  fixed: number;
+}
+
+interface ClearData {
+  rowsAffected: number;
+}
+
 async function fetchGrid() {
   const r = await fetch("/api/locations/grid");
   return r.json() as Promise<GridData>;
@@ -97,60 +134,62 @@ function AdminMap() {
   const { data: emptyLocs } = useQuery({ queryKey: ["empty-locs"], queryFn: fetchEmpty });
   const [area, setArea] = useState("A");
   const [search, setSearch] = useState("");
-  const [cellDetail, setCellDetail] = useState<{ code: string; products: any[] } | null>(null);
-  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [cellDetail, setCellDetail] = useState<{ code: string; products: CellProduct[] } | null>(
+    null,
+  );
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [loadingCell, setLoadingCell] = useState(false);
 
   const importMut = useMutation({
     mutationFn: importLocations,
-    onSuccess: (d: any) => {
+    onSuccess: (d: ImportData) => {
       toast.success(`Import: ${d.imported} lokalizacji`);
       qc.invalidateQueries();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
   const syncMut = useMutation({
     mutationFn: syncProductLocations,
-    onSuccess: (d: any) => toast.success(`Sync: ${d.inserted} powiązań`),
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: (d: SyncData) => toast.success(`Sync: ${d.inserted} powiązań`),
+    onError: (e: Error) => toast.error(e.message),
   });
   const verifyMut = useMutation({
     mutationFn: verifySync,
-    onSuccess: (data: any) => {
+    onSuccess: (data: VerifyResult) => {
       setVerifyResult(data);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const fixMut = useMutation({
     mutationFn: fixSync,
-    onSuccess: (data: any) => {
+    onSuccess: (data: FixData) => {
       toast.success(`✅ Subiekt zaktualizowany — ${data.fixed} produktów`);
       setVerifyResult(null);
       qc.invalidateQueries();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const subiektMut = useMutation({
     mutationFn: syncFromSubiekt,
-    onSuccess: (data: any) => {
+    onSuccess: (data: SyncData) => {
       toast.success(`✅ Postgres zaktualizowany — ${data.inserted} powiązań`);
       setVerifyResult(null);
       qc.invalidateQueries();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const clearMut = useMutation({
     mutationFn: clearField,
-    onSuccess: (data: any) => {
+    onSuccess: (data: ClearData) => {
       toast.success(`✅ Wyzerowano — ${data.rowsAffected} wierszy`);
       setVerifyResult(null);
       qc.invalidateQueries();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const batchMut = useMutation({
@@ -161,7 +200,7 @@ function AdminMap() {
       setSelectedProducts(new Set());
       qc.invalidateQueries();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const areaData = grid?.[area];
@@ -440,7 +479,7 @@ function AdminMap() {
                     <button
                       onClick={() =>
                         setSelectedProducts(
-                          new Set(verifyResult.details.map((d: any) => d.productId)),
+                          new Set(verifyResult.details.map((d: VerifyDetail) => d.productId)),
                         )
                       }
                       className="text-xs underline"
@@ -456,7 +495,7 @@ function AdminMap() {
                   </div>
                 </div>
                 <div className="space-y-1 max-h-48 overflow-y-auto mb-4">
-                  {verifyResult.details.map((d: any) => {
+                  {verifyResult.details.map((d: VerifyDetail) => {
                     const sel = selectedProducts.has(d.productId);
                     return (
                       <label
@@ -468,7 +507,8 @@ function AdminMap() {
                           checked={sel}
                           onChange={() => {
                             const s = new Set(selectedProducts);
-                            sel ? s.delete(d.productId) : s.add(d.productId);
+                            if (sel) s.delete(d.productId);
+                            else s.add(d.productId);
                             setSelectedProducts(s);
                           }}
                           className="mt-0.5"
@@ -528,14 +568,14 @@ function AdminMap() {
 
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => fixMut.mutate(null as any)}
+                    onClick={() => fixMut.mutate()}
                     disabled={fixMut.isPending}
                     className="rounded-md bg-primary py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {fixMut.isPending ? "…" : "Subiekt ← Postgres (all)"}
                   </button>
                   <button
-                    onClick={() => subiektMut.mutate(null as any)}
+                    onClick={() => subiektMut.mutate()}
                     disabled={subiektMut.isPending}
                     className="rounded-md border py-2 text-xs hover:bg-accent disabled:opacity-50"
                   >
@@ -543,8 +583,7 @@ function AdminMap() {
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm("Wyzerować pole lokalizacji w Subiekt GT?"))
-                        clearMut.mutate(null as any);
+                      if (confirm("Wyzerować pole lokalizacji w Subiekt GT?")) clearMut.mutate();
                     }}
                     disabled={clearMut.isPending}
                     className="rounded-md border border-destructive/30 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
@@ -592,7 +631,7 @@ function AdminMap() {
               <LoadingRow />
             ) : cellDetail.products.length > 0 ? (
               <div className="space-y-2">
-                {cellDetail.products.map((p: any) => (
+                {cellDetail.products.map((p: CellProduct) => (
                   <div
                     key={p.id}
                     className="flex items-center justify-between rounded border bg-muted/20 px-3 py-2 text-sm"
