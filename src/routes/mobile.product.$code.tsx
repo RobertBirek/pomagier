@@ -21,6 +21,30 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 
+interface ProductLocation {
+  code: string;
+  aisle: number;
+  rack: number;
+  shelf: number;
+}
+
+interface ProductStock {
+  st_MagId: number;
+  mag_Nazwa: string;
+  mag_Symbol: string;
+  st_Stan: number;
+  st_StanRez: number;
+  st_StanMin: number;
+  st_StanMax: number;
+}
+
+interface ProductMovement {
+  id: string;
+  fromCode: string;
+  toCode: string;
+  createdAt: string;
+}
+
 async function fetchProduct(code: string) {
   // Najpierw znajdź produkt po kodzie (EAN lub symbol)
   const scanRes = await fetch("/api/scan", {
@@ -110,7 +134,7 @@ function ProductPage() {
         <div>
           <SectionTitle title={`Lokalizacje (${locations.length})`} />
           <div className="mt-2 space-y-1">
-            {locations.map((l: any) => (
+            {locations.map((l: ProductLocation) => (
               <div
                 key={l.code}
                 className="flex items-center gap-2 rounded border bg-muted/20 px-3 py-2 text-xs font-mono"
@@ -131,7 +155,7 @@ function ProductPage() {
         <div>
           <SectionTitle title="Stany magazynowe" />
           <div className="mt-2 space-y-2">
-            {stocks.map((s: any) => (
+            {stocks.map((s: ProductStock) => (
               <div key={s.st_MagId} className="rounded-lg border bg-card p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -207,7 +231,7 @@ function ProductPage() {
         <div>
           <SectionTitle title="Ostatnie ruchy" />
           <div className="mt-2 space-y-1">
-            {movements.slice(0, 5).map((m: any) => (
+            {movements.slice(0, 5).map((m: ProductMovement) => (
               <div key={m.id} className="flex items-center gap-2 text-xs border-b py-1">
                 <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
                 {m.fromCode && m.toCode ? (

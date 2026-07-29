@@ -54,7 +54,7 @@ function AdminUsers() {
       setPinUser(null);
       qc.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const setRoleMut = useMutation({

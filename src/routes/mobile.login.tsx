@@ -47,8 +47,8 @@ function Login() {
       auth.login(result.token, result.user, name, warehouse);
       toast.success(`Witaj, ${name}!`);
       nav({ to: "/mobile/dashboard" });
-    } catch (err: any) {
-      toast.error(err.message || "Błąd logowania");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Błąd logowania");
     }
   };
 

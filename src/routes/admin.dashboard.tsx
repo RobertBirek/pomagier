@@ -19,7 +19,7 @@ async function fetchActivity() {
       operator: string;
       createdAt: string;
     }[];
-    scans: any[];
+    scans: { code: string; timestamp: string }[];
     dailyStats: { date: string; count: number }[];
   }>;
 }

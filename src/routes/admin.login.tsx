@@ -31,8 +31,8 @@ function AdminLogin() {
       auth.login(result.token, result.user, name, "");
       toast.success(`Witaj, ${name}!`);
       nav({ to: "/admin/dashboard" });
-    } catch (err: any) {
-      toast.error(err.message || "Błąd logowania");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Błąd logowania");
     }
   };
 
