@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, type ReactNode } from "react"
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { useRecentCodes } from "@/hooks/use-recent-codes";
+import { useScanInput } from "@/hooks/use-scan-input";
 import { beep, haptic, cn } from "@/lib/utils";
 import { getQueueCount } from "@/lib/offline-queue";
 import { scanBus } from "@/lib/scan-bus";
@@ -40,7 +41,6 @@ interface ScanHeaderProps {
   placeholder?: string;
   hint?: string;
   tools?: ScanHeaderTool[];
-  /** Disable keyboard toggle — set true when keyboard input is never needed (e.g. picking) */
   disableManual?: boolean;
 }
 
@@ -78,7 +78,6 @@ export function ScanHeader({
   const { recentCodes, addRecentCode, clearRecentCodes } = useRecentCodes(userId);
 
   // ── State ──
-  const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [flash, setFlash] = useState<"ok" | "err" | null>(null);
   const [manualMode, setManualMode] = useState<boolean>(loadManualMode);
@@ -93,20 +92,40 @@ export function ScanHeader({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // ── Input ref ──
-  const inputRef = useRef<HTMLInputElement>(null);
-  const refocus = useCallback(() => {
-    setTimeout(() => {
-      if (!showTools && !showCamera) inputRef.current?.focus();
-    }, 50);
-  }, [showTools, showCamera]);
+  // ── Submit wrapper with flash / beep / haptic / recent codes ──
+  const handleSubmitCode = useCallback(
+    async (code: string) => {
+      setLoading(true);
+      setShowSuggestions(false);
+      let ok = false;
+      try {
+        ok = await onSubmit(code);
+      } catch {
+        ok = false;
+      }
+      if (ok) {
+        setFlash("ok");
+        beep(1000, 80);
+        haptic(50);
+        addRecentCode(code);
+      } else {
+        setFlash("err");
+        beep(200, 300);
+        haptic(200);
+      }
+      setLoading(false);
+      return ok;
+    },
+    [onSubmit, addRecentCode],
+  );
+
+  // ── Scan input hook ──
+  const { value, setValue, inputRef, handleChange, handleKeyDown, clear } = useScanInput({
+    onSubmit: handleSubmitCode,
+    hint,
+  });
 
   // ── Effects ──
-  useEffect(() => {
-    refocus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     getQueueCount().then(setQueueCount);
     const interval = setInterval(() => getQueueCount().then(setQueueCount), 10000);
@@ -131,72 +150,41 @@ export function ScanHeader({
     return () => obs.disconnect();
   }, []);
 
-  // ── Submit logic ──
-  const handleSubmitCode = useCallback(
-    async (code: string) => {
-      if (!code || loading) return;
-      setLoading(true);
-      setShowSuggestions(false);
-      try {
-        const ok = await onSubmit(code);
-        if (ok) {
-          setFlash("ok");
-          beep(1000, 80);
-          haptic(50);
-          addRecentCode(code);
-        } else {
-          setFlash("err");
-          beep(200, 300);
-          haptic(200);
-        }
-      } catch {
-        setFlash("err");
-        beep(200, 300);
-        haptic(200);
-      }
-      setLoading(false);
-      setInputValue("");
-      refocus();
-    },
-    [onSubmit, loading, addRecentCode, refocus],
-  );
-
   // Register in scanBus for programmatic scan triggers
   const handleSubmitCodeRef = useRef(handleSubmitCode);
   handleSubmitCodeRef.current = handleSubmitCode;
 
   useEffect(() => {
     scanBus.register((code: string) => {
-      setInputValue(code);
+      setValue(code);
       setTimeout(() => handleSubmitCodeRef.current(code), 60);
     });
     return () => scanBus.unregister(() => {});
   }, []);
 
-  const handleSubmit = useCallback(async () => {
-    await handleSubmitCode(inputValue.trim());
-  }, [inputValue, handleSubmitCode]);
-
-  // ── Autocomplete handler ──
-  const handleInputChange = useCallback((value: string) => {
-    setInputValue(value);
-    clearTimeout(searchTimeout.current);
-    if (value.trim().length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/products/quick-search?q=${encodeURIComponent(value.trim())}`);
-        const data = await res.json();
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
-      } catch {
+  // ── Autocomplete handler (wraps hook's handleChange) ──
+  const handleInputChange = useCallback(
+    (v: string) => {
+      handleChange(v);
+      clearTimeout(searchTimeout.current);
+      if (v.trim().length < 2) {
         setSuggestions([]);
+        setShowSuggestions(false);
+        return;
       }
-    }, 300);
-  }, []);
+      searchTimeout.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/products/quick-search?q=${encodeURIComponent(v.trim())}`);
+          const data = await res.json();
+          setSuggestions(data);
+          setShowSuggestions(data.length > 0);
+        } catch {
+          setSuggestions([]);
+        }
+      }, 300);
+    },
+    [handleChange],
+  );
 
   // ── Manual mode toggle ──
   const toggleManualMode = useCallback(() => {
@@ -213,10 +201,10 @@ export function ScanHeader({
   const handleCameraScan = useCallback(
     (code: string) => {
       setShowCamera(false);
-      setInputValue(code);
+      setValue(code);
       setTimeout(() => handleSubmitCode(code), 60);
     },
-    [handleSubmitCode],
+    [handleSubmitCode, setValue],
   );
 
   // ── Repeat last scan ──
@@ -224,10 +212,10 @@ export function ScanHeader({
     const last = recentCodes[0];
     if (last) {
       setShowTools(false);
-      setInputValue(last);
+      setValue(last);
       setTimeout(() => handleSubmitCode(last), 60);
     }
-  }, [recentCodes, handleSubmitCode]);
+  }, [recentCodes, handleSubmitCode, setValue]);
 
   // ── Styling classes ──
   const inputBorderClass = cn(
@@ -263,15 +251,9 @@ export function ScanHeader({
               ref={inputRef}
               type="text"
               inputMode={manualMode ? "text" : "none"}
-              value={inputValue}
+              value={value}
               onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  setShowSuggestions(false);
-                  handleSubmit();
-                }
-              }}
+              onKeyDown={handleKeyDown}
               onFocus={() => {
                 if (suggestions.length > 0) setShowSuggestions(true);
               }}
@@ -292,7 +274,7 @@ export function ScanHeader({
                     key={`${s.code}-${i}`}
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      setInputValue(s.barcode || s.code);
+                      setValue(s.barcode || s.code);
                       setShowSuggestions(false);
                     }}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-accent touch-target border-b last:border-0"
