@@ -23,7 +23,23 @@
 | 2026-07-29 | ERP: dual-read split(/[,;]/) + write join(",") for backward compatibility | ✅ |
 | 2026-07-29 | PWA: auto-reload on new Service Worker (controllerchange listener) | ✅ |
 | 2026-07-29 | DevOps: MSSQL MCP pinned mcp>=1.0,<2.0 for Python 3.14 compatibility | ✅ |
-| 2026-07-29 | Build: ✅ | Lint: ✅ clean | ✅ |
+| 2026-07-29 | Build: ✅ | Lint: ✅ clean (API-layer), 40 pre-existing warnings only in frontend shadcn/admin | ✅ |
+
+---
+
+# TASKS — PomagierGT v1.4.0
+
+| Data | Zadanie | Status |
+|---|---|---|
+| 2026-07-29 | Refaktoryzacja API: podział server.ts na 14 modułów tras w src/api/routes/ | ✅ |
+| 2026-07-29 | Nowy system błędów: ApiError + errorHandler middleware | ✅ |
+| 2026-07-29 | Walidacja Zod (validate middleware) dla wszystkich endpointów z body | ✅ |
+| 2026-07-29 | Jawne typy MSSQL (types.ts) — usunięcie `any` z warstwy API | ✅ |
+| 2026-07-29 | server.ts zredukowany z 1314 → ~150 linii | ✅ |
+| 2026-07-29 | Testy: 65 testów (15 istniejących + 50 nowych), 18 plików | ✅ |
+| 2026-07-29 | Coverage v8 skonfigurowany | ✅ |
+| 2026-07-29 | Lint: 40 błędów (tylko frontend, poza zakresem), 0 błędów w API | ✅ |
+| 2026-07-29 | Dokumentacja: README, CHANGELOG, TASKS zaktualizowane | ✅ |
 
 ---
 

@@ -30,5 +30,8 @@ System składa się z dwóch części:
 ## Stan projektu
 
 - [x] Konfiguracja opencode (agenci, skille, pliki wiedzy)
-- [ ] Faza 0: Audyt repozytorium i środowiska
-- [ ] Faza 1: Pierwszy pionowy wycinek MVP
+- [x] Faza 0: Audyt repozytorium i środowiska — zakończona 2026-07-29
+- [x] MVP v1.0.0 — informacja o towarze, lokalizacje, użytkownicy, panel admina, PWA, backup
+- [x] v1.3.0 — UX, Sync Queue, BasketPanel, szkielet inwentaryzacji i kompletacji
+- [x] v1.4.0 — Refaktoryzacja API: modularne trasy, Zod walidacja, 65 testów, lint czysty (API)
+- Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy

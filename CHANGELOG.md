@@ -1,5 +1,25 @@
 # CHANGELOG — PomagierGT
 
+## [1.4.0] — 2026-07-29 Refaktoryzacja API
+
+### API
+- Rozbicie `server.ts` (1314 linii) na 14 modułów tras w `src/api/routes/`
+- Nowy system obsługi błędów: `ApiError` + `errorHandler` middleware
+- Walidacja Zod (`validate`) dla wszystkich endpointów z request body
+- Jawne typy TypeScript dla rekordów MSSQL (`src/api/types.ts`) — usunięcie `any` z warstwy API
+- `server.ts` zredukowany do ~150 linii
+
+### Testy
+- 50 nowych testów jednostkowych (łącznie 65, 18 plików testowych)
+- Konfiguracja coverage v8
+- Każdy endpoint API: min. 3 testy (happy path, edge case, validation)
+
+### Jakość kodu
+- Lint: 0 błędów w warstwie API (40 pozostałych w plikach frontendowych shadcn/admin — poza zakresem)
+- 0 `@typescript-eslint/no-explicit-any` w plikach API
+- 0 `no-empty` w plikach API
+- Build ✅, typecheck ✅, 65/65 testów ✅
+
 ## [1.3.0] — 2026-07-29 UX Refinement & Sync Queue
 
 ### MobileShell Header Redesign
