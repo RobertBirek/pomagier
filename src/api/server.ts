@@ -884,7 +884,7 @@ app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
       skipped = 0;
     for (const row of locResult.recordset) {
       const parts = ((row as any).location as string)
-        .split(";")
+        .split(/[,;]/)
         .map((s: string) => s.trim())
         .filter(Boolean);
       for (const part of parts) {
@@ -927,7 +927,7 @@ app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
     for (const row of allProducts.recordset) {
       const productId = (row as any).productId;
       const parts = ((row as any).locRaw as string)
-        .split(";")
+        .split(/[,;]/)
         .map((s: string) => s.trim())
         .filter(Boolean);
       for (const part of parts) {

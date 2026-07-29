@@ -3,6 +3,13 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { getUsers, getWarehouses, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { User, Shield } from "lucide-react";
@@ -46,7 +53,7 @@ function Login() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col p-4">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center pt-[40px] px-4 pb-4">
       <div className="mb-4 text-center">
         <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">
           P
@@ -108,16 +115,23 @@ function Login() {
       )}
 
       {selected && (
-        <div className="rounded-lg border bg-card p-3">
-          <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            PIN dla:{" "}
-            <b className="text-foreground">
-              {[selected.firstName, selected.lastName].filter(Boolean).join(" ") ||
-                `ID ${selected.subiektId}`}
-            </b>
-          </div>
-          <PinPad onSubmit={submit} />
-        </div>
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelectedId(null);
+          }}
+        >
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-center">PIN</DialogTitle>
+              <DialogDescription className="text-center">
+                {[selected.firstName, selected.lastName].filter(Boolean).join(" ") ||
+                  `ID ${selected.subiektId}`}
+              </DialogDescription>
+            </DialogHeader>
+            <PinPad onSubmit={submit} />
+          </DialogContent>
+        </Dialog>
       )}
 
       <Link

@@ -2,11 +2,23 @@ const DB_NAME = "pomagier-offline";
 const STORE = "scan-queue";
 const DB_VERSION = 1;
 
-interface QueuedScan {
+export interface QueuedScan {
   id?: number;
   code: string;
   location?: string;
   timestamp: number;
+}
+
+export interface ReplayItem {
+  code: string;
+  ok: boolean;
+  error?: string;
+}
+
+export interface ReplayResult {
+  ok: number;
+  failed: number;
+  items: ReplayItem[];
 }
 
 function openDB(): Promise<IDBDatabase> {
@@ -67,16 +79,33 @@ export async function clearQueue(): Promise<void> {
     return new Promise((resolve) => {
       tx.oncomplete = () => resolve();
     });
-  } catch {}
+  } catch {
+    /* storage unavailable */
+  }
 }
 
-export async function replayQueue(): Promise<{ ok: number; failed: number }> {
-  const scans = await getPendingScans();
-  if (scans.length === 0) return { ok: 0, failed: 0 };
+export async function removeSingleScan(id: number): Promise<void> {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(id);
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve();
+    });
+  } catch {
+    /* storage unavailable */
+  }
+}
 
-  let ok = 0,
-    failed = 0;
+export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
+  const scans = await getPendingScans();
+  if (scans.length === 0) return { ok: 0, failed: 0, items: [] };
+
+  const items: ReplayItem[] = [];
+
   for (const scan of scans) {
+    if (signal?.aborted) break;
+
     try {
       const res = await fetch(scan.location ? "/api/locations/assign" : "/api/scan", {
         method: "POST",
@@ -84,14 +113,33 @@ export async function replayQueue(): Promise<{ ok: number; failed: number }> {
         body: JSON.stringify(
           scan.location ? { codes: [scan.code], location: scan.location } : { code: scan.code },
         ),
+        signal,
       });
-      if (res.ok) ok++;
-      else failed++;
-    } catch {
-      failed++;
+
+      if (res.ok) {
+        await removeSingleScan(scan.id!);
+        items.push({ code: scan.code, ok: true });
+      } else {
+        let message = `${res.status}`;
+        try {
+          const body = await res.json();
+          message = body.error || body.message || message;
+        } catch {
+          /* non-JSON response */
+        }
+        items.push({ code: scan.code, ok: false, error: message });
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") break;
+      items.push({
+        code: scan.code,
+        ok: false,
+        error: e instanceof Error ? e.message : "Brak połączenia",
+      });
     }
   }
 
-  if (failed === 0) await clearQueue();
-  return { ok, failed };
+  const ok = items.filter((i) => i.ok).length;
+  const failed = items.filter((i) => !i.ok).length;
+  return { ok, failed, items };
 }

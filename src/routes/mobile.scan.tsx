@@ -80,11 +80,7 @@ function ScanPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <ScanHeader
-        pageTitle="Skaner"
-        onSubmit={handleSubmit}
-        hint="🟢 Zeskanuj kod — wynik pokaże się poniżej"
-      />
+      <ScanHeader onSubmit={handleSubmit} hint="🟢 Zeskanuj kod — wynik pokaże się poniżej" />
 
       <div className="flex-1 p-4 space-y-4">
         {/* Inline result */}

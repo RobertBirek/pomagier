@@ -7,18 +7,16 @@ import { useBasket } from "@/hooks/use-basket";
 import { beep, cn } from "@/lib/utils";
 import {
   MapPin,
-  Package,
   CheckCircle2,
-  X,
   AlertTriangle,
   BarChart3,
   TrendingUp,
   TrendingDown,
   Layers,
-  Trash2,
   ArrowLeft,
 } from "lucide-react";
 import { StatusBadge, SectionTitle } from "@/components/pomagier/primitives";
+import { BasketPanel } from "@/components/pomagier/BasketPanel";
 
 interface ExpectedProduct {
   id: number;
@@ -208,8 +206,6 @@ function InventoryPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <ScanHeader
-          pageTitle="Inwentaryzacja"
-          pageSubtitle={`${matchedCount}/${expected.length}`}
           onSubmit={handleSubmit}
           hint={`🟢 Zeskanowano ${totalQty} szt. — Enter aby dodać`}
         />
@@ -276,48 +272,13 @@ function InventoryPage() {
           </div>
 
           {/* Basket */}
-          {basket.length > 0 && (
-            <div className="rounded-lg border bg-card p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold">Koszyk ({totalQty} szt.)</span>
-                <button
-                  onClick={clearBasket}
-                  className="touch-target text-xs text-destructive hover:underline inline-flex items-center gap-1"
-                >
-                  <Trash2 className="h-3 w-3" /> Wyczyść
-                </button>
-              </div>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {basket.map((b) => (
-                  <div key={b.code} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Package className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="font-mono truncate">{b.code}</span>
-                      {b.name && <span className="text-muted-foreground truncate">{b.name}</span>}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => updateQty(b.code, -1)}
-                        className="rounded border px-1 text-xs hover:bg-accent font-mono"
-                      >
-                        −
-                      </button>
-                      <span className="w-4 text-center font-mono font-semibold">{b.qty}</span>
-                      <button
-                        onClick={() => updateQty(b.code, 1)}
-                        className="rounded border px-1 text-xs hover:bg-accent font-mono"
-                      >
-                        +
-                      </button>
-                      <button onClick={() => removeItem(b.code)} className="text-destructive ml-1">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <BasketPanel
+            items={basket}
+            totalQty={totalQty}
+            onUpdateQty={updateQty}
+            onRemove={removeItem}
+            onClear={clearBasket}
+          />
 
           {/* Finish */}
           <button

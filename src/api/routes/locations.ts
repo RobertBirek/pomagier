@@ -138,7 +138,7 @@ export function registerLocationsRoutes(app: express.Express) {
         const raw = (row as any).location as string;
         // Obsługa wielu lokalizacji oddzielonych średnikiem
         const parts = raw
-          .split(";")
+          .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
         for (const part of parts) {
@@ -287,7 +287,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
       const existing = (current.recordset[0] as any)?.val || "";
       const locations = existing
-        .split(";")
+        .split(/[,;]/)
         .map((s: string) => s.trim())
         .filter(Boolean);
 
@@ -299,7 +299,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
       // Dodaj nową lokalizację (oddziel średnikiem)
       locations.push(parsed.raw);
-      const newValue = locations.join(";");
+      const newValue = locations.join(",");
 
       await pool
         .request()
@@ -349,7 +349,7 @@ export function registerLocationsRoutes(app: express.Express) {
         const productId = (row as any).productId;
         const locRaw = (row as any).locRaw as string;
         const parts = locRaw
-          .split(";")
+          .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
 
@@ -485,7 +485,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .input("id", productId)
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
         const existing = ((current.recordset[0] as any)?.val || "")
-          .split(";")
+          .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
         if (!existing.includes(parsed.raw)) {
@@ -493,7 +493,7 @@ export function registerLocationsRoutes(app: express.Express) {
           await pool
             .request()
             .input("id", productId)
-            .input("val", existing.join(";"))
+            .input("val", existing.join(","))
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
         }
       }
@@ -620,7 +620,7 @@ export function registerLocationsRoutes(app: express.Express) {
             .input("id", productId)
             .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
           const existing = ((current.recordset[0] as any)?.val || "")
-            .split(";")
+            .split(/[,;]/)
             .map((s: string) => s.trim())
             .filter(Boolean);
           const updated = existing.filter((s: string) => s !== parsed.raw);
@@ -628,7 +628,7 @@ export function registerLocationsRoutes(app: express.Express) {
             await pool
               .request()
               .input("id", productId)
-              .input("val", updated.join(";") || null)
+              .input("val", updated.join(",") || null)
               .query(`UPDATE tw__Towar SET ${locationField} = NULLIF(@val, '') WHERE tw_Id = @id`);
           }
           undone++;
@@ -949,7 +949,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
         const currentSourceVal = (currentSourceRes.recordset[0] as any)?.val || "";
         const locations = currentSourceVal
-          .split(";")
+          .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
         const updated = locations.filter((s: string) => s !== fromParsed.raw);
@@ -957,7 +957,7 @@ export function registerLocationsRoutes(app: express.Express) {
         await pool
           .request()
           .input("id", productId)
-          .input("val", updated.join(";"))
+          .input("val", updated.join(","))
           .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
 
         // Log movement
@@ -1018,7 +1018,7 @@ export function registerLocationsRoutes(app: express.Express) {
       const subiektMap = new Map<number, Set<string>>();
       for (const r of subiektRows.recordset) {
         const codes = ((r as any).val || "")
-          .split(";")
+          .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
         subiektMap.set((r as any).id, new Set(codes));
@@ -1226,14 +1226,14 @@ export function registerLocationsRoutes(app: express.Express) {
           .input("id", productId)
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
         const existing = ((current.recordset[0] as any)?.val || "")
-          .split(";")
+          .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
-        if ([...codes].sort().join(";") !== [...existing].sort().join(";")) {
+        if ([...codes].sort().join(",") !== [...existing].sort().join(",")) {
           await pool
             .request()
             .input("id", productId)
-            .input("val", codes.join(";"))
+            .input("val", codes.join(","))
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
           fixed++;
         }
@@ -1295,7 +1295,7 @@ export function registerLocationsRoutes(app: express.Express) {
           await pool
             .request()
             .input("id", id)
-            .input("val", codes.join(";"))
+            .input("val", codes.join(","))
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
           fixed++;
         }
@@ -1313,7 +1313,7 @@ export function registerLocationsRoutes(app: express.Express) {
             .input("id", id)
             .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
           const codes = ((subiektRow.recordset[0] as any)?.val || "")
-            .split(";")
+            .split(/[,;]/)
             .map((s: string) => s.trim())
             .filter(Boolean);
           if (current)

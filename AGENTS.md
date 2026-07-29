@@ -1,6 +1,6 @@
 # AGENTS.md — PomagierGT
 
-## Stan projektu: v1.2.0 Production
+## Stan projektu: v1.3.0 Production
 
 | Warstwa | Technologia | Stan |
 |---|---|---|

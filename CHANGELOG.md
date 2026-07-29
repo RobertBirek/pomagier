@@ -1,5 +1,54 @@
 # CHANGELOG — PomagierGT
 
+## [1.3.0] — 2026-07-29 UX Refinement & Sync Queue
+
+### MobileShell Header Redesign
+- New header layout: colored icon square (dashboard-style) + page title (left), queue/warehouse/connection/avatar (right)
+- Avatar button with initials → opens centered profile modal (dark mode, warehouse, connection, queue, logout, version)
+- Sync tab: colored icon — green (synced), amber (pending), red (offline)
+- Page title dynamic from route path (`titleMap`)
+
+### Mobile Login
+- PIN entry moved to centered `Dialog` modal (was inline)
+- Login page vertically centered with `pt-[40px]`
+
+### BasketPanel — Global Redesign
+- Two-column layout: EAN + name (left), quantity controls (right)
+- `[-]` button: qty>1 decreases, qty=1 opens `AlertDialog` "Czy usunąć?"
+- Color-coded `[+]` green / `[-]` red
+- Sound (`beep`) + haptic (`navigator.vibrate`) on +/- buttons
+- Product stock info: lazy-fetch in modal on row click (per-warehouse quantities, reserved, available)
+- Shared component — used by both `/mobile/inventory` and `/mobile/locations`
+
+### Sync Queue — Full Detail View
+- `/mobile/sync` redesign: pending scans list (EAN + timestamp), Sync/Stop/Clear buttons
+- Per-item sync results: ✅ OK / ❌ error with message
+- `replayQueue()` enhanced: AbortSignal support, per-item `ReplayItem[]` output, `removeSingleScan(id)`
+
+### ScanHeader — Streamlined Tools
+- Removed: "Powtórz ostatni skan", "Ostatnie kody", "Kolejka offline", "Wyczyść historię"
+- Removed: Camera scanner option (commented out)
+- Removed: `pageTitle`/`pageSubtitle` props — title now in MobileShell header
+- Sticky header now matches MobileShell height with smooth transition (`transition-all duration-200`)
+
+### Location Post-Save — Result Modal
+- Replaced "Weryfikacja" stock comparison card with confirmation modal showing per-product assignment results
+- Removed `GET /api/locations/verify` call after save
+
+### ERP Data Migration
+- Location code separator changed from `,` to `,` in `tw_Pole1..tw_Pole8` (MSSQL `REPLACE`)
+- Dual-read support (`split(/[,;]/)`) for backward compatibility
+- All write operations now use `,` separator
+
+### PWA
+- Auto-reload on new Service Worker version (`controllerchange` listener in `main.tsx`)
+
+### DevOps
+- Fixed MSSQL MCP: pinned `mcp>=1.0,<2.0` for Python 3.14 compatibility
+
+### Tests
+- Build: ✅ | Lint: ✅
+
 ## [1.2.0] — 2026-07-28 ScanHeader Unification
 
 ### Features

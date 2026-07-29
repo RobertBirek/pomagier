@@ -6,25 +6,10 @@ import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useAuth } from "@/lib/auth";
 import { beep } from "@/lib/utils";
-import {
-  MapPin,
-  Package,
-  X,
-  CheckCircle2,
-  History,
-  RotateCcw,
-  ArrowRightLeft,
-  BarChart3,
-  Minus,
-  Plus,
-  PackageOpen,
-} from "lucide-react";
+import { MapPin, Package, X, CheckCircle2, History, RotateCcw, ArrowRightLeft } from "lucide-react";
+import type { BasketItem } from "@/hooks/use-basket";
+import { BasketPanel } from "@/components/pomagier/BasketPanel";
 
-interface BasketItem {
-  code: string;
-  name?: string;
-  qty: number;
-}
 interface HistoryEntry {
   codes: string[];
   location: string;
@@ -82,10 +67,9 @@ function LocationsPage() {
   const [lastLocation, setLastLocation] = useState<string | null>(() =>
     localStorage.getItem(LAST_LOC_KEY),
   );
-  const [stockInfo, setStockInfo] = useState<{
+  const [showResult, setShowResult] = useState<{
     location: string;
-    assigned: number;
-    inSubiekt: number;
+    products: { symbol: string; name: string; quantity: number }[];
   } | null>(null);
   const [transferSource, setTransferSource] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState<string | null>(null);
@@ -197,15 +181,7 @@ function LocationsPage() {
             ...h,
           ].slice(0, 5),
         );
-        try {
-          const sr = await fetch(
-            `/api/locations/verify?location=${encodeURIComponent(pendingLocation)}`,
-          );
-          const st = await sr.json();
-          if (st.comparison) setStockInfo(st.comparison);
-        } catch {
-          /* ignore */
-        }
+        setShowResult({ location: pendingLocation, products: result.products || [] });
         setBasket([]);
       } else {
         beep(200, 400);
@@ -295,18 +271,13 @@ function LocationsPage() {
     }
   };
 
-  const handleLastLocation = () => {
-    if (!lastLocation) return;
-    setPendingLocation(lastLocation);
-  };
-
   const clearMode = () => {
     setBasket([]);
     setPendingLocation(null);
     setTransferSource(null);
     setTransferTarget(null);
     setResetLocation(null);
-    setStockInfo(null);
+    setShowResult(null);
   };
 
   // ── Tools (page-specific) ──
@@ -347,26 +318,9 @@ function LocationsPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <ScanHeader
-        pageTitle="Lokalizacje"
-        pageSubtitle={currentMode.label}
-        onSubmit={handleSubmit}
-        hint={hint}
-        tools={tools}
-      />
+      <ScanHeader onSubmit={handleSubmit} hint={hint} tools={tools} />
 
       <div className="flex-1 p-3 space-y-3">
-        {/* Last location quick button */}
-        {lastLocation && basket.length > 0 && !pendingLocation && mode === "assign" && (
-          <button
-            onClick={handleLastLocation}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-blue-50 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 touch-target active:scale-95 transition-all"
-          >
-            <MapPin className="h-4 w-4" />
-            Przypisz do {lastLocation}
-          </button>
-        )}
-
         {/* Transfer status */}
         {mode === "transfer" && (
           <div className="flex gap-2 text-xs">
@@ -394,75 +348,16 @@ function LocationsPage() {
         )}
 
         {/* Basket */}
-        {basket.length > 0 && (
-          <div className="rounded-lg border bg-card">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b bg-muted/30">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <PackageOpen className="h-4 w-4 text-primary" />
-                Koszyk ({totalQty} szt.)
-              </div>
-              <button
-                onClick={() => {
-                  setBasket([]);
-                  setPendingLocation(null);
-                }}
-                className="touch-target rounded px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 active:scale-95 transition-all"
-              >
-                Wyczyść
-              </button>
-            </div>
-            <div className="divide-y">
-              {basket.map((item) => (
-                <div
-                  key={item.code}
-                  className={`flex flex-col px-3 py-2.5 transition-colors duration-500 ${
-                    flashCodes.has(item.code) ? "bg-green-100" : ""
-                  }`}
-                >
-                  {/* Row 1: code + controls */}
-                  <div className="flex items-center gap-1.5">
-                    <Package className="h-4 w-4 text-primary/60 shrink-0" />
-                    <span className="font-mono text-[13px] font-medium truncate flex-1 min-w-0">
-                      {item.code}
-                    </span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => updateQty(item.code, -1)}
-                        className="touch-target h-10 w-10 rounded-lg bg-secondary hover:bg-secondary/80 active:scale-90 transition-all inline-flex items-center justify-center"
-                        aria-label="Zmniejsz ilość"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="min-w-[1.75rem] text-center text-base font-bold tabular-nums">
-                        {item.qty}
-                      </span>
-                      <button
-                        onClick={() => updateQty(item.code, 1)}
-                        className="touch-target h-10 w-10 rounded-lg bg-secondary hover:bg-secondary/80 active:scale-90 transition-all inline-flex items-center justify-center"
-                        aria-label="Zwiększ ilość"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => removeItem(item.code)}
-                        className="touch-target h-10 w-10 rounded-lg hover:bg-destructive/10 active:scale-90 transition-all inline-flex items-center justify-center ml-0.5"
-                        aria-label="Usuń z koszyka"
-                      >
-                        <X className="h-4 w-4 text-destructive/70" />
-                      </button>
-                    </div>
-                  </div>
-                  {/* Row 2: product name */}
-                  {item.name && (
-                    <div className="text-[11px] text-muted-foreground truncate ml-[22px] mt-0.5">
-                      {item.name}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <BasketPanel
+          items={basket}
+          totalQty={totalQty}
+          onUpdateQty={updateQty}
+          onRemove={removeItem}
+          onClear={() => {
+            setBasket([]);
+            setPendingLocation(null);
+          }}
+        />
 
         {/* Confirmation: assign */}
         {pendingLocation && mode === "assign" && (
@@ -560,29 +455,63 @@ function LocationsPage() {
           </div>
         )}
 
-        {/* Stock verification */}
-        {stockInfo && basket.length === 0 && (
-          <div className="rounded-lg border bg-card p-3">
-            <div className="flex items-center gap-2 text-sm font-semibold mb-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Weryfikacja — {stockInfo.location}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded bg-muted/50 p-2">
-                <div className="text-muted-foreground">Przypisane</div>
-                <div className="font-bold text-lg">{stockInfo.assigned}</div>
-              </div>
-              <div className="rounded bg-muted/50 p-2">
-                <div className="text-muted-foreground">W Subiekt GT</div>
-                <div className="font-bold text-lg">{stockInfo.inSubiekt}</div>
-              </div>
-            </div>
+        {/* Result modal */}
+        {showResult && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowResult(null)}
+          >
             <div
-              className={`mt-2 text-xs font-medium ${stockInfo.assigned === stockInfo.inSubiekt ? "text-success" : "text-warning"}`}
+              className="mx-4 w-full max-w-sm max-h-[80vh] overflow-y-auto rounded-xl bg-card p-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
             >
-              {stockInfo.assigned === stockInfo.inSubiekt
-                ? "✅ Stan zgodny"
-                : `⚠️ Różnica: ${Math.abs(stockInfo.assigned - stockInfo.inSubiekt)} szt.`}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Zapisano
+                </div>
+                <button
+                  onClick={() => setShowResult(null)}
+                  className="touch-target rounded p-1 hover:bg-accent"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="text-xs text-muted-foreground mb-3">
+                Lokalizacja:{" "}
+                <span className="font-mono font-bold text-foreground">{showResult.location}</span>
+              </div>
+
+              <div className="divide-y border rounded-lg max-h-48 overflow-y-auto mb-3">
+                {showResult.products.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-mono font-semibold text-[13px] break-all leading-tight">
+                        {p.symbol}
+                      </div>
+                      {p.name && (
+                        <div className="text-xs text-muted-foreground truncate">{p.name}</div>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-mono text-xs font-semibold tabular-nums">
+                      ×{p.quantity}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-xs text-muted-foreground text-center">
+                Produktów: {showResult.products.length} · Ilość:{" "}
+                {showResult.products.reduce((s, p) => s + p.quantity, 0)}
+              </div>
+
+              <button
+                onClick={() => setShowResult(null)}
+                className="mt-3 w-full touch-target rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground"
+              >
+                OK
+              </button>
             </div>
           </div>
         )}
@@ -616,7 +545,7 @@ function LocationsPage() {
         )}
 
         {/* Empty */}
-        {basket.length === 0 && !pendingLocation && !stockInfo && history.length === 0 && (
+        {basket.length === 0 && !pendingLocation && !showResult && history.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             <Package className="mx-auto h-12 w-12 opacity-20 mb-2" />
             <p className="text-sm">Zeskanuj EAN lub kod lokalizacji</p>

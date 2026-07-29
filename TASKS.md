@@ -1,4 +1,33 @@
-# TASKS — PomagierGT v1.2.0
+# TASKS — PomagierGT v1.3.0
+
+| Data | Zadanie | Status |
+|---|---|---|
+| 2026-07-29 | MobileShell: header redesign — colored icon square + avatar + queue/warehouse/connection badges | ✅ |
+| 2026-07-29 | MobileShell: avatar profile modal (centered, dark mode, warehouse, queue, logout, version) | ✅ |
+| 2026-07-29 | MobileShell: Sync tab icon color (green/amber/red) based on connection + queue status | ✅ |
+| 2026-07-29 | MobileShell: dynamic page title from route path (titleMap) | ✅ |
+| 2026-07-29 | Mobile login: PIN in Dialog modal + vertical centering + 40px top padding | ✅ |
+| 2026-07-29 | BasketPanel: global redesign — 2-column layout, AlertDialog for qty=1, color +/- buttons | ✅ |
+| 2026-07-29 | BasketPanel: beep + haptic on +/- buttons | ✅ |
+| 2026-07-29 | BasketPanel: lazy-fetch stock info in modal on row click (per-warehouse quantities) | ✅ |
+| 2026-07-29 | BasketPanel: shared component used by /mobile/inventory + /mobile/locations | ✅ |
+| 2026-07-29 | Sync page: full redesign — pending scans list, Sync/Stop/Clear, per-item results | ✅ |
+| 2026-07-29 | Offline queue: replayQueue with AbortSignal, removeSingleScan, per-item ReplayItem[] | ✅ |
+| 2026-07-29 | ScanHeader: removed pageTitle/pageSubtitle — title now in MobileShell header | ✅ |
+| 2026-07-29 | ScanHeader: removed "Powtórz ostatni", "Ostatnie kody", "Kolejka offline", "Wyczyść historię" | ✅ |
+| 2026-07-29 | ScanHeader: hidden camera scanner option | ✅ |
+| 2026-07-29 | ScanHeader: sticky height matches MobileShell with smooth transition (IntersectionObserver) | ✅ |
+| 2026-07-29 | Locations: removed "Przypisz do ostatniej lokalizacji" button | ✅ |
+| 2026-07-29 | Locations: post-save result modal (product list confirmation, replaced stock verification card) | ✅ |
+| 2026-07-29 | ERP: location separator migration `,` → `,` in tw_Pole1..tw_Pole8 (MSSQL REPLACE) | ✅ |
+| 2026-07-29 | ERP: dual-read split(/[,;]/) + write join(",") for backward compatibility | ✅ |
+| 2026-07-29 | PWA: auto-reload on new Service Worker (controllerchange listener) | ✅ |
+| 2026-07-29 | DevOps: MSSQL MCP pinned mcp>=1.0,<2.0 for Python 3.14 compatibility | ✅ |
+| 2026-07-29 | Build: ✅ | Lint: ✅ clean | ✅ |
+
+---
+
+# TASKS — PomagierGT v1.2.0 (archived)
 
 | Data | Zadanie | Status |
 |---|---|---|
@@ -6,30 +35,8 @@
 | 2026-07-28 | ScanHeader: inputmode="none" — no Android keyboard on scanner terminals | ✅ |
 | 2026-07-28 | ScanHeader: tools modal — repeat last, manual toggle, camera scanner, recent codes | ✅ |
 | 2026-07-28 | ScanHeader: haptic feedback + scanBus integration | ✅ |
-| 2026-07-28 | Refactor /mobile/scan → ScanHeader (279→154 lines) | ✅ |
-| 2026-07-28 | Refactor /mobile/locations → ScanHeader (229→273 lines) | ✅ |
-| 2026-07-28 | Refactor /mobile/inventory → ScanHeader (466→204 lines) | ✅ |
+| 2026-07-28 | Refactor /mobile/scan → ScanHeader | ✅ |
+| 2026-07-28 | Refactor /mobile/locations → ScanHeader | ✅ |
+| 2026-07-28 | Refactor /mobile/inventory → ScanHeader | ✅ |
 | 2026-07-28 | Remove old ScanInput.tsx | ✅ |
 | 2026-07-28 | New: useRecentCodes.ts hook + haptic() utility | ✅ |
-| 2026-07-28 | Lint: 270→130 problems (auto-fix 122 prettier), fix any types in wizard | ✅ |
-| 2026-07-28 | Unified placeholder: "Zeskanuj kod" across all pages | ✅ |
-| 2026-07-27 | Security: SQL Injection fix (whitelist locationField) | ✅ |
-| 2026-07-27 | Security: Token removed from localStorage (httpOnly cookie only) | ✅ |
-| 2026-07-27 | Security: PIN brute-force lockout (5 attempts/5 min) | ✅ |
-| 2026-07-27 | Refactor /mobile/locations: components + hooks extraction | ✅ |
-| 2026-07-27 | UX: loading states, idempotency keys, fewer toasts | ✅ |
-| 2026-07-27 | Test fixes: integration (real EAN), auth (bcrypt), 15/15 ✅ | ✅ |
-| 2026-07-27 | Docs: DECISIONS, PRD, DEPLOYMENT, CHANGELOG updated | ✅ |
-| 2026-07-26 | Production hardening — helmet, rate-limit, bcrypt, httpOnly | ✅ |
-| 2026-07-26 | Route extraction, integration tests, VPN | ✅ |
-| 2026-07-26 | React optimizations (10 fixes), UI polish | ✅ |
-| 2026-07-26 | Self-service PIN change, docs update | ✅ |
-| 2026-07-25 | Role-based access, admin login, PIN management | ✅ |
-| 2026-07-25 | Backup system, deployment wizard | ✅ |
-| 2026-07-25 | Warehouse grid, sync verification, dark mode | ✅ |
-| 2026-07-25 | Locations UX — names, sound, transfer, reset, undo | ✅ |
-| 2026-07-25 | Production stack — pomagier.local, Caddy, mkcert, systemd | ✅ |
-| 2026-07-24 | Camera scanner, HTTPS, PWA | ✅ |
-| 2026-07-24 | Location system, admin panel, product list | ✅ |
-| 2026-07-24 | SSR → SPA migration, Express API | ✅ |
-| 2026-07-24 | MVP foundation — stack, Docker, ERP adapter, mobile flow | ✅ |

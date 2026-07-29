@@ -36,8 +36,6 @@ interface Suggestion {
 }
 
 interface ScanHeaderProps {
-  pageTitle: string;
-  pageSubtitle?: string;
   onSubmit: (code: string) => Promise<boolean>;
   placeholder?: string;
   hint?: string;
@@ -69,8 +67,6 @@ function saveManualMode(v: boolean) {
 // ─── Component ────────────────────────────────────────
 
 export function ScanHeader({
-  pageTitle,
-  pageSubtitle,
   onSubmit,
   placeholder = "Zeskanuj kod",
   hint = "🟢 Zeskanuj kod — Enter aby wysłać",
@@ -89,6 +85,8 @@ export function ScanHeader({
   const [showTools, setShowTools] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
+  const [isStuck, setIsStuck] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // ── Autocomplete ──
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -121,6 +119,17 @@ export function ScanHeader({
     const t = setTimeout(() => setFlash(null), 500);
     return () => clearTimeout(t);
   }, [flash]);
+
+  // Sticky sentinel — detects when header hits top-0
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => setIsStuck(e.intersectionRatio < 1), {
+      threshold: [1],
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // ── Submit logic ──
   const handleSubmitCode = useCallback(
@@ -236,20 +245,19 @@ export function ScanHeader({
   // ── Render ──
   return (
     <>
-      {/* ── Sticky header ── */}
-      <div className="sticky top-0 z-40 bg-card border-b shadow-sm">
-        {/* Title row */}
-        <div className="px-3 pb-1 pt-1">
-          <h1 className="text-sm font-bold leading-tight">
-            {pageTitle}
-            {pageSubtitle && (
-              <span className="text-muted-foreground font-normal ml-1.5">· {pageSubtitle}</span>
-            )}
-          </h1>
-        </div>
+      {/* Sentinel — 1px above header, triggers isStuck when scrolled past */}
+      <div ref={sentinelRef} className="h-px" />
 
+      {/* ── Sticky header ── */}
+      <div
+        className={cn(
+          "sticky top-0 z-40 bg-card border-b shadow-sm",
+          "transition-all duration-200",
+          isStuck ? "safe-top py-2 min-h-[2.5rem]" : "pt-[5px] pb-2",
+        )}
+      >
         {/* Input row */}
-        <div className="flex items-center gap-2 px-3 pb-2">
+        <div className="flex items-center gap-2 px-3 py-2">
           <div className="relative flex-1">
             <input
               ref={inputRef}
@@ -339,22 +347,6 @@ export function ScanHeader({
               </button>
             </div>
 
-            {/* Repeat last scan */}
-            {recentCodes.length > 0 && (
-              <button
-                onClick={handleRepeatLast}
-                className="w-full flex items-center gap-3 rounded-lg p-3 text-left text-sm font-semibold hover:bg-accent transition-colors touch-target"
-              >
-                <RotateCcw className="h-5 w-5 text-primary" />
-                <div className="flex-1 min-w-0">
-                  <div>Powtórz ostatni</div>
-                  <div className="text-xs text-muted-foreground font-mono truncate font-normal">
-                    {recentCodes[0]}
-                  </div>
-                </div>
-              </button>
-            )}
-
             {/* Toggle manual mode */}
             {!disableManual && (
               <button
@@ -367,42 +359,6 @@ export function ScanHeader({
                 <Keyboard className="h-5 w-5" />
                 <span>{manualMode ? "Tryb skanera" : "Wpisz ręcznie"}</span>
               </button>
-            )}
-
-            {/* Camera scanner */}
-            <button
-              onClick={() => {
-                setShowTools(false);
-                setShowCamera(true);
-              }}
-              className="w-full flex items-center gap-3 rounded-lg p-3 text-left text-sm font-semibold hover:bg-accent transition-colors touch-target"
-            >
-              <Camera className="h-5 w-5" />
-              Skanuj kamerą
-            </button>
-
-            {/* Recent codes */}
-            {recentCodes.length > 0 && (
-              <>
-                <div className="pt-2 pb-1 px-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Ostatnie kody
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {recentCodes.slice(0, 8).map((code) => (
-                    <button
-                      key={code}
-                      onMouseDown={() => {
-                        setShowTools(false);
-                        setInputValue(code);
-                        setTimeout(() => handleSubmitCode(code), 60);
-                      }}
-                      className="rounded-full border bg-card px-3 py-1.5 text-xs font-mono hover:bg-accent active:scale-95 transition-all touch-target"
-                    >
-                      {code}
-                    </button>
-                  ))}
-                </div>
-              </>
             )}
 
             {/* Page-specific tools */}
@@ -426,34 +382,6 @@ export function ScanHeader({
                     <span>{t.label}</span>
                   </button>
                 ))}
-              </>
-            )}
-
-            {/* Queue indicator */}
-            {queueCount > 0 && (
-              <>
-                <hr className="my-2" />
-                <div className="flex items-center gap-2 px-1 text-xs text-amber-600">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span>{queueCount} oczekujących w kolejce offline</span>
-                </div>
-              </>
-            )}
-
-            {/* Clear history */}
-            {recentCodes.length > 0 && (
-              <>
-                <hr className="my-2" />
-                <button
-                  onClick={() => {
-                    clearRecentCodes();
-                    setShowTools(false);
-                  }}
-                  className="w-full flex items-center gap-2 rounded-lg p-2 text-left text-xs text-destructive hover:bg-destructive/10 transition-colors touch-target"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Wyczyść historię
-                </button>
               </>
             )}
           </div>

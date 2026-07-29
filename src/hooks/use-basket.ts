@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { beep } from "@/lib/utils";
+import type { StockInfo } from "@/erp/types";
 
 const BASKET_KEY = "pomagier-basket";
 
@@ -8,6 +9,7 @@ export interface BasketItem {
   code: string;
   name?: string;
   qty: number;
+  stocks?: StockInfo[];
 }
 
 interface StoredBasket {
