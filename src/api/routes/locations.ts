@@ -7,13 +7,31 @@ import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
 
-interface SubiektLocationRow { location: string; }
-interface SubiektProductLocRow { productId: number; locRaw: string; }
-interface SubiektProductRow { id: number; symbol: string; name: string; }
-interface SubiektFieldRow { val: string; }
-interface SubiektStockRow { total: number; }
-interface SubiektIdRow { id: number; }
-interface SubiektProductDetailRow { tw_Symbol: string; tw_Nazwa: string; }
+interface SubiektLocationRow {
+  location: string;
+}
+interface SubiektProductLocRow {
+  productId: number;
+  locRaw: string;
+}
+interface SubiektProductRow {
+  id: number;
+  symbol: string;
+  name: string;
+}
+interface SubiektFieldRow {
+  val: string;
+}
+interface SubiektStockRow {
+  total: number;
+}
+interface SubiektIdRow {
+  id: number;
+}
+interface SubiektProductDetailRow {
+  tw_Symbol: string;
+  tw_Nazwa: string;
+}
 
 interface DuplicateEntry {
   productId: number;
@@ -23,7 +41,11 @@ interface DuplicateEntry {
   suggestion: string;
 }
 
-interface GridCell { code: string; productCount: number; totalQuantity: number; }
+interface GridCell {
+  code: string;
+  productCount: number;
+  totalQuantity: number;
+}
 interface GridResult {
   [areaName: string]: {
     maxAisle: number;
@@ -243,8 +265,9 @@ export function registerLocationsRoutes(app: express.Express) {
 
       logger.info({ code: parsed.raw }, "New location added");
       res.status(201).json({ ok: true, location: created });
-    } catch (err: any) {
-      if (err?.code === "23505") {
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string };
+      if (pgErr?.code === "23505") {
         res.status(409).json({ error: "Lokalizacja już istnieje" });
         return;
       }
@@ -974,7 +997,8 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("id", productId)
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const currentSourceVal = (currentSourceRes.recordset[0] as SubiektFieldRow | undefined)?.val || "";
+        const currentSourceVal =
+          (currentSourceRes.recordset[0] as SubiektFieldRow | undefined)?.val || "";
         const locations = currentSourceVal
           .split(/[,;]/)
           .map((s: string) => s.trim())
@@ -1221,8 +1245,9 @@ export function registerLocationsRoutes(app: express.Express) {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "attachment; filename=labels.pdf");
       res.send(pdf);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message || "PDF generation failed" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "PDF generation failed";
+      res.status(500).json({ error: message });
     }
   });
 

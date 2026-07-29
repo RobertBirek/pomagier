@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, Camera, ScanLine } from "lucide-react";
 
+interface Html5QrcodeInstance {
+  clear(): void;
+  stop(): Promise<void>;
+}
+
 interface CameraScannerProps {
   onScan: (code: string) => void;
   onClose?: () => void;
@@ -11,7 +16,7 @@ export function CameraScanner({ onScan, onClose, inline }: CameraScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(!inline);
   const [loading, setLoading] = useState(false);
-  const scannerRef = useRef<any>(null);
+  const scannerRef = useRef<Html5QrcodeInstance | null>(null);
   const lastScanRef = useRef("");
   const viewportId = useRef(`scanner-${Math.random().toString(36).slice(2, 8)}`);
 
@@ -55,7 +60,7 @@ export function CameraScanner({ onScan, onClose, inline }: CameraScannerProps) {
           },
           undefined,
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (stopped) return;
         setError("Nie można uruchomić kamery. Sprawdź uprawnienia.");
         setActive(false);

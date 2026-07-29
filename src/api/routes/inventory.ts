@@ -6,8 +6,17 @@ import { logger } from "../../lib/logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { getAdapter } from "../adapter-provider.js";
 
-interface SubiektInventoryProductRow { id: number; symbol: string; name: string; unit: string; barcode: string; }
-interface SubiektStockTotalRow { st_TowId: number; total: number; }
+interface SubiektInventoryProductRow {
+  id: number;
+  symbol: string;
+  name: string;
+  unit: string;
+  barcode: string;
+}
+interface SubiektStockTotalRow {
+  st_TowId: number;
+  total: number;
+}
 
 interface ExpectedProduct {
   id: number;

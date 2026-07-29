@@ -8,7 +8,7 @@ export const Route = createFileRoute("/")({
       if (!configured && !hasEnv) {
         throw redirect({ to: "/wizard" });
       }
-    } catch {}
+    } catch { /* wizard status check failed */ }
     throw redirect({ to: "/mobile/login" });
   },
 });

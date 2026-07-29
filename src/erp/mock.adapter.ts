@@ -93,7 +93,13 @@ export class MockErpAdapter implements ErpAdapter {
     return { ok: true, latencyMs: 1 };
   }
 
-  async reconnect(_config: { host: string; port: number; database: string; user: string; password: string }) {
+  async reconnect(_config: {
+    host: string;
+    port: number;
+    database: string;
+    user: string;
+    password: string;
+  }) {
     // no-op for mock
   }
 }

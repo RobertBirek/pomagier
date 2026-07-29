@@ -7,9 +7,16 @@ import { getAdapter } from "../adapter-provider.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { getLocationField } from "./locations.js";
 
-interface SubiektLocationRow { location: string; }
-interface SubiektProductLocRow { productId: number; locRaw: string; }
-interface SubiektUserIdRow { id: number; }
+interface SubiektLocationRow {
+  location: string;
+}
+interface SubiektProductLocRow {
+  productId: number;
+  locRaw: string;
+}
+interface SubiektUserIdRow {
+  id: number;
+}
 
 interface WizardResults {
   locations?: { imported: number; skipped: number };
@@ -75,7 +82,7 @@ export function registerWizardRoutes(app: Application): void {
       let imported = 0,
         skipped = 0;
       for (const row of locResult.recordset) {
-        const parts = ((row as SubiektLocationRow).location)
+        const parts = (row as SubiektLocationRow).location
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
@@ -117,7 +124,7 @@ export function registerWizardRoutes(app: Application): void {
         );
       for (const row of allProducts.recordset) {
         const productId = (row as SubiektProductLocRow).productId;
-        const parts = ((row as SubiektProductLocRow).locRaw)
+        const parts = (row as SubiektProductLocRow).locRaw
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);

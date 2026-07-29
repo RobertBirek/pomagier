@@ -19,7 +19,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const saved = localStorage.getItem("pomagier_auth");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch {
+      /* localStorage parse failed */
+    }
     return { token: null, user: null, operatorName: "", warehouse: "" };
   });
 

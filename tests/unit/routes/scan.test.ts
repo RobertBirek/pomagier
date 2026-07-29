@@ -21,9 +21,7 @@ describe("Scan routes", () => {
 
   describe("POST /api/scan", () => {
     it("returns found=true for known barcode", async () => {
-      const res = await request(app)
-        .post("/api/scan")
-        .send({ code: "5901234567890" });
+      const res = await request(app).post("/api/scan").send({ code: "5901234567890" });
 
       expect(res.status).toBe(200);
       expect(res.body.found).toBe(true);
@@ -32,9 +30,7 @@ describe("Scan routes", () => {
     });
 
     it("returns found=false for unknown barcode", async () => {
-      const res = await request(app)
-        .post("/api/scan")
-        .send({ code: "0000000000000" });
+      const res = await request(app).post("/api/scan").send({ code: "0000000000000" });
 
       expect(res.status).toBe(200);
       expect(res.body.found).toBe(false);
@@ -52,9 +48,7 @@ describe("Scan routes", () => {
     });
 
     it("returns 422 for empty code", async () => {
-      const res = await request(app)
-        .post("/api/scan")
-        .send({ code: "" });
+      const res = await request(app).post("/api/scan").send({ code: "" });
 
       expect(res.status).toBe(422);
       expect(res.body.error).toBeTruthy();

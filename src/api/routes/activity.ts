@@ -63,9 +63,7 @@ export function registerActivityRoutes(app: Application): void {
         .from(schema.auditLog)
         .orderBy(sql`${schema.auditLog.createdAt} DESC`)
         .limit(pageSize);
-      const [audCount] = await db
-        .select({ cnt: sql<number>`COUNT(*)::int` })
-        .from(schema.auditLog);
+      const [audCount] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(schema.auditLog);
 
       const rows = [
         ...movements.map((m) => ({

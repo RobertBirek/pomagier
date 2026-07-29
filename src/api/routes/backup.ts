@@ -3,7 +3,10 @@ import { getDb, schema } from "../../db/index.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { logger } from "../../lib/logger.js";
 
-interface ConfigEntry { key: string; value: string; }
+interface ConfigEntry {
+  key: string;
+  value: string;
+}
 
 function validateBackupFilename(name: unknown): name is string {
   return (

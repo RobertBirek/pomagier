@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { getDb, schema } from "@/db/index";
 import { eq } from "drizzle-orm";
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
 declare global {
   namespace Express {
     interface Request {

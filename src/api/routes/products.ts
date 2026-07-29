@@ -74,7 +74,10 @@ export function registerProductsRoutes(app: Application): void {
           const plRows = await db
             .select({ productId: schema.productLocations.productId, code: schema.locations.code })
             .from(schema.productLocations)
-            .leftJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+            .leftJoin(
+              schema.locations,
+              eq(schema.productLocations.locationId, schema.locations.id),
+            );
 
           const locMap = new Map<number, string[]>();
           for (const pl of plRows) {
