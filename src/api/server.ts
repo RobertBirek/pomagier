@@ -8,13 +8,14 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { getAdapter } from "./adapter-provider.js";
 import { getDb, schema } from "../db/index.js";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { authMiddleware, requireAdmin } from "./auth-middleware.js";
 import { registerBackupRoutes } from "./routes/backup.js";
 import { registerLocationsRoutes, getLocationField } from "./routes/locations.js";
 import { getEnv } from "../lib/env.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {
@@ -77,19 +78,6 @@ app.use("/api/locations", globalLimiter);
 app.get("/api/health", rateLimit({ windowMs: 60000, max: 300 }));
 app.use("/api", globalLimiter);
 
-// --- Auth helpers ---
-function hashPin(pin: string): string {
-  return bcrypt.hashSync(pin, 10);
-}
-
-function verifyPin(pin: string, hash: string): boolean {
-  return bcrypt.compareSync(pin, hash);
-}
-
-function generateToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
-
 // --- Użytkownicy (Subiekt + PIN z Postgres) ---
 app.get("/api/users", async (_req, res) => {
   try {
@@ -140,127 +128,6 @@ app.get("/api/warehouses", async (_req, res) => {
     res.json(result.recordset);
   } catch {
     res.json([]);
-  }
-});
-
-// --- PIN brute-force lockout (in-memory, 5 attempts → 5 min lock) ---
-const PIN_LOCKOUT_MAX = 5;
-const PIN_LOCKOUT_MS = 5 * 60 * 1000;
-const pinAttempts = new Map<number, { count: number; lockedUntil: number }>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, entry] of pinAttempts) {
-    if (now > entry.lockedUntil) pinAttempts.delete(id);
-  }
-}, 60_000);
-
-function checkPinLockout(subiektUzId: number): string | null {
-  const entry = pinAttempts.get(subiektUzId);
-  if (!entry) return null;
-  if (Date.now() < entry.lockedUntil) {
-    const remaining = Math.ceil((entry.lockedUntil - Date.now()) / 60_000);
-    return `Konto zablokowane. Spróbuj ponownie za ${remaining} min.`;
-  }
-  pinAttempts.delete(subiektUzId);
-  return null;
-}
-
-function recordPinFailure(subiektUzId: number): void {
-  const entry = pinAttempts.get(subiektUzId) || { count: 0, lockedUntil: 0 };
-  entry.count++;
-  if (entry.count >= PIN_LOCKOUT_MAX) {
-    entry.lockedUntil = Date.now() + PIN_LOCKOUT_MS;
-    logger.warn({ subiektUzId, attempts: entry.count }, "PIN lockout activated");
-  }
-  pinAttempts.set(subiektUzId, entry);
-}
-
-function clearPinAttempts(subiektUzId: number): void {
-  pinAttempts.delete(subiektUzId);
-}
-
-// --- Logowanie ---
-app.post("/api/login", async (req, res) => {
-  const { subiektUzId, pin } = req.body ?? {};
-
-  if (!subiektUzId || !pin) {
-    res.status(400).json({ error: "Brak ID użytkownika lub PIN" });
-    return;
-  }
-
-  // Check lockout before DB query
-  const lockoutMsg = checkPinLockout(subiektUzId);
-  if (lockoutMsg) {
-    res.status(429).json({ error: lockoutMsg });
-    return;
-  }
-
-  try {
-    const db = getDb();
-    const [user] = await db
-      .select()
-      .from(schema.users)
-      .where(and(eq(schema.users.subiektUzId, subiektUzId), eq(schema.users.active, true)));
-
-    if (!user) {
-      recordPinFailure(subiektUzId);
-      try {
-        await db.insert(schema.auditLog).values({
-          correlationId: crypto.randomUUID(),
-          action: "login_failed",
-          details: JSON.stringify({ subiektUzId, reason: "no_user" }),
-        });
-      } catch {}
-      res.status(401).json({ error: "Użytkownik nie skonfigurowany w PomagierGT" });
-      return;
-    }
-
-    if (!verifyPin(pin, user.pin)) {
-      recordPinFailure(subiektUzId);
-      try {
-        await db.insert(schema.auditLog).values({
-          correlationId: crypto.randomUUID(),
-          userId: user.id,
-          action: "login_failed",
-          details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }),
-        });
-      } catch {}
-      res.status(401).json({ error: "Nieprawidłowy PIN" });
-      return;
-    }
-
-    // Successful login — clear lockout
-    clearPinAttempts(subiektUzId);
-
-    const token = generateToken();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
-
-    await db.insert(schema.sessions).values({
-      userId: user.id,
-      token,
-      expiresAt,
-    });
-
-    await db.insert(schema.auditLog).values({
-      correlationId: crypto.randomUUID(),
-      userId: user.id,
-      action: "login",
-      details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
-    });
-
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
-      path: "/",
-    });
-
-    res.json({ token, user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
-  } catch (err) {
-    logger.error({ err }, "Login failed");
-    res.status(500).json({ error: "Błąd logowania" });
   }
 });
 
@@ -539,64 +406,6 @@ app.put("/api/field-mappings", requireAdmin, async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to save field mappings");
     res.status(500).json({ error: "Błąd zapisu" });
-  }
-});
-
-// --- Zmiana PIN użytkownika ---
-app.put("/api/users/:subiektId/pin", requireAdmin, async (req, res) => {
-  const subiektUzId = parseInt(req.params.subiektId as string);
-  const { pin } = req.body ?? {};
-
-  if (!subiektUzId || !pin || pin.length < 4 || pin.length > 8) {
-    res.status(400).json({ error: "PIN musi mieć 4-8 cyfr" });
-    return;
-  }
-  if (!/^\d+$/.test(pin)) {
-    res.status(400).json({ error: "PIN może zawierać tylko cyfry" });
-    return;
-  }
-
-  try {
-    const db = getDb();
-    await db
-      .insert(schema.users)
-      .values({ subiektUzId, pin: hashPin(pin), role: "operator" })
-      .onConflictDoUpdate({ target: schema.users.subiektUzId, set: { pin: hashPin(pin) } });
-
-    logger.info({ subiektUzId }, "PIN updated");
-    res.json({ ok: true });
-  } catch (err) {
-    logger.error({ err }, "PIN update failed");
-    res.status(500).json({ error: "Błąd zapisu" });
-  }
-});
-
-// --- Zmiana roli użytkownika ---
-app.put("/api/users/:subiektId/role", requireAdmin, async (req, res) => {
-  const subiektUzId = parseInt(req.params.subiektId as string);
-  const { role } = req.body ?? {};
-  if (!subiektUzId || !["admin", "operator"].includes(role)) {
-    res.status(400).json({ error: "Nieprawidłowa rola" });
-    return;
-  }
-  try {
-    const db = getDb();
-    if (role !== "admin") {
-      const admins = await db
-        .select()
-        .from(schema.users)
-        .where(and(eq(schema.users.role, "admin"), eq(schema.users.active, true)));
-      if (admins.length === 1 && admins[0].subiektUzId === subiektUzId) {
-        res.status(400).json({ error: "Nie można usunąć ostatniego administratora" });
-        return;
-      }
-    }
-    await db.update(schema.users).set({ role }).where(eq(schema.users.subiektUzId, subiektUzId));
-    logger.info({ subiektUzId, role }, "User role updated");
-    res.json({ ok: true, role });
-  } catch (err) {
-    logger.error({ err }, "Role update failed");
-    res.status(500).json({ error: "Błąd" });
   }
 });
 
@@ -911,7 +720,7 @@ app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
         .insert(schema.users)
         .values({
           subiektUzId,
-          pin: hashPin("0000"),
+          pin: bcrypt.hashSync("0000", 10),
           role: subiektUzId === 1 ? "admin" : "operator",
         })
         .onConflictDoNothing();
@@ -928,6 +737,9 @@ app.post("/api/wizard/import-all", requireAdmin, async (_req, res) => {
 
 // --- Health + Company routes ---
 registerHealthRoutes(app);
+
+// --- Auth routes (login, PIN, role) ---
+registerAuthRoutes(app);
 
 // --- Location routes ---
 registerLocationsRoutes(app);
