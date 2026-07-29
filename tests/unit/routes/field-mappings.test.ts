@@ -26,7 +26,7 @@ vi.mock("../../../src/db/index.js", () => ({
 }));
 
 vi.mock("../../../src/api/auth-middleware.js", () => ({
-  requireAdmin: (_req: any, _res: any, next: any) => next(),
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 vi.mock("../../../src/lib/field-mappings.js", () => ({
@@ -59,9 +59,7 @@ describe("Field Mappings routes", () => {
 
   describe("PUT /api/field-mappings", () => {
     it("returns 422 when body is not an array", async () => {
-      const res = await request(app)
-        .put("/api/field-mappings")
-        .send({ notMappings: {} });
+      const res = await request(app).put("/api/field-mappings").send({ notMappings: {} });
       expect(res.status).toBe(422);
     });
 

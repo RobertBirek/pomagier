@@ -24,7 +24,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.userId!));
     if (user) req.user = { id: user.id, role: user.role, subiektUzId: user.subiektUzId };
-  } catch {}
+  } catch {
+    /* no session to destroy */
+  }
 
   next();
 }

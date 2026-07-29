@@ -1,10 +1,24 @@
 import type { Application, Request, Response } from "express";
 import crypto from "node:crypto";
 import { getDb, schema } from "../../db/index.js";
-import { eq } from "drizzle-orm";
+import { eq, and, type SQL } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { getAdapter } from "../adapter-provider.js";
+
+interface SubiektInventoryProductRow { id: number; symbol: string; name: string; unit: string; barcode: string; }
+interface SubiektStockTotalRow { st_TowId: number; total: number; }
+
+interface ExpectedProduct {
+  id: number;
+  symbol: string;
+  name: string;
+  unit: string;
+  barcode: string;
+  locations: string[];
+  qty: number;
+  subiektStock: number;
+}
 
 export function registerInventoryRoutes(app: Application): void {
   app.get("/api/inventory/expected", async (req: Request, res: Response) => {
@@ -17,7 +31,14 @@ export function registerInventoryRoutes(app: Application): void {
       const db = getDb();
       const adapter = getAdapter();
       const pool = await adapter.getPool?.();
-      let q = db
+      const whereConditions: SQL[] = [eq(schema.locations.area, area)];
+      if (["exact", "shelf", "rack"].includes(scope) && aisle)
+        whereConditions.push(eq(schema.locations.aisle, aisle));
+      if (["exact", "shelf"].includes(scope) && rack)
+        whereConditions.push(eq(schema.locations.rack, rack));
+      if (["exact"].includes(scope) && shelf)
+        whereConditions.push(eq(schema.locations.shelf, shelf));
+      const rows = await db
         .select({
           code: schema.locations.code,
           area: schema.locations.area,
@@ -29,14 +50,7 @@ export function registerInventoryRoutes(app: Application): void {
         })
         .from(schema.productLocations)
         .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
-        .where(eq(schema.locations.area, area));
-      if (["exact", "shelf", "rack"].includes(scope) && aisle)
-        q = (q as any).where(eq(schema.locations.aisle, aisle));
-      if (["exact", "shelf"].includes(scope) && rack)
-        q = (q as any).where(eq(schema.locations.rack, rack));
-      if (["exact"].includes(scope) && shelf)
-        q = (q as any).where(eq(schema.locations.shelf, shelf));
-      const rows = await q;
+        .where(and(...(whereConditions as [SQL, ...SQL[]])));
       const grouped = new Map();
       for (const r of rows) {
         if (!r.productId) continue;
@@ -62,12 +76,13 @@ export function registerInventoryRoutes(app: Application): void {
             `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_JednMiary AS unit, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${ids})`,
           );
         for (const p of pr.recordset) {
-          const g = grouped.get((p as any).id);
+          const row = p as SubiektInventoryProductRow;
+          const g = grouped.get(row.id);
           if (g) {
-            g.symbol = (p as any).symbol;
-            g.name = (p as any).name;
-            g.unit = (p as any).unit;
-            g.barcode = (p as any).barcode;
+            g.symbol = row.symbol;
+            g.name = row.name;
+            g.unit = row.unit;
+            g.barcode = row.barcode;
           }
         }
         const sr = await pool
@@ -76,8 +91,9 @@ export function registerInventoryRoutes(app: Application): void {
             `SELECT st_TowId, SUM(st_Stan) AS total FROM tw_Stan WHERE st_TowId IN (${ids}) GROUP BY st_TowId`,
           );
         for (const s of sr.recordset) {
-          const g = grouped.get((s as any).st_TowId);
-          if (g) g.subiektStock = (s as any).total;
+          const row = s as SubiektStockTotalRow;
+          const g = grouped.get(row.st_TowId);
+          if (g) g.subiektStock = row.total;
         }
       }
       res.json({ scope, area, aisle, rack, shelf, products: [...grouped.values()] });
@@ -98,7 +114,7 @@ export function registerInventoryRoutes(app: Application): void {
         `http://localhost:3000/api/inventory/expected?scope=${scope}&area=${area}&aisle=${aisle}&rack=${rack}&shelf=${shelf}`,
       );
       const expectedData = await expectedRes.json();
-      const ep: any[] = expectedData.products || [];
+      const ep: ExpectedProduct[] = expectedData.products || [];
       const sm = new Map();
       for (const s of scanned) sm.set(s.code, (sm.get(s.code) || 0) + s.qty);
       const matched = [],
@@ -122,7 +138,9 @@ export function registerInventoryRoutes(app: Application): void {
           action: "inventory_report",
           details: JSON.stringify({ scope, matched: matched.length, missing: missing.length }),
         });
-      } catch { /* non-critical audit log failure */ }
+      } catch {
+        /* non-critical audit log failure */
+      }
       res.json({
         summary: {
           expected: ep.length,

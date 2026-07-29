@@ -9,18 +9,25 @@ vi.mock("../../../src/api/adapter-provider.js", () => ({
 }));
 
 vi.mock("drizzle-orm", () => ({
-  sql: (...args: any[]) => args.join(""),
+  sql: (...args: unknown[]) => String(args.join("")),
 }));
 
 vi.mock("../../../src/db/index.js", () => {
-  const chain: any = {};
-  chain.select = vi.fn().mockReturnValue(chain);
-  chain.from = vi.fn().mockReturnValue(chain);
-  chain.orderBy = vi.fn().mockReturnValue(chain);
-  chain.limit = vi.fn().mockReturnValue(chain);
-  chain.offset = vi.fn().mockResolvedValue([]);
-  chain.where = vi.fn().mockResolvedValue([{ count: 5 }]);
-  chain.then = (resolve: (v: any) => void) => resolve([]);
+  const chain = {
+    select: vi.fn(),
+    from: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    offset: vi.fn(),
+    where: vi.fn(),
+    then: (resolve: (v: unknown) => void) => resolve([]),
+  };
+  chain.select.mockReturnValue(chain);
+  chain.from.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  chain.offset.mockResolvedValue([]);
+  chain.where.mockResolvedValue([{ count: 5 }]);
 
   return {
     getDb: () => chain,

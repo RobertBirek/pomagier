@@ -7,6 +7,31 @@ import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
 
+interface SubiektLocationRow { location: string; }
+interface SubiektProductLocRow { productId: number; locRaw: string; }
+interface SubiektProductRow { id: number; symbol: string; name: string; }
+interface SubiektFieldRow { val: string; }
+interface SubiektStockRow { total: number; }
+interface SubiektIdRow { id: number; }
+interface SubiektProductDetailRow { tw_Symbol: string; tw_Nazwa: string; }
+
+interface DuplicateEntry {
+  productId: number;
+  symbol: string;
+  name: string;
+  locations: { code: string; area: string; aisle: number; rack: number; quantity: number }[];
+  suggestion: string;
+}
+
+interface GridCell { code: string; productCount: number; totalQuantity: number; }
+interface GridResult {
+  [areaName: string]: {
+    maxAisle: number;
+    maxShelf: number;
+    grid: Record<string, Record<string, GridCell>>;
+  };
+}
+
 /** Whitelist of allowed Subiekt GT field names for location mapping. Prevents SQL Injection. */
 const ALLOWED_LOCATION_FIELDS = new Set([
   "tw_Pole1",
@@ -135,7 +160,7 @@ export function registerLocationsRoutes(app: express.Express) {
       let skipped = 0;
 
       for (const row of result.recordset) {
-        const raw = (row as any).location as string;
+        const raw = (row as SubiektLocationRow).location;
         // Obsługa wielu lokalizacji oddzielonych średnikiem
         const parts = raw
           .split(/[,;]/)
@@ -282,10 +307,10 @@ export function registerLocationsRoutes(app: express.Express) {
       // Pobierz aktualną wartość pola
       const current = await pool
         .request()
-        .input("id", parseInt(productId as any))
+        .input("id", productId)
         .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
 
-      const existing = (current.recordset[0] as any)?.val || "";
+      const existing = (current.recordset[0] as SubiektFieldRow | undefined)?.val || "";
       const locations = existing
         .split(/[,;]/)
         .map((s: string) => s.trim())
@@ -303,7 +328,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
       await pool
         .request()
-        .input("id", parseInt(productId as any))
+        .input("id", productId)
         .input("val", newValue)
         .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
 
@@ -346,8 +371,8 @@ export function registerLocationsRoutes(app: express.Express) {
       await db.delete(schema.productLocations);
 
       for (const row of result.recordset) {
-        const productId = (row as any).productId;
-        const locRaw = (row as any).locRaw as string;
+        const productId = (row as SubiektProductLocRow).productId;
+        const locRaw = (row as SubiektProductLocRow).locRaw;
         const parts = locRaw
           .split(/[,;]/)
           .map((s: string) => s.trim())
@@ -451,7 +476,7 @@ export function registerLocationsRoutes(app: express.Express) {
           WHERE tw_PodstKodKresk = @code
         `);
         if (result.recordset.length > 0) {
-          foundProducts.push(result.recordset[0] as any);
+          foundProducts.push(result.recordset[0] as SubiektProductRow);
         } else {
           notFound.push(code);
         }
@@ -484,7 +509,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("id", productId)
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const existing = ((current.recordset[0] as any)?.val || "")
+        const existing = ((current.recordset[0] as SubiektFieldRow | undefined)?.val || "")
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
@@ -602,7 +627,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .input("code", code)
           .query("SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code");
         for (const row of result.recordset) {
-          const productId = (row as any).id;
+          const productId = (row as SubiektIdRow).id;
           // Decrease quantity in product_locations (or remove if quantity gets to 0)
           await db
             .delete(schema.productLocations)
@@ -619,7 +644,7 @@ export function registerLocationsRoutes(app: express.Express) {
             .request()
             .input("id", productId)
             .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-          const existing = ((current.recordset[0] as any)?.val || "")
+          const existing = ((current.recordset[0] as SubiektFieldRow | undefined)?.val || "")
             .split(/[,;]/)
             .map((s: string) => s.trim())
             .filter(Boolean);
@@ -649,9 +674,9 @@ export function registerLocationsRoutes(app: express.Express) {
           );
         for (const row of r.recordset) {
           await db.insert(schema.productMovements).values({
-            productId: (row as any).id,
-            symbol: (row as any).symbol,
-            name: (row as any).name,
+            productId: (row as SubiektProductRow).id,
+            symbol: (row as SubiektProductRow).symbol,
+            name: (row as SubiektProductRow).name,
             fromLocationId: loc.id,
             fromCode: parsed.raw,
             quantity: 1,
@@ -703,7 +728,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .query(`SELECT ISNULL(SUM(s.st_Stan), 0) AS total FROM tw_Stan s
                   INNER JOIN tw__Towar t ON t.tw_Id = s.st_TowId
                   WHERE t.tw_Pole1 LIKE '%' + @location + '%'`);
-        inSubiekt = (stockResult.recordset[0] as any)?.total || 0;
+        inSubiekt = (stockResult.recordset[0] as SubiektStockRow | undefined)?.total || 0;
       }
 
       res.json({ comparison: { location, assigned, inSubiekt } });
@@ -757,7 +782,7 @@ export function registerLocationsRoutes(app: express.Express) {
       }
 
       // Find products in >1 location that are distant
-      const duplicates: any[] = [];
+      const duplicates: DuplicateEntry[] = [];
       for (const [, g] of grouped) {
         if (g.locations.length < 2) continue;
         const hasDistant = g.locations.some((a) =>
@@ -778,11 +803,13 @@ export function registerLocationsRoutes(app: express.Express) {
               .input("id", g.productId)
               .query("SELECT tw_Symbol, tw_Nazwa FROM tw__Towar WHERE tw_Id = @id");
             if (pr.recordset[0]) {
-              symbol = (pr.recordset[0] as any).tw_Symbol;
-              name = (pr.recordset[0] as any).tw_Nazwa;
+              symbol = (pr.recordset[0] as SubiektProductDetailRow | undefined)?.tw_Symbol ?? "";
+              name = (pr.recordset[0] as SubiektProductDetailRow | undefined)?.tw_Nazwa ?? "";
             }
           }
-        } catch {}
+        } catch {
+          logger.warn({ location: g.productId }, "duplicate check: product info skipped");
+        }
 
         const best = g.locations.reduce((a, b) => (a.quantity > b.quantity ? a : b));
         duplicates.push({
@@ -826,7 +853,7 @@ export function registerLocationsRoutes(app: express.Express) {
         res.json({ found: false });
         return;
       }
-      const productId = (pr.recordset[0] as any).id;
+      const productId = (pr.recordset[0]! as SubiektIdRow).id;
 
       // Check in product_locations
       const rows = await db
@@ -911,7 +938,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .query(
             "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
           );
-        for (const row of r.recordset) foundProducts.push(row as any);
+        for (const row of r.recordset) foundProducts.push(row as SubiektProductRow);
       }
 
       // Group quantities
@@ -947,7 +974,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("id", productId)
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const currentSourceVal = (currentSourceRes.recordset[0] as any)?.val || "";
+        const currentSourceVal = (currentSourceRes.recordset[0] as SubiektFieldRow | undefined)?.val || "";
         const locations = currentSourceVal
           .split(/[,;]/)
           .map((s: string) => s.trim())
@@ -1017,11 +1044,11 @@ export function registerLocationsRoutes(app: express.Express) {
 
       const subiektMap = new Map<number, Set<string>>();
       for (const r of subiektRows.recordset) {
-        const codes = ((r as any).val || "")
+        const codes = ((r as SubiektFieldRow).val || "")
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
-        subiektMap.set((r as any).id, new Set(codes));
+        subiektMap.set((r as SubiektIdRow).id, new Set(codes));
       }
 
       // Compare
@@ -1095,7 +1122,7 @@ export function registerLocationsRoutes(app: express.Express) {
         if (r.shelf > area.maxShelf) area.maxShelf = r.shelf;
       }
 
-      const result: any = {};
+      const result: GridResult = {};
       for (const [areaName, area] of areas) {
         result[areaName] = { maxAisle: area.maxAisle, maxShelf: area.maxShelf, grid: {} };
         for (const [aisle, shelves] of area.aisles) {
@@ -1225,7 +1252,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("id", productId)
           .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const existing = ((current.recordset[0] as any)?.val || "")
+        const existing = ((current.recordset[0] as SubiektFieldRow | undefined)?.val || "")
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
@@ -1312,7 +1339,7 @@ export function registerLocationsRoutes(app: express.Express) {
             .request()
             .input("id", id)
             .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-          const codes = ((subiektRow.recordset[0] as any)?.val || "")
+          const codes = ((subiektRow.recordset[0] as SubiektFieldRow | undefined)?.val || "")
             .split(/[,;]/)
             .map((s: string) => s.trim())
             .filter(Boolean);
@@ -1398,7 +1425,7 @@ export function registerLocationsRoutes(app: express.Express) {
             "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
           );
         for (const row of r.recordset) {
-          const productId = (row as any).id;
+          const productId = (row as SubiektProductRow).id;
           await db
             .delete(schema.productLocations)
             .where(eq(schema.productLocations.productId, productId));
@@ -1412,8 +1439,8 @@ export function registerLocationsRoutes(app: express.Express) {
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
           await db.insert(schema.productMovements).values({
             productId,
-            symbol: (row as any).symbol,
-            name: (row as any).name,
+            symbol: (row as SubiektProductRow).symbol,
+            name: (row as SubiektProductRow).name,
             toLocationId: loc.id,
             toCode: parsed.raw,
             quantity: 1,

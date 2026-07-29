@@ -33,10 +33,11 @@ vi.mock("../../../src/db/index.js", () => ({
 
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
+  and: vi.fn((...args: unknown[]) => args),
 }));
 
 vi.mock("../../../src/api/auth-middleware.js", () => ({
-  requireAdmin: (_req: any, _res: any, next: any) => next(),
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 describe("Inventory routes", () => {

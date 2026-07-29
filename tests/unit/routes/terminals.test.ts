@@ -11,17 +11,23 @@ vi.mock("../../../src/api/adapter-provider.js", () => ({
 }));
 
 vi.mock("drizzle-orm", () => ({
-  sql: (...args: any[]) => args.join(""),
+  sql: (...args: unknown[]) => String(args.join("")),
 }));
 
 vi.mock("../../../src/db/index.js", () => {
-  const chain: any = {};
-  chain.select = vi.fn().mockReturnValue(chain);
-  chain.from = vi.fn().mockReturnValue(chain);
-  chain.orderBy = vi.fn().mockReturnValue(chain);
-  chain.limit = vi.fn().mockReturnValue(chain);
-  chain.where = vi.fn().mockResolvedValue([]);
-  chain.then = (resolve: (v: any) => void) => resolve([]);
+  const chain = {
+    select: vi.fn(),
+    from: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    where: vi.fn(),
+    then: (resolve: (v: unknown) => void) => resolve([]),
+  };
+  chain.select.mockReturnValue(chain);
+  chain.from.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  chain.where.mockResolvedValue([]);
 
   return {
     getDb: () => chain,
@@ -41,7 +47,7 @@ vi.mock("../../../src/db/index.js", () => {
 });
 
 vi.mock("../../../src/api/auth-middleware.js", () => ({
-  requireAdmin: (_req: any, _res: any, next: any) => next(),
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 describe("Terminals routes", () => {

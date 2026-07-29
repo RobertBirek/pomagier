@@ -19,18 +19,25 @@ vi.mock("../../../src/api/routes/locations.js", () => ({
 }));
 
 vi.mock("../../../src/db/index.js", () => {
-  const chain: any = {};
-  chain.select = vi.fn().mockReturnValue(chain);
-  chain.from = vi.fn().mockReturnValue(chain);
-  chain.where = vi.fn().mockResolvedValue([{ value: "localhost" }]);
-  chain.insert = vi.fn().mockReturnValue({
+  const chain = {
+    select: vi.fn(),
+    from: vi.fn(),
+    where: vi.fn(),
+    insert: vi.fn(),
+    delete: vi.fn(),
+    then: (resolve: (v: unknown) => void) => resolve([]),
+  };
+  chain.select.mockReturnValue(chain);
+  chain.from.mockReturnValue(chain);
+  chain.where.mockResolvedValue([{ value: "localhost" }]);
+  chain.insert.mockReturnValue({
     values: vi.fn().mockReturnValue({
       onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
       onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
     }),
   });
-  chain.delete = vi.fn().mockReturnValue(chain);
-  chain.then = (resolve: (v: any) => void) => resolve([]);
+  chain.delete.mockReturnValue(chain);
+  chain.then = (resolve: (v: unknown) => void) => resolve([]);
 
   return {
     getDb: () => chain,
@@ -69,7 +76,7 @@ vi.mock("../../../src/lib/logger.js", () => ({
 }));
 
 vi.mock("../../../src/api/auth-middleware.js", () => ({
-  requireAdmin: (_req: any, _res: any, next: any) => next(),
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 describe("Wizard routes", () => {
@@ -93,9 +100,7 @@ describe("Wizard routes", () => {
 
   describe("POST /api/wizard/clear", () => {
     it("returns 400 when tables is not an array", async () => {
-      const res = await request(app)
-        .post("/api/wizard/clear")
-        .send({ tables: "not_an_array" });
+      const res = await request(app).post("/api/wizard/clear").send({ tables: "not_an_array" });
       expect(res.status).toBe(400);
       expect(res.body.error).toBeTruthy();
     });
@@ -111,8 +116,7 @@ describe("Wizard routes", () => {
 
   describe("POST /api/wizard/import-all", () => {
     it("returns 503 when MSSQL not available", async () => {
-      const res = await request(app)
-        .post("/api/wizard/import-all");
+      const res = await request(app).post("/api/wizard/import-all");
       expect(res.status).toBe(503);
       expect(res.body.error).toBeTruthy();
     });

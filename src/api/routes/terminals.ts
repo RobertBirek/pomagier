@@ -26,7 +26,7 @@ export function registerTerminalsRoutes(app: Application): void {
           .select()
           .from(schema.users)
           .where(
-            sql`${schema.users.id} IN (${userIds.map(() => sql`?`).reduce((arr, p) => [...arr, p], [] as any)})`,
+            sql`${schema.users.id} IN (${userIds.map(() => sql`?`)})`,
           );
         const subiektIds = userRows.map((u) => u.subiektUzId);
 

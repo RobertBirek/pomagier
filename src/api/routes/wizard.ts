@@ -7,6 +7,16 @@ import { getAdapter } from "../adapter-provider.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { getLocationField } from "./locations.js";
 
+interface SubiektLocationRow { location: string; }
+interface SubiektProductLocRow { productId: number; locRaw: string; }
+interface SubiektUserIdRow { id: number; }
+
+interface WizardResults {
+  locations?: { imported: number; skipped: number };
+  productLocations?: { inserted: number; skipped: number };
+  users?: { seeded: number };
+}
+
 export function registerWizardRoutes(app: Application): void {
   app.get("/api/wizard/status", async (_req: Request, res: Response) => {
     try {
@@ -38,13 +48,13 @@ export function registerWizardRoutes(app: Application): void {
       if (tables.includes("product_movements")) await db.delete(schema.productMovements);
       if (tables.includes("users")) await db.delete(schema.users);
       res.json({ ok: true, cleared: tables });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 
   app.post("/api/wizard/import-all", requireAdmin, async (_req: Request, res: Response) => {
-    const results: any = {};
+    const results: WizardResults = {};
     try {
       const adapter = getAdapter();
       const pool = await adapter.getPool?.();
@@ -65,7 +75,7 @@ export function registerWizardRoutes(app: Application): void {
       let imported = 0,
         skipped = 0;
       for (const row of locResult.recordset) {
-        const parts = ((row as any).location as string)
+        const parts = ((row as SubiektLocationRow).location)
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
@@ -106,8 +116,8 @@ export function registerWizardRoutes(app: Application): void {
           `SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
         );
       for (const row of allProducts.recordset) {
-        const productId = (row as any).productId;
-        const parts = ((row as any).locRaw as string)
+        const productId = (row as SubiektProductLocRow).productId;
+        const parts = ((row as SubiektProductLocRow).locRaw)
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
@@ -141,7 +151,7 @@ export function registerWizardRoutes(app: Application): void {
       let usersSeeded = 0;
       const crypto = await import("node:crypto");
       for (const row of userResult.recordset) {
-        const subiektUzId = (row as any).id;
+        const subiektUzId = (row as SubiektUserIdRow).id;
         await db
           .insert(schema.users)
           .values({

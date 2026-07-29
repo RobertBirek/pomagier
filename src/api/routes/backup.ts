@@ -3,6 +3,8 @@ import { getDb, schema } from "../../db/index.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { logger } from "../../lib/logger.js";
 
+interface ConfigEntry { key: string; value: string; }
+
 function validateBackupFilename(name: unknown): name is string {
   return (
     typeof name === "string" &&
@@ -41,7 +43,7 @@ export function registerBackupRoutes(app: express.Express) {
     try {
       const db = getDb();
       const { encryptSecret } = await import("../../lib/backup-crypto.js");
-      const entries: any[] = [
+      const entries: ConfigEntry[] = [
         { key: "s3_endpoint", value: endpoint },
         { key: "s3_bucket", value: bucket },
         { key: "s3_region", value: region || "us-east-1" },
@@ -57,8 +59,8 @@ export function registerBackupRoutes(app: express.Express) {
           .onConflictDoUpdate({ target: schema.config.key, set: { value: e.value } });
       }
       res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 
@@ -72,8 +74,8 @@ export function registerBackupRoutes(app: express.Express) {
       const { testS3Connection } = await import("../../lib/backup-s3.js");
       const result = await testS3Connection({ endpoint, bucket, region, accessKey, secretKey });
       res.json(result);
-    } catch (err: any) {
-      res.json({ ok: false, error: err.message });
+    } catch (err) {
+      res.json({ ok: false, error: (err as Error).message });
     }
   });
 
@@ -86,8 +88,9 @@ export function registerBackupRoutes(app: express.Express) {
       }).toString();
       const match = output.match(/pomagier_backup_\d{4}-\d{2}-\d{2}_\d{4}\.tar\.gz/);
       res.json({ ok: true, filename: match?.[0] || "unknown", output: output.slice(-200) });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message || err.stderr?.toString() });
+    } catch (err) {
+      const e = err as { message?: string; stderr?: { toString?: () => string } };
+      res.status(500).json({ error: e.message || e.stderr?.toString?.() });
     }
   });
 
@@ -102,9 +105,11 @@ export function registerBackupRoutes(app: express.Express) {
         const stat = statSync(`${localDir}/${f}`);
         local.push({ name: f, size: stat.size, date: stat.mtime.toISOString(), source: "local" });
       }
-    } catch {}
+    } catch {
+      logger.warn({ err: "local dir not accessible" }, "backup list: local dir skipped");
+    }
 
-    let s3: any[] = [];
+    let s3: { name: string; size: number; date: string; source: string }[] = [];
     try {
       const { listS3Files } = await import("../../lib/backup-s3.js");
       const files = await listS3Files();
@@ -114,7 +119,9 @@ export function registerBackupRoutes(app: express.Express) {
         date: new Date().toISOString(),
         source: "s3",
       }));
-    } catch {}
+    } catch {
+      logger.warn({ err: "S3 listing failed" }, "backup list: S3 skipped");
+    }
 
     res.json(
       [...local, ...s3].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -145,8 +152,8 @@ export function registerBackupRoutes(app: express.Express) {
           res.status(404).json({ error: "File not found" });
         }
       }
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 
@@ -167,8 +174,8 @@ export function registerBackupRoutes(app: express.Express) {
       const { unlinkSync, existsSync } = await import("node:fs");
       if (existsSync(localPath)) unlinkSync(localPath);
       res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 
@@ -212,8 +219,9 @@ export function registerBackupRoutes(app: express.Express) {
         ok: true,
         message: "Baza przywrócona. Zrestartuj API aby załadować nową konfigurację.",
       });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message || err.stderr?.toString() });
+    } catch (err) {
+      const e = err as { message?: string; stderr?: { toString?: () => string } };
+      res.status(500).json({ error: e.message || e.stderr?.toString?.() });
     }
   });
 
@@ -231,8 +239,8 @@ export function registerBackupRoutes(app: express.Express) {
       const { uploadToS3 } = await import("../../lib/backup-s3.js");
       await uploadToS3(file, data);
       res.json({ ok: true });
-    } catch (err: any) {
-      res.status(200).json({ ok: false, error: err.message });
+    } catch (err) {
+      res.status(200).json({ ok: false, error: (err as Error).message });
     }
   });
 }

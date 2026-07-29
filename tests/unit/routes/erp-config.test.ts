@@ -32,7 +32,7 @@ vi.mock("drizzle-orm", () => ({
 }));
 
 vi.mock("../../../src/api/auth-middleware.js", () => ({
-  requireAdmin: (_req: any, _res: any, next: any) => next(),
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 describe("ERP Config routes", () => {
