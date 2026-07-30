@@ -146,7 +146,7 @@ function ScanPage() {
                     e.stopPropagation();
                     removeItem(i);
                   }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 touch-target rounded p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                  className="absolute top-2 right-2 touch-target rounded p-1 bg-muted/40 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
                   aria-label="Usuń z koszyka"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
