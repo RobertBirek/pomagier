@@ -5,7 +5,7 @@ import { ScanHeader } from "@/components/pomagier/ScanHeader";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useScanBasket, type BasketItem } from "@/lib/scan-basket";
 import { BasketHeader } from "@/components/pomagier/primitives";
-import { ChevronRight, Package, MapPin, Trash2, Barcode } from "lucide-react";
+import { Package, MapPin, Trash2, Barcode } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
 
@@ -69,87 +69,82 @@ function ScanPage() {
             <BasketHeader count={items.length} onClear={clearBasket} />
 
             {items.map((item, i) => (
-              <div key={`${item.type}-${item.code}-${i}`} className="group relative">
+              <div key={`${item.type}-${item.code}-${i}`} className="flex items-center border-t">
                 <button
                   onClick={() => handleOpenItem(item)}
-                  className="w-full rounded-lg border bg-card p-4 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
+                  className="flex-1 min-w-0 p-4 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="flex items-start gap-3">
+                    {item.type === "product" ? (
+                      <Package className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    ) : (
+                      <MapPin className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      {/* Code line */}
                       {item.type === "product" ? (
-                        <Package className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-mono text-sm font-bold truncate">
+                            {item.barcode || item.code}
+                          </span>
+                        </div>
                       ) : (
-                        <MapPin className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                        <div className="font-mono text-xs text-muted-foreground mb-0.5">
+                          {item.code}
+                        </div>
                       )}
-                      <div className="min-w-0">
-                        {/* Code line */}
-                        {item.type === "product" ? (
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="font-mono text-sm font-bold truncate">
-                              {item.barcode || item.code}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="font-mono text-xs text-muted-foreground mb-0.5">
-                            {item.code}
-                          </div>
-                        )}
 
-                        {/* Name / description */}
-                        {item.type === "product" ? (
-                          <>
-                            <div className="text-sm truncate">{item.name}</div>
-                            <div className="font-mono text-xs text-muted-foreground mt-0.5">
-                              {item.symbol}
+                      {/* Name / description */}
+                      {item.type === "product" ? (
+                        <>
+                          <div className="text-sm truncate">{item.name}</div>
+                          <div className="font-mono text-xs text-muted-foreground mt-0.5">
+                            {item.symbol}
+                          </div>
+                          {item.locations && item.locations.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {item.locations.slice(0, 3).map((loc) => (
+                                <span
+                                  key={loc.code}
+                                  className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
+                                >
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                  {loc.code}
+                                </span>
+                              ))}
+                              {item.locations.length > 3 && (
+                                <span className="text-xs text-muted-foreground self-center">
+                                  +{item.locations.length - 3}
+                                </span>
+                              )}
                             </div>
-                            {item.locations && item.locations.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1">
-                                {item.locations.slice(0, 3).map((loc) => (
-                                  <span
-                                    key={loc.code}
-                                    className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
-                                  >
-                                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                                    {loc.code}
-                                  </span>
-                                ))}
-                                {item.locations.length > 3 && (
-                                  <span className="text-xs text-muted-foreground self-center">
-                                    +{item.locations.length - 3}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        ) : (
+                          )}
+                        </>
+                      ) : (
+                        <>
                           <div className="font-semibold text-sm">{item.code}</div>
-                        )}
-
-                        {/* Meta line */}
-                        {item.type === "location" && (
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {item.productCount > 0
                               ? `${item.productCount} ${item.productCount === 1 ? "produkt" : item.productCount < 5 ? "produkty" : "produktów"}`
                               : "Brak produktów"}
                           </div>
-                        )}
-                      </div>
+                        </>
+                      )}
                     </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" />
                   </div>
                 </button>
 
-                {/* Remove button */}
+                {/* Always-visible remove button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     removeItem(i);
                   }}
-                  className="absolute top-2 right-2 touch-target rounded p-1 bg-muted/40 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+                  className="shrink-0 touch-target p-3 text-destructive/60 hover:text-destructive hover:bg-destructive/5 transition-colors"
                   aria-label="Usuń z koszyka"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             ))}
