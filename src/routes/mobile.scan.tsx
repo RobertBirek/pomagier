@@ -191,21 +191,27 @@ function ScanProductRow({
             </span>
           </div>
           {item.name && <div className="text-sm truncate">{item.name}</div>}
-          {item.locations && item.locations.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {item.locations.slice(0, 3).map((loc) => (
-                <span
-                  key={loc.code}
-                  className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
-                >
-                  <MapPin className="h-3 w-3 text-muted-foreground" />
-                  {loc.code}
+          {item.locations && (
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {item.locations.length > 0 ? (
+                <span className="flex flex-wrap gap-1">
+                  {item.locations.slice(0, 3).map((loc) => (
+                    <span
+                      key={loc.code}
+                      className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
+                    >
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      {loc.code}
+                    </span>
+                  ))}
+                  {item.locations.length > 3 && (
+                    <span className="text-xs text-muted-foreground self-center">
+                      +{item.locations.length - 3}
+                    </span>
+                  )}
                 </span>
-              ))}
-              {item.locations.length > 3 && (
-                <span className="text-xs text-muted-foreground self-center">
-                  +{item.locations.length - 3}
-                </span>
+              ) : (
+                "brak"
               )}
             </div>
           )}
