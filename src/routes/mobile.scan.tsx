@@ -135,7 +135,7 @@ function ScanPage() {
                   </div>
                 </button>
 
-                <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0" />
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
 
                 {/* Always-visible remove button */}
                 <button
