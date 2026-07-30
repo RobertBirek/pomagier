@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ScanHeader } from "@/components/pomagier/ScanHeader";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useScanBasket, type BasketItem } from "@/lib/scan-basket";
-import { ChevronRight, Package, MapPin, Trash2 } from "lucide-react";
+import { ChevronRight, Package, MapPin, Trash2, Barcode } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
 
@@ -93,16 +93,28 @@ function ScanPage() {
                       )}
                       <div className="min-w-0">
                         {/* Code line */}
-                        <div className="font-mono text-xs text-muted-foreground mb-0.5">
-                          {item.type === "product" ? item.symbol : item.code}
-                        </div>
+                        {item.type === "product" ? (
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="font-mono text-sm font-bold truncate">
+                              {item.barcode || item.code}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="font-mono text-xs text-muted-foreground mb-0.5">
+                            {item.code}
+                          </div>
+                        )}
 
                         {/* Name / description */}
                         {item.type === "product" ? (
                           <>
-                            <div className="font-semibold text-sm truncate">{item.name}</div>
+                            <div className="text-sm truncate">{item.name}</div>
+                            <div className="font-mono text-xs text-muted-foreground mt-0.5">
+                              {item.symbol}
+                            </div>
                             {item.locations && item.locations.length > 0 && (
-                              <div className="mt-1 flex flex-wrap gap-1">
+                              <div className="mt-1.5 flex flex-wrap gap-1">
                                 {item.locations.slice(0, 3).map((loc) => (
                                   <span
                                     key={loc.code}
