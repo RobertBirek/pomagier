@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronRight, MapPin } from "lucide-react";
+import { ChevronRight, MapPin, Barcode } from "lucide-react";
 import type { BasketItem } from "@/hooks/use-basket";
 import { beep, haptic } from "@/lib/utils";
 import { BasketHeader } from "./primitives";
@@ -130,7 +130,8 @@ function BasketRow({
     <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-4 py-2 text-sm">
       {/* Left — product info */}
       <button onClick={handleClick} className="min-w-0 text-left">
-        <div className="font-mono font-semibold text-[13px] break-all leading-tight truncate">
+        <div className="font-mono font-semibold text-[13px] break-all leading-tight truncate flex items-center gap-1.5">
+          <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           {item.code}
         </div>
         {item.name && <div className="text-xs text-muted-foreground truncate">{item.name}</div>}
