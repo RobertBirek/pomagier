@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ScanHeader } from "@/components/pomagier/ScanHeader";
 import { addScanToQueue } from "@/lib/offline-queue";
@@ -23,7 +23,6 @@ function ScanPage() {
         });
 
         if (!res.ok) {
-          // Offline fallback
           await addScanToQueue(code);
           toast.warning("Offline — zapisano w kolejce", { description: code });
           return false;
@@ -63,97 +62,53 @@ function ScanPage() {
       />
 
       <div className="flex-1 p-4 space-y-3">
-        {/* Basket items */}
         {items.length > 0 && (
           <div className="rounded-lg border bg-card">
             <BasketHeader count={items.length} onClear={clearBasket} />
 
-            {items.map((item, i) => (
-              <div key={`${item.type}-${item.code}-${i}`} className="flex items-center border-t">
-                <button
-                  onClick={() => handleOpenItem(item)}
-                  className="flex-1 min-w-0 p-4 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
-                >
-                  <div className="flex items-start gap-3">
-                    {item.type === "product" ? (
-                      <Package className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    ) : (
+            {items.map((item, i) =>
+              item.type === "product" ? (
+                <ScanProductRow
+                  key={`product-${item.code}-${i}`}
+                  item={item}
+                  onOpen={() => handleOpenItem(item)}
+                  onRemove={() => removeItem(i)}
+                />
+              ) : (
+                <div key={`location-${item.code}-${i}`} className="flex items-center border-t">
+                  <button
+                    onClick={() => handleOpenItem(item)}
+                    className="flex-1 min-w-0 p-4 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
+                  >
+                    <div className="flex items-start gap-3">
                       <MapPin className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      {/* Code line */}
-                      {item.type === "product" ? (
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="font-mono text-sm font-bold truncate">
-                            {item.barcode || item.code}
-                          </span>
+                      <div className="min-w-0">
+                        <div className="font-mono text-sm font-bold">{item.code}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {item.productCount && item.productCount > 0
+                            ? `${item.productCount} ${item.productCount === 1 ? "produkt" : item.productCount < 5 ? "produkty" : "produktów"}`
+                            : "Brak produktów"}
                         </div>
-                      ) : (
-                        <div className="font-mono text-xs text-muted-foreground mb-0.5">
-                          {item.code}
-                        </div>
-                      )}
-
-                      {/* Name / description */}
-                      {item.type === "product" ? (
-                        <>
-                          <div className="text-sm truncate">{item.name}</div>
-                          <div className="font-mono text-xs text-muted-foreground mt-0.5">
-                            {item.symbol}
-                          </div>
-                          {item.locations && item.locations.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1">
-                              {item.locations.slice(0, 3).map((loc) => (
-                                <span
-                                  key={loc.code}
-                                  className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
-                                >
-                                  <MapPin className="h-3 w-3 text-muted-foreground" />
-                                  {loc.code}
-                                </span>
-                              ))}
-                              {item.locations.length > 3 && (
-                                <span className="text-xs text-muted-foreground self-center">
-                                  +{item.locations.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div className="font-semibold text-sm">{item.code}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {item.productCount > 0
-                              ? `${item.productCount} ${item.productCount === 1 ? "produkt" : item.productCount < 5 ? "produkty" : "produktów"}`
-                              : "Brak produktów"}
-                          </div>
-                        </>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </button>
-
-                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-
-                {/* Always-visible remove button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeItem(i);
-                  }}
-                  className="shrink-0 touch-target p-3 text-destructive/60 hover:text-destructive hover:bg-destructive/5 transition-colors"
-                  aria-label="Usuń z koszyka"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+                  </button>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeItem(i);
+                    }}
+                    className="shrink-0 touch-target p-3 text-destructive/60 hover:text-destructive hover:bg-destructive/5 transition-colors"
+                    aria-label="Usuń z koszyka"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ),
+            )}
           </div>
         )}
 
-        {/* Empty state */}
         {items.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Package className="h-16 w-16 text-muted-foreground/15 mb-4" />
@@ -164,6 +119,126 @@ function ScanPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Product row with lazy stock fetch ── */
+
+interface ProductStockSummary {
+  total: number;
+  reserved: number;
+}
+
+function ScanProductRow({
+  item,
+  onOpen,
+  onRemove,
+}: {
+  item: {
+    code: string;
+    barcode?: string;
+    symbol?: string;
+    name?: string;
+    locations?: { code: string }[];
+  };
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const [stocks, setStocks] = useState<ProductStockSummary | null>(null);
+  const [stockLoaded, setStockLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: item.barcode || item.code }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const s = data.products?.[0]?.stocks;
+        if (s?.length) {
+          const total = s.reduce(
+            (sum: number, st: { quantity: number; reserved: number }) => sum + st.quantity,
+            0,
+          );
+          const reserved = s.reduce(
+            (sum: number, st: { quantity: number; reserved: number }) => sum + st.reserved,
+            0,
+          );
+          setStocks({ total, reserved });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setStockLoaded(true));
+  }, [item.code, item.barcode]);
+
+  const hasStock = stocks !== null;
+  const available = stocks ? stocks.total - stocks.reserved : 0;
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_auto] items-start border-t">
+      {/* Left — product info */}
+      <button
+        onClick={onOpen}
+        className="min-w-0 p-4 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
+      >
+        <div className="flex items-start gap-3">
+          <Package className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="font-mono text-sm font-bold truncate">
+                {item.barcode || item.code}
+              </span>
+            </div>
+            {item.name && <div className="text-sm truncate">{item.name}</div>}
+            {item.symbol && (
+              <div className="font-mono text-xs text-muted-foreground mt-0.5">{item.symbol}</div>
+            )}
+            {item.locations && item.locations.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {item.locations.slice(0, 3).map((loc) => (
+                  <span
+                    key={loc.code}
+                    className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
+                  >
+                    <MapPin className="h-3 w-3 text-muted-foreground" />
+                    {loc.code}
+                  </span>
+                ))}
+                {item.locations.length > 3 && (
+                  <span className="text-xs text-muted-foreground self-center">
+                    +{item.locations.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/* Middle — stock summary */}
+      {stockLoaded && hasStock && (
+        <div className="text-xs tabular-nums font-mono leading-snug text-right self-start py-4 pr-1">
+          <div className="text-muted-foreground">S:{stocks.total}</div>
+          <div className="text-amber-600">R:{stocks.reserved}</div>
+          <div className="text-emerald-600">D:{available}</div>
+        </div>
+      )}
+
+      {/* Right — chevron + remove */}
+      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" />
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="shrink-0 touch-target p-3 text-destructive/60 hover:text-destructive hover:bg-destructive/5 transition-colors"
+        aria-label="Usuń z koszyka"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   );
 }

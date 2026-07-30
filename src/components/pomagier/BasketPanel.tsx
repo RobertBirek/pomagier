@@ -127,15 +127,11 @@ function BasketRow({
   const hasStockData = stocks && stocks.length > 0;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 text-sm">
-      <button onClick={handleClick} className="flex-1 min-w-0 text-left">
-        <div className="font-mono font-semibold text-[13px] break-all leading-tight flex items-center gap-2">
-          <span className="truncate">{item.code}</span>
-          {hasStockData && (
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums font-normal">
-              {totalStock}/{totalReserved}/{totalAvailable}
-            </span>
-          )}
+    <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-4 py-2 text-sm">
+      {/* Left — product info */}
+      <button onClick={handleClick} className="min-w-0 text-left">
+        <div className="font-mono font-semibold text-[13px] break-all leading-tight truncate">
+          {item.code}
         </div>
         {item.name && <div className="text-xs text-muted-foreground truncate">{item.name}</div>}
         {locationsLoaded && (
@@ -146,9 +142,19 @@ function BasketRow({
         )}
       </button>
 
-      {onNavigate && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+      {/* Middle — stock summary */}
+      {hasStockData && (
+        <div className="text-xs tabular-nums font-mono leading-snug text-right self-start">
+          <div className="text-muted-foreground">S:{totalStock}</div>
+          <div className="text-amber-600">R:{totalReserved}</div>
+          <div className="text-emerald-600">D:{totalAvailable}</div>
+        </div>
+      )}
 
-      <div className="flex items-center gap-1.5 shrink-0">
+      {/* Right — chevron + qty controls */}
+      <div className="flex items-center gap-1.5 self-center">
+        {onNavigate && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+
         <button
           onClick={() => {
             beep(400, 80);
