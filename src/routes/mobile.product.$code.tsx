@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { StatusBadge, ErrorState, LoadingRow } from "@/components/pomagier/primitives";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -134,13 +134,16 @@ function ProductPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          <Link
-            to="/mobile/scan"
+          <button
+            onClick={() => {
+              if (window.history.length > 1) window.history.back();
+              else nav({ to: "/mobile/dashboard" });
+            }}
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground touch-target rounded p-1 -ml-1 shrink-0"
-            aria-label="Powrót do koszyka"
+            aria-label="Powrót"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <Package className="h-5 w-5 text-primary shrink-0" />
           <h1 className="text-lg font-bold truncate">{data.name}</h1>
         </div>
