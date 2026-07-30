@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { ScanHeader, type ScanHeaderTool } from "@/components/pomagier/ScanHeader";
 import { parseLocation } from "@/lib/locations";
@@ -53,7 +53,12 @@ const MODES: { key: Mode; label: string; icon: typeof MapPin; color: string }[] 
   { key: "reset", label: "Reset lokalizacji", icon: RotateCcw, color: "bg-red-500" },
 ];
 
-export const Route = createFileRoute("/mobile/locations")({ component: LocationsPage });
+export const Route = createFileRoute("/mobile/locations")({
+  component: LocationsPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    code: typeof search.code === "string" ? search.code : (undefined as string | undefined),
+  }),
+});
 
 function LocationsPage() {
   const auth = useAuth();
@@ -80,6 +85,21 @@ function LocationsPage() {
 
   const totalQty = basket.reduce((s, b) => s + b.qty, 0);
   const currentMode = MODES.find((m) => m.key === mode)!;
+
+  // Pre-fill basket from search params (e.g. from product card "Przenieś")
+  const { code: prefillCode } = Route.useSearch();
+  useEffect(() => {
+    const fill = async () => {
+      if (!prefillCode || basket.length > 0) return;
+      const product = await lookupProduct(prefillCode);
+      if (product) {
+        setBasket([{ code: prefillCode, name: product.name, qty: 1 }]);
+      }
+    };
+    fill();
+    // run once on mount with code param
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillCode]);
 
   // ── Handle submit from ScanHeader ──
   const handleSubmit = useCallback(

@@ -345,7 +345,7 @@ function ProductPage() {
               <button
                 onClick={() => {
                   setShowTools(false);
-                  nav({ to: "/mobile/locations" });
+                  nav({ to: "/mobile/locations", search: { code: data.barcode || data.symbol } });
                 }}
                 className="w-full flex items-center gap-3 rounded-lg p-3 text-left text-sm font-semibold hover:bg-accent transition-colors touch-target"
               >
