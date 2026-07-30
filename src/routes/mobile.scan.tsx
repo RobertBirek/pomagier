@@ -222,17 +222,19 @@ function ScanProductRow({
       )}
 
       {/* Right — chevron + remove */}
-      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" />
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        className="shrink-0 touch-target p-3 text-destructive/60 hover:text-destructive hover:bg-destructive/5 transition-colors"
-        aria-label="Usuń z koszyka"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="flex items-center self-center">
+        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="shrink-0 touch-target p-3 text-destructive/60 hover:text-destructive hover:bg-destructive/5 transition-colors"
+          aria-label="Usuń z koszyka"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
