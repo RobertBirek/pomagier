@@ -97,6 +97,7 @@ export function ScanHeader({
     async (code: string) => {
       setLoading(true);
       setShowSuggestions(false);
+      setSuggestions([]);
       let ok = false;
       try {
         ok = await onSubmit(code);
@@ -255,7 +256,7 @@ export function ScanHeader({
               onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => {
-                if (suggestions.length > 0) setShowSuggestions(true);
+                if (value && suggestions.length > 0) setShowSuggestions(true);
               }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               placeholder={manualMode && !flash ? "Wpisz kod ręcznie…" : placeholder}
