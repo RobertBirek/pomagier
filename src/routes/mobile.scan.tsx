@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ScanHeader } from "@/components/pomagier/ScanHeader";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useScanBasket, type BasketItem } from "@/lib/scan-basket";
+import { BasketHeader } from "@/components/pomagier/primitives";
 import { ChevronRight, Package, MapPin, Trash2, Barcode } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
@@ -64,19 +65,8 @@ function ScanPage() {
       <div className="flex-1 p-4 space-y-3">
         {/* Basket items */}
         {items.length > 0 && (
-          <>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Koszyk ({items.length})
-              </span>
-              <button
-                onClick={clearBasket}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive touch-target rounded px-2 py-1"
-              >
-                <Trash2 className="h-3 w-3" />
-                Wyczyść
-              </button>
-            </div>
+          <div className="rounded-lg border bg-card">
+            <BasketHeader count={items.length} onClear={clearBasket} />
 
             {items.map((item, i) => (
               <div key={`${item.type}-${item.code}-${i}`} className="group relative">
@@ -163,7 +153,7 @@ function ScanPage() {
                 </button>
               </div>
             ))}
-          </>
+          </div>
         )}
 
         {/* Empty state */}

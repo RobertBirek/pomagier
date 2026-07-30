@@ -9,10 +9,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Trash2, X, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import type { BasketItem } from "@/hooks/use-basket";
 import type { StockInfo } from "@/erp/types";
 import { beep, haptic } from "@/lib/utils";
+import { BasketHeader } from "./primitives";
 
 interface BasketPanelProps {
   items: BasketItem[];
@@ -30,17 +31,7 @@ export function BasketPanel({ items, totalQty, onUpdateQty, onRemove, onClear }:
 
   return (
     <div className="rounded-lg border bg-card">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
-        <span className="text-sm font-semibold">Koszyk ({totalQty} szt.)</span>
-        <button
-          onClick={onClear}
-          className="touch-target text-xs text-destructive hover:underline inline-flex items-center gap-1"
-        >
-          <Trash2 className="h-3 w-3" />
-          Wyczyść
-        </button>
-      </div>
+      <BasketHeader count={totalQty} onClear={onClear} />
 
       {/* Items */}
       <div className="divide-y max-h-64 overflow-y-auto">

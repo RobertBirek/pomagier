@@ -1,5 +1,14 @@
 import { cn } from "@/lib/utils";
-import { CheckCircle2, AlertTriangle, XCircle, Info, Wifi, WifiOff, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Info,
+  Wifi,
+  WifiOff,
+  Loader2,
+  Trash2,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 type StatusTone = "success" | "warning" | "danger" | "info" | "muted" | "primary";
@@ -162,6 +171,34 @@ export function DemoNotice({ children }: { children: ReactNode }) {
     <div className="flex items-start gap-2 rounded-md border border-info/30 bg-info/10 p-3 text-xs text-info-foreground">
       <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
       <span className="text-foreground/80">{children}</span>
+    </div>
+  );
+}
+
+/** Ujednolicony header koszyka — używany na wszystkich stronach /mobile */
+export function BasketHeader({
+  count,
+  suffix = "szt.",
+  label = "Koszyk",
+  onClear,
+}: {
+  count: number;
+  suffix?: string;
+  label?: string;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+      <span className="text-sm font-semibold">
+        {label} ({count} {suffix})
+      </span>
+      <button
+        onClick={onClear}
+        className="touch-target inline-flex items-center gap-1 text-xs text-destructive hover:underline"
+      >
+        <Trash2 className="h-3 w-3" />
+        Wyczyść
+      </button>
     </div>
   );
 }
