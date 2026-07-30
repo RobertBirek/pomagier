@@ -193,16 +193,3 @@
     width: 100%;
   }
 }
-
-/* ── Forced portrait when API lock unavailable ── */
-.force-portrait {
-  position: fixed;
-  inset: 0;
-  width: 100vh;
-  height: 100vw;
-  top: 0;
-  left: 100vw;
-  transform: rotate(90deg);
-  transform-origin: top left;
-  overflow: hidden;
-}

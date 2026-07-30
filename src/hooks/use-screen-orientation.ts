@@ -10,6 +10,10 @@ export function useScreenOrientation() {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(orientation: landscape)").matches;
   });
+  const [angle, setAngle] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    return window.orientation ?? 0;
+  });
   const [unsupported, setUnsupported] = useState(false);
   const lockedRef = useRef(false);
 
@@ -40,6 +44,7 @@ export function useScreenOrientation() {
     const mql = window.matchMedia("(orientation: landscape)");
     const handleMqlChange = (e: MediaQueryListEvent) => {
       setIsLandscape(e.matches);
+      setAngle(window.orientation ?? 0);
       if (e.matches) {
         lock();
         // Aggressive re-lock every 2s until portrait
@@ -86,5 +91,5 @@ export function useScreenOrientation() {
     };
   }, [lock]);
 
-  return { isLandscape, unsupported, lock };
+  return { isLandscape, unsupported, angle, lock };
 }
