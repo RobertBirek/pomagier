@@ -91,5 +91,5 @@ export function useScreenOrientation() {
     };
   }, [lock]);
 
-  return { isLandscape, unsupported, angle, lock };
+  return { isLandscape, unsupported, lock };
 }
