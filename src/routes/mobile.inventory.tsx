@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { ScanHeader } from "@/components/pomagier/ScanHeader";
@@ -90,6 +90,7 @@ const SCOPES = [
 function InventoryPage() {
   const { basket, totalQty, flatCodes, addToBasket, removeItem, updateQty, clearBasket } =
     useBasket();
+  const nav = useNavigate();
 
   const [step, setStep] = useState<"setup" | "scan" | "report">("setup");
   const [scope, setScope] = useState("exact");
@@ -278,6 +279,7 @@ function InventoryPage() {
             onUpdateQty={updateQty}
             onRemove={removeItem}
             onClear={clearBasket}
+            onNavigate={(code) => nav({ to: "/mobile/product/$code", params: { code } })}
           />
 
           {/* Finish */}

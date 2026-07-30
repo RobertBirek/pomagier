@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { ScanHeader, type ScanHeaderTool } from "@/components/pomagier/ScanHeader";
@@ -62,6 +62,7 @@ export const Route = createFileRoute("/mobile/locations")({
 
 function LocationsPage() {
   const auth = useAuth();
+  const nav = useNavigate();
   const isAdmin = auth.user?.role === "admin";
   const [mode, setMode] = useState<Mode>("assign");
   const [basket, setBasket] = useState<BasketItem[]>([]);
@@ -300,6 +301,13 @@ function LocationsPage() {
     setShowResult(null);
   };
 
+  const handleNavigateToProduct = useCallback(
+    (code: string) => {
+      nav({ to: "/mobile/product/$code", params: { code } });
+    },
+    [nav],
+  );
+
   // ── Tools (page-specific) ──
   const tools: ScanHeaderTool[] = MODES.filter((m) => m.key !== "reset" || isAdmin).map((m) => ({
     key: m.key,
@@ -377,6 +385,7 @@ function LocationsPage() {
             setBasket([]);
             setPendingLocation(null);
           }}
+          onNavigate={handleNavigateToProduct}
         />
 
         {/* Confirmation: assign */}
