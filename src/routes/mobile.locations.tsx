@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { beep } from "@/lib/utils";
 import { MapPin, Package, X, CheckCircle2, History, RotateCcw, ArrowRightLeft } from "lucide-react";
 import type { BasketItem } from "@/hooks/use-basket";
+import { useBasket } from "@/hooks/use-basket";
 import { BasketPanel } from "@/components/pomagier/BasketPanel";
 
 interface HistoryEntry {
@@ -65,7 +66,8 @@ function LocationsPage() {
   const nav = useNavigate();
   const isAdmin = auth.user?.role === "admin";
   const [mode, setMode] = useState<Mode>("assign");
-  const [basket, setBasket] = useState<BasketItem[]>([]);
+  const { basket, totalQty, flatCodes, addToBasket, removeItem, updateQty, clearBasket } =
+    useBasket();
   const [pendingLocation, setPendingLocation] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -84,7 +86,6 @@ function LocationsPage() {
   const [resetting, setResetting] = useState(false);
   const [flashCodes, setFlashCodes] = useState<Set<string>>(new Set());
 
-  const totalQty = basket.reduce((s, b) => s + b.qty, 0);
   const currentMode = MODES.find((m) => m.key === mode)!;
 
   // Pre-fill basket from search params (e.g. from product card "Przenieś")
@@ -94,7 +95,7 @@ function LocationsPage() {
       if (!prefillCode || basket.length > 0) return;
       const product = await lookupProduct(prefillCode);
       if (product) {
-        setBasket([{ code: prefillCode, name: product.name, qty: 1 }]);
+        await addToBasket(prefillCode);
       }
     };
     fill();
@@ -146,13 +147,7 @@ function LocationsPage() {
       }
 
       // EAN — add to basket
-      const existing = basket.find((b) => b.code === code);
-      if (existing) {
-        setBasket((b) => b.map((i) => (i.code === code ? { ...i, qty: i.qty + 1 } : i)));
-      } else {
-        const product = await lookupProduct(code);
-        setBasket((b) => [...b, { code, name: product?.name, qty: 1 }]);
-      }
+      await addToBasket(code);
       // Flash animation for newly added item
       setFlashCodes((prev) => new Set(prev).add(code));
       setTimeout(() => {
@@ -164,22 +159,8 @@ function LocationsPage() {
       }, 800);
       return true;
     },
-    [mode, basket, resetLocation, transferSource, transferTarget],
+    [mode, basket, resetLocation, transferSource, transferTarget, addToBasket],
   );
-
-  const removeItem = (code: string) => setBasket((b) => b.filter((i) => i.code !== code));
-  const updateQty = (code: string, delta: number) => {
-    setBasket(
-      (b) =>
-        b
-          .map((i) => {
-            if (i.code !== code) return i;
-            const q = Math.max(0, i.qty + delta);
-            return q === 0 ? null : { ...i, qty: q };
-          })
-          .filter(Boolean) as BasketItem[],
-    );
-  };
 
   // ── Save / Transfer / Reset ──
   const handleSave = async () => {
@@ -203,7 +184,7 @@ function LocationsPage() {
           ].slice(0, 5),
         );
         setShowResult({ location: pendingLocation, products: result.products || [] });
-        setBasket([]);
+        clearBasket();
       } else {
         beep(200, 400);
         toast.error(result.error || "Błąd");
@@ -233,7 +214,7 @@ function LocationsPage() {
       });
       if (r.ok) {
         beep(1000, 80);
-        setBasket([]);
+        clearBasket();
         setTransferSource(null);
         setTransferTarget(null);
       } else {
@@ -259,7 +240,7 @@ function LocationsPage() {
         body: JSON.stringify({ codes, location: resetLocation }),
       });
       if (r.ok) {
-        setBasket([]);
+        clearBasket();
         setResetLocation(null);
       } else toast.error((await r.json()).error);
     } catch (e: unknown) {
@@ -293,7 +274,7 @@ function LocationsPage() {
   };
 
   const clearMode = () => {
-    setBasket([]);
+    clearBasket();
     setPendingLocation(null);
     setTransferSource(null);
     setTransferTarget(null);
@@ -382,7 +363,7 @@ function LocationsPage() {
           onUpdateQty={updateQty}
           onRemove={removeItem}
           onClear={() => {
-            setBasket([]);
+            clearBasket();
             setPendingLocation(null);
           }}
           onNavigate={handleNavigateToProduct}
