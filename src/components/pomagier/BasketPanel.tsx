@@ -98,6 +98,7 @@ function BasketRow({
   onNavigate?: (code: string) => void;
 }) {
   const [locations, setLocations] = useState<{ code: string }[]>([]);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
 
   useEffect(() => {
     if (!onNavigate) return;
@@ -110,7 +111,8 @@ function BasketRow({
       .then((data) => {
         if (data.type === "product") setLocations(data.locations || []);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLocationsLoaded(true));
   }, [item.code, onNavigate]);
 
   const handleClick = () => {
@@ -124,9 +126,10 @@ function BasketRow({
           {item.code}
         </div>
         {item.name && <div className="text-xs text-muted-foreground truncate">{item.name}</div>}
-        {locations.length > 0 && (
-          <div className="text-xs text-muted-foreground truncate font-mono mt-0.5">
-            <MapPin className="inline h-3 w-3" /> {locations.map((l) => l.code).join(", ")}
+        {locationsLoaded && (
+          <div className="text-xs text-muted-foreground truncate mt-0.5">
+            <MapPin className="inline h-3 w-3" />{" "}
+            {locations.length > 0 ? locations.map((l) => l.code).join(", ") : "brak"}
           </div>
         )}
       </button>
