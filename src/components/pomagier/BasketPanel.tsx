@@ -119,11 +119,23 @@ function BasketRow({
     if (onNavigate) onNavigate(item.code);
   };
 
+  // Compute stock summary if available
+  const stocks = item.stocks;
+  const totalStock = stocks ? stocks.reduce((s, st) => s + st.quantity, 0) : 0;
+  const totalReserved = stocks ? stocks.reduce((s, st) => s + st.reserved, 0) : 0;
+  const totalAvailable = totalStock - totalReserved;
+  const hasStockData = stocks && stocks.length > 0;
+
   return (
     <div className="flex items-center gap-2 px-4 py-2 text-sm">
       <button onClick={handleClick} className="flex-1 min-w-0 text-left">
-        <div className="font-mono font-semibold text-[13px] break-all leading-tight">
-          {item.code}
+        <div className="font-mono font-semibold text-[13px] break-all leading-tight flex items-center gap-2">
+          <span className="truncate">{item.code}</span>
+          {hasStockData && (
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums font-normal">
+              {totalStock}/{totalReserved}/{totalAvailable}
+            </span>
+          )}
         </div>
         {item.name && <div className="text-xs text-muted-foreground truncate">{item.name}</div>}
         {locationsLoaded && (

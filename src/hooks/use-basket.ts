@@ -85,13 +85,17 @@ export function useBasket() {
         return prev.map((item, i) => (i === idx ? { ...item, qty: item.qty + 1 } : item));
       }
       lookupProduct(trimmed).then((product) => {
-        if (product?.name) {
-          setBasket((b) =>
-            b.map((item) =>
-              item.code === trimmed && !item.name ? { ...item, name: product.name } : item,
-            ),
-          );
-        }
+        setBasket((b) =>
+          b.map((item) =>
+            item.code === trimmed
+              ? {
+                  ...item,
+                  name: product?.name || item.name,
+                  stocks: product?.stocks || item.stocks,
+                }
+              : item,
+          ),
+        );
       });
       return [...prev, { code: trimmed, qty: 1 }];
     });
