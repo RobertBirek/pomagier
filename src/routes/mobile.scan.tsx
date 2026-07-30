@@ -183,38 +183,32 @@ function ScanProductRow({
         onClick={onOpen}
         className="min-w-0 p-4 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
       >
-        <div className="flex items-start gap-3">
-          <Package className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="font-mono text-sm font-bold truncate">
-                {item.barcode || item.code}
-              </span>
-            </div>
-            {item.name && <div className="text-sm truncate">{item.name}</div>}
-            {item.symbol && (
-              <div className="font-mono text-xs text-muted-foreground mt-0.5">{item.symbol}</div>
-            )}
-            {item.locations && item.locations.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {item.locations.slice(0, 3).map((loc) => (
-                  <span
-                    key={loc.code}
-                    className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
-                  >
-                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                    {loc.code}
-                  </span>
-                ))}
-                {item.locations.length > 3 && (
-                  <span className="text-xs text-muted-foreground self-center">
-                    +{item.locations.length - 3}
-                  </span>
-                )}
-              </div>
-            )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="font-mono text-sm font-bold truncate">
+              {item.barcode || item.code}
+            </span>
           </div>
+          {item.name && <div className="text-sm truncate">{item.name}</div>}
+          {item.locations && item.locations.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {item.locations.slice(0, 3).map((loc) => (
+                <span
+                  key={loc.code}
+                  className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-mono"
+                >
+                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                  {loc.code}
+                </span>
+              ))}
+              {item.locations.length > 3 && (
+                <span className="text-xs text-muted-foreground self-center">
+                  +{item.locations.length - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </button>
 
