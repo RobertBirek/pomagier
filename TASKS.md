@@ -2,6 +2,7 @@
 
 | Data | Zadanie | Status |
 |---|---|---|
+| 2026-07-30 | Kartoteka produktu — nowy endpoint code/:code + taby Stany/Lokalizacje/Ruchy + tools + paski stanów | ✅ |
 | 2026-07-30 | Kartoteka lokalizacji — nowy endpoint + taby Produkty/Ruchy + tools modal | ✅ |
 | 2026-07-30 | Koszyk skanów — przebudowa /mobile/scan z pojedynczego wyniku na listę | ✅ |
 | 2026-07-30 | Tabela products_cache w Postgres + migracja | ✅ |
