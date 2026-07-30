@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 export interface BasketProductItem {
   type: "product";
@@ -26,10 +26,24 @@ interface ScanBasketContextValue {
   clearBasket: () => void;
 }
 
+const BASKET_KEY = "pomagier-scan-basket";
+
+function loadBasket(): BasketItem[] {
+  try {
+    const raw = localStorage.getItem(BASKET_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as BasketItem[];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 const ScanBasketContext = createContext<ScanBasketContextValue | null>(null);
 
 export function ScanBasketProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<BasketItem[]>([]);
+  const [items, setItems] = useState<BasketItem[]>(loadBasket);
 
   const addItem = useCallback((item: BasketItem) => {
     setItems((prev) => [item, ...prev]);
@@ -41,7 +55,16 @@ export function ScanBasketProvider({ children }: { children: ReactNode }) {
 
   const clearBasket = useCallback(() => {
     setItems([]);
+    localStorage.removeItem(BASKET_KEY);
   }, []);
+
+  useEffect(() => {
+    if (items.length > 0) {
+      localStorage.setItem(BASKET_KEY, JSON.stringify(items));
+    } else {
+      localStorage.removeItem(BASKET_KEY);
+    }
+  }, [items]);
 
   return (
     <ScanBasketContext.Provider value={{ items, addItem, removeItem, clearBasket }}>
