@@ -84,9 +84,7 @@ export function MobileShell() {
   }, [operatorName]);
 
   return (
-    <>
-      {isLandscape && unsupported && <PortraitOverlay />}
-      <div className="flex min-h-screen flex-col bg-muted/50">
+    <div className={cn("flex min-h-screen flex-col bg-muted/50", isLandscape && "force-portrait")}>
         {!hideChrome && (
           <header className="sticky top-0 z-30 border-b bg-card safe-top min-h-[2.5rem]">
             <div className="flex items-center justify-between px-3 py-2 text-xs">
@@ -269,6 +267,5 @@ export function MobileShell() {
           </nav>
         )}
       </div>
-    </>
   );
 }
