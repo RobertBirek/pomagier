@@ -211,7 +211,9 @@ function ScanProductRow({
                   )}
                 </span>
               ) : (
-                "brak"
+                <span>
+                  <MapPin className="inline h-3 w-3" /> brak
+                </span>
               )}
             </div>
           )}
