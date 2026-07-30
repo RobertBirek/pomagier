@@ -25,17 +25,25 @@ export function heatColor(totalQuantity: number, maxQty: number): string {
 
 async function fetchGrid() {
   const r = await fetch("/api/locations/grid");
-  return r.json() as Promise<GridData>;
+  const data = await r.json();
+  return (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as GridData;
 }
 async function fetchEmpty() {
   const r = await fetch("/api/locations/empty");
-  return r.json() as Promise<
-    { code: string; area: string; aisle: number; rack: number; shelf: number; label: string }[]
-  >;
+  const data = await r.json();
+  return (Array.isArray(data) ? data : []) as {
+    code: string;
+    area: string;
+    aisle: number;
+    rack: number;
+    shelf: number;
+    label: string;
+  }[];
 }
 export async function fetchCellProducts(location: string) {
   const r = await fetch(`/api/products-by-location?location=${encodeURIComponent(location)}`);
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function importLocations() {
   const r = await fetch("/api/locations/import", { method: "POST" });

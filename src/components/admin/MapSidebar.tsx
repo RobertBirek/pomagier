@@ -15,7 +15,7 @@ export function MapSidebar({ emptyLocs, area }: MapSidebarProps) {
           <Box className="h-4 w-4 text-muted-foreground" />
           Wolne lokalizacje
         </div>
-        {emptyLocs && emptyLocs.filter((l) => l.area === area).length > 0 ? (
+        {Array.isArray(emptyLocs) && emptyLocs.filter((l) => l.area === area).length > 0 ? (
           <div className="space-y-1 max-h-[60vh] overflow-y-auto">
             {emptyLocs
               .filter((l) => l.area === area)
@@ -28,7 +28,7 @@ export function MapSidebar({ emptyLocs, area }: MapSidebarProps) {
         ) : (
           <p className="text-xs text-muted-foreground">Brak wolnych w obszarze {area}</p>
         )}
-        {emptyLocs && (
+        {Array.isArray(emptyLocs) && (
           <p className="text-xs text-muted-foreground mt-2">Wszystkie: {emptyLocs.length}</p>
         )}
       </div>
