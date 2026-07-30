@@ -4,7 +4,7 @@
   "description": "Terminal magazynowy dla Insert Subiekt GT",
   "start_url": "https://pomagier.ilovelighting.hmcloud.pl/mobile/login",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait",
   "theme_color": "#1e40af",
   "background_color": "#f8fafc",
   "icons": [

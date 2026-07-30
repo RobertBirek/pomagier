@@ -55,8 +55,8 @@ const MODES: { key: Mode; label: string; icon: typeof MapPin; color: string }[] 
 
 export const Route = createFileRoute("/mobile/locations")({
   component: LocationsPage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    code: typeof search.code === "string" ? search.code : (undefined as string | undefined),
+  validateSearch: (search: Record<string, unknown>): { code?: string } => ({
+    ...(typeof search.code === "string" ? { code: search.code } : {}),
   }),
 });
 

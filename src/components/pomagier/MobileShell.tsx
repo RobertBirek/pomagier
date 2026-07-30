@@ -55,7 +55,7 @@ export function MobileShell() {
   const nav = useNavigate();
   const [queueCount, setQueueCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
-  const { isLandscape } = useScreenOrientation();
+  const { isLandscape, unsupported } = useScreenOrientation();
 
   useEffect(() => {
     const check = () => getQueueCount().then(setQueueCount);
@@ -85,7 +85,7 @@ export function MobileShell() {
 
   return (
     <>
-      {isLandscape && <PortraitOverlay />}
+      {isLandscape && unsupported && <PortraitOverlay />}
       <div className="flex min-h-screen flex-col bg-muted/50">
         {!hideChrome && (
           <header className="sticky top-0 z-30 border-b bg-card safe-top min-h-[2.5rem]">
