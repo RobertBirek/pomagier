@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   StatusBadge,
@@ -19,6 +19,7 @@ import {
   Shield,
   Layers,
   ArrowRightLeft,
+  ArrowLeft,
 } from "lucide-react";
 
 interface ProductLocation {
@@ -97,8 +98,15 @@ function ProductPage() {
     <div className="mx-auto max-w-md space-y-4 p-4">
       {/* Header */}
       <div className="flex items-center gap-2">
+        <Link
+          to="/mobile/scan"
+          className="flex items-center gap-1 text-muted-foreground hover:text-foreground touch-target rounded p-1 -ml-1"
+          aria-label="Powrót do koszyka"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
         <Package className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-bold">{data.name}</h1>
+        <h1 className="text-lg font-bold truncate">{data.name}</h1>
       </div>
 
       {/* Basic info */}

@@ -1,4 +1,19 @@
-# TASKS — PomagierGT v1.5.0
+# TASKS — PomagierGT v1.6.0
+
+| Data | Zadanie | Status |
+|---|---|---|
+| 2026-07-30 | Koszyk skanów — przebudowa /mobile/scan z pojedynczego wyniku na listę | ✅ |
+| 2026-07-30 | Tabela products_cache w Postgres + migracja | ✅ |
+| 2026-07-30 | Endpoint POST /api/scan-basket — Postgres-first, MSSQL fallback | ✅ |
+| 2026-07-30 | ScanBasketContext — stan koszyka w layoucie /mobile | ✅ |
+| 2026-07-30 | Back-buttony w kartotekach product.$code i location.$code | ✅ |
+| 2026-07-30 | Czyszczenie: usunięty opis słowny lokalizacji (kod zawiera dane) | ✅ |
+| 2026-07-30 | Testy: +13 (context + endpoint), 100/100, 29 plików | ✅ |
+| 2026-07-30 | Build: ✅ | Lint: 0E/0W na zmienionych plikach | Tests: 100/100 | ✅ |
+
+---
+
+# TASKS — PomagierGT v1.5.0 (archived)
 
 | Data | Zadanie | Status |
 |---|---|---|

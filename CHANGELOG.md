@@ -1,5 +1,32 @@
 # CHANGELOG — PomagierGT
 
+## [1.6.0] — 2026-07-30 Koszyk skanów + Postgres Cache
+
+### Nowe funkcje
+- **Koszyk skanów** (`/mobile/scan`): kolejne skany dopisywane do listy zamiast zastępowania. Produkty pokazują symbol, nazwę, lokalizacje. Lokalizacje pokazują kod i liczbę produktów.
+- **Tabela `products_cache`** w Postgres: szybki cache podstawowych danych produktów z Subiekta. Pierwsze skanowanie ładuje z MSSQL, każde kolejne z Postgres (~1ms).
+- **Endpoint `POST /api/scan-basket`**: Postgres-first lookup (cache + locations), MSSQL fallback. Nie wykonuje ciężkich JOIN-ów ze stanami magazynowymi.
+- **Back-buttony** w kartotekach (`/mobile/product/$code`, `/mobile/location/$code`): powrót do koszyka skanów strzałką ←.
+- **Kontekst React `ScanBasketContext`**: stan koszyka utrzymywany w layoucie `/mobile`, nie ginie przy nawigacji.
+
+### Pliki zmienione/dodane
+| Operacja | Plik |
+|---|---|
+| Nowy | `src/lib/scan-basket.tsx` — kontekst koszyka |
+| Edycja | `src/db/schema.ts` — tabela `products_cache` |
+| Nowy | `src/db/migrations/0001_flawless_ma_gnuci.sql` |
+| Edycja | `src/api/routes/scan.ts` — dodany `POST /api/scan-basket` |
+| Edycja | `src/routes/mobile.tsx` — ScanBasketProvider |
+| Edycja | `src/routes/mobile.scan.tsx` — przebudowa na koszyk |
+| Edycja | `src/routes/mobile.product.$code.tsx` — back-button |
+| Edycja | `src/routes/mobile.location.$code.tsx` — back-button, usunięty opis słowny lokalizacji |
+| Nowy | `tests/unit/scan-basket.test.tsx` — 5 testów kontekstu |
+| Nowy | `tests/unit/routes/scan-basket.test.ts` — 8 testów endpointu |
+
+### Testy
+- 100/100 (29 plików), +13 nowych testów
+- Build: ✅ | Lint: 0 błędów, 0 ostrzeżeń na zmienionych plikach
+
 ## [1.5.0] — 2026-07-29 Refaktoryzacja Frontendu
 
 ### Lint

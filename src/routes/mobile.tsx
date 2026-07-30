@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth";
+import { ScanBasketProvider } from "@/lib/scan-basket";
 import { MobileShell } from "@/components/pomagier/MobileShell";
 
 export const Route = createFileRoute("/mobile")({
@@ -9,7 +10,9 @@ export const Route = createFileRoute("/mobile")({
 function MobileLayout() {
   return (
     <AuthProvider>
-      <MobileShell />
+      <ScanBasketProvider>
+        <MobileShell />
+      </ScanBasketProvider>
     </AuthProvider>
   );
 }

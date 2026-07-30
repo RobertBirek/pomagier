@@ -78,6 +78,21 @@
 | details | text |
 | created_at | timestamp |
 
+### products_cache (v1.6.0)
+
+Szybki cache podstawowych danych produktów z Subiekta GT. Aktualizowany przy każdym skanie.
+
+| Kolumna | Typ | Opis |
+|---|---|---|
+| id | int PK | tw_Id z Subiekta |
+| symbol | varchar(50) | tw_Symbol |
+| name | varchar(200) | tw_Nazwa |
+| barcode | varchar(50) | tw_PodstKodKresk (EAN) |
+| unit | varchar(10) | tw_JednMiary, domyślnie `szt` |
+| updated_at | timestamp | ostatnia aktualizacja |
+
+Indeksy: `idx_pc_barcode` na `barcode`, `idx_pc_symbol` na `symbol`.
+
 ## MSSQL Subiekt GT (read-only)
 
 | Tabela | Kluczowe kolumny | Użycie |

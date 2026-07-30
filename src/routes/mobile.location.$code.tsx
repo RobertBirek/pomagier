@@ -1,13 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  StatusBadge,
-  SectionTitle,
-  ErrorState,
-  LoadingRow,
-} from "@/components/pomagier/primitives";
-import { MapPin, Package, Barcode, Layers } from "lucide-react";
-import { parseLocation } from "@/lib/locations";
+import { SectionTitle, ErrorState, LoadingRow } from "@/components/pomagier/primitives";
+import { MapPin, Package, Barcode, ArrowLeft } from "lucide-react";
 
 async function fetchLocationProducts(code: string) {
   const res = await fetch(`/api/products-by-location?location=${encodeURIComponent(code)}`);
@@ -25,24 +19,20 @@ function LocationCard() {
     isLoading,
     error,
   } = useQuery({ queryKey: ["location", code], queryFn: () => fetchLocationProducts(code) });
-  const parsed = parseLocation(code);
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4">
       <div className="flex items-center gap-2">
+        <Link
+          to="/mobile/scan"
+          className="flex items-center gap-1 text-muted-foreground hover:text-foreground touch-target rounded p-1 -ml-1"
+          aria-label="Powrót do koszyka"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
         <MapPin className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-bold">{code}</h1>
+        <h1 className="text-lg font-bold font-mono">{code}</h1>
       </div>
-      {parsed && (
-        <div className="rounded-lg border bg-card p-4 space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            <span>
-              Obszar {parsed.area}, Alejka {parsed.aisle}, Regał {parsed.rack}, Półka {parsed.shelf}
-            </span>
-          </div>
-        </div>
-      )}
       {isLoading && <LoadingRow />}
       {error && <ErrorState title="Błąd" description="Nie udało się pobrać produktów" />}
       {products && products.length > 0 && (

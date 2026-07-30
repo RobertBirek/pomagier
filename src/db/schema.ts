@@ -7,6 +7,7 @@ import {
   varchar,
   boolean,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -87,3 +88,21 @@ export const productMovements = pgTable("product_movements", {
   correlationId: varchar("correlation_id", { length: 36 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+/** Szybki cache podstawowych danych produktów z Subiekta GT do użycia w koszyku skanów.
+ *  Klucz główny = tw_Id (integer). Aktualizowany przy każdym skanie. */
+export const productsCache = pgTable(
+  "products_cache",
+  {
+    id: integer("id").primaryKey(),
+    symbol: varchar("symbol", { length: 50 }).notNull(),
+    name: varchar("name", { length: 200 }).notNull(),
+    barcode: varchar("barcode", { length: 50 }),
+    unit: varchar("unit", { length: 10 }).default("szt"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    barcodeIdx: index("idx_pc_barcode").on(t.barcode),
+    symbolIdx: index("idx_pc_symbol").on(t.symbol),
+  }),
+);
