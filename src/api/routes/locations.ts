@@ -1,7 +1,7 @@
 import type express from "express";
 import crypto from "node:crypto";
 import { getDb, schema } from "../../db/index.js";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency } from "../idempotency.js";
@@ -276,7 +276,166 @@ export function registerLocationsRoutes(app: express.Express) {
     }
   });
 
-  // --- Produkty w lokalizacji ---
+  // --- Pełna kartoteka lokalizacji (Postgres-first) ---
+  app.get("/api/locations/:code", async (req, res) => {
+    const code = req.params.code as string;
+    if (!code) {
+      res.status(400).json({ error: "Brak kodu lokalizacji" });
+      return;
+    }
+
+    try {
+      const db = getDb();
+
+      // 1. Znajdź lokalizację
+      const [loc] = await db
+        .select()
+        .from(schema.locations)
+        .where(eq(schema.locations.code, code))
+        .limit(1);
+
+      if (!loc) {
+        res.status(404).json({ error: "Lokalizacja nie znaleziona" });
+        return;
+      }
+
+      // 2. Produkty z product_locations
+      const plRows = await db
+        .select({
+          productId: schema.productLocations.productId,
+          quantity: schema.productLocations.quantity,
+        })
+        .from(schema.productLocations)
+        .where(eq(schema.productLocations.locationId, loc.id));
+
+      const productIds = plRows.map((r) => r.productId);
+      const quantityMap = new Map<number, number>();
+      for (const r of plRows) quantityMap.set(r.productId, r.quantity ?? 1);
+
+      const totalQuantity = [...quantityMap.values()].reduce((s, q) => s + q, 0);
+
+      // 3. Dane produktów — najpierw z products_cache
+      let cachedProducts: {
+        id: number;
+        symbol: string;
+        name: string;
+        barcode: string | null;
+        unit: string | null;
+      }[] = [];
+      if (productIds.length > 0) {
+        cachedProducts = await db
+          .select()
+          .from(schema.productsCache)
+          .where(inArray(schema.productsCache.id, productIds));
+      }
+
+      const cachedIds = new Set(cachedProducts.map((p) => p.id));
+      const missingIds = productIds.filter((id) => !cachedIds.has(id));
+
+      // 4. MSSQL fallback dla brakujących w cache
+      if (missingIds.length > 0) {
+        const adapter = getAdapter();
+        const pool = await adapter.getPool?.();
+        if (pool) {
+          // Build IN clause safely with parameters
+          const placeholders = missingIds.map((_, i) => `@id${i}`);
+          const req2 = pool.request();
+          missingIds.forEach((id, i) => req2.input(`id${i}`, id));
+          const mssqlResult = await req2.query(`
+            SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name,
+                   tw_PodstKodKresk AS barcode, tw_JednMiary AS unit
+            FROM tw__Towar
+            WHERE tw_Id IN (${placeholders.join(",")})
+          `);
+
+          for (const row of mssqlResult.recordset) {
+            const r = row as {
+              id: number;
+              symbol: string;
+              name: string;
+              barcode: string | null;
+              unit: string | null;
+            };
+            cachedProducts.push(r);
+            // Cache in Postgres
+            try {
+              await db
+                .insert(schema.productsCache)
+                .values({
+                  id: r.id,
+                  symbol: r.symbol,
+                  name: r.name,
+                  barcode: r.barcode || null,
+                  unit: r.unit || "szt",
+                })
+                .onConflictDoUpdate({
+                  target: schema.productsCache.id,
+                  set: {
+                    symbol: r.symbol,
+                    name: r.name,
+                    barcode: r.barcode || null,
+                    unit: r.unit || "szt",
+                    updatedAt: sql`now()`,
+                  },
+                });
+            } catch {
+              /* cache write is non-critical */
+            }
+          }
+        }
+      }
+
+      // 5. Ruchy
+      const movements = await db
+        .select()
+        .from(schema.productMovements)
+        .where(
+          or(eq(schema.productMovements.fromCode, code), eq(schema.productMovements.toCode, code)),
+        )
+        .orderBy(sql`${schema.productMovements.createdAt} DESC`)
+        .limit(20);
+
+      // 6. Składanie odpowiedzi
+      const products = productIds.map((pid) => {
+        const cached = cachedProducts.find((p) => p.id === pid);
+        const qty = quantityMap.get(pid) ?? 1;
+        return {
+          productId: pid,
+          symbol: cached?.symbol ?? `#${pid}`,
+          name: cached?.name ?? "Nieznany",
+          barcode: cached?.barcode ?? "",
+          unit: cached?.unit ?? "szt.",
+          quantity: qty,
+        };
+      });
+
+      res.json({
+        code: loc.code,
+        area: loc.area,
+        aisle: loc.aisle,
+        rack: loc.rack,
+        shelf: loc.shelf,
+        productCount: productIds.length,
+        totalQuantity,
+        products,
+        movements: movements.map((m) => ({
+          id: m.id,
+          symbol: m.symbol,
+          name: m.name,
+          fromCode: m.fromCode,
+          toCode: m.toCode,
+          quantity: m.quantity,
+          operator: m.operator,
+          createdAt: m.createdAt,
+        })),
+      });
+    } catch (err) {
+      logger.error({ err, code }, "Location card failed");
+      res.status(500).json({ error: "Błąd pobierania danych" });
+    }
+  });
+
+  // --- Produkty w lokalizacji (stary endpoint, przez MSSQL) ---
   app.get("/api/products-by-location", async (req, res) => {
     const location = req.query.location as string;
     if (!location) {
