@@ -5,7 +5,7 @@ import { ScanHeader } from "@/components/pomagier/ScanHeader";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useScanBasket, type BasketItem } from "@/lib/scan-basket";
 import { BasketHeader } from "@/components/pomagier/primitives";
-import { Package, MapPin, Trash2, Barcode } from "lucide-react";
+import { Package, MapPin, Trash2, Barcode, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
 
@@ -134,6 +134,8 @@ function ScanPage() {
                     </div>
                   </div>
                 </button>
+
+                <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0" />
 
                 {/* Always-visible remove button */}
                 <button
