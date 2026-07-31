@@ -174,7 +174,7 @@ function WizardPage() {
                     value={mssqlForm.host}
                     onChange={(e) => setMssqlForm({ ...mssqlForm, host: e.target.value })}
                     className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm font-mono"
-                    placeholder="10.10.254.87\OPTIMA"
+                    placeholder="serwer\instancja"
                   />
                 </div>
                 <div>

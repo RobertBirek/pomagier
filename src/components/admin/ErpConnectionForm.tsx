@@ -29,7 +29,7 @@ export function ErpConnectionForm({ form, saving, onChange, onSubmit }: ErpConne
             value={form.host}
             onChange={(e) => onChange({ ...form, host: e.target.value })}
             className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
-            placeholder="10.10.254.87\OPTIMA"
+            placeholder="serwer\instancja"
           />
         </div>
         <div>
