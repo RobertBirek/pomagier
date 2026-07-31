@@ -1575,6 +1575,7 @@ export function registerLocationsRoutes(app: express.Express) {
         res.json({ ok: true, fixed });
       } else if (direction === "subiekt-to-postgres") {
         // Re-sync from Subiekt for selected products
+        const { parseLocation } = await import("../../lib/locations.js");
         let imported = 0;
         for (const id of productIds) {
           const [current] = await db
@@ -1594,10 +1595,36 @@ export function registerLocationsRoutes(app: express.Express) {
               .delete(schema.productLocations)
               .where(eq(schema.productLocations.productId, id));
           for (const code of codes) {
-            const [loc] = await db
+            let [loc] = await db
               .select()
               .from(schema.locations)
               .where(eq(schema.locations.code, code));
+            // Auto-create missing location from Subiekt code
+            if (!loc) {
+              const parsed = parseLocation(code);
+              if (parsed) {
+                [loc] = await db
+                  .insert(schema.locations)
+                  .values({
+                    code: parsed.raw,
+                    area: parsed.area,
+                    aisle: parsed.aisle,
+                    rack: parsed.rack,
+                    shelf: parsed.shelf,
+                    spot: parsed.spot,
+                    label: parsed.label,
+                  })
+                  .onConflictDoNothing()
+                  .returning();
+                if (!loc) {
+                  // fallback: fetch if onConflictDoNothing prevented insert
+                  [loc] = await db
+                    .select()
+                    .from(schema.locations)
+                    .where(eq(schema.locations.code, parsed.raw));
+                }
+              }
+            }
             if (loc) {
               await db
                 .insert(schema.productLocations)
