@@ -1,14 +1,13 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 interface AuthState {
-  token: string | null;
   user: { id: string; subiektUzId: number; role: string } | null;
   operatorName: string;
   warehouse: string;
 }
 
 interface AuthContextType extends AuthState {
-  login: (token: string, user: AuthState["user"], name: string, wh: string) => void;
+  login: (user: AuthState["user"], name: string, wh: string) => void;
   logout: () => void;
 }
 
@@ -22,11 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* localStorage parse failed */
     }
-    return { token: null, user: null, operatorName: "", warehouse: "" };
+    return { user: null, operatorName: "", warehouse: "" };
   });
 
-  const login = useCallback((token: string, user: AuthState["user"], name: string, wh: string) => {
-    const session = { token, user, operatorName: name, warehouse: wh };
+  const login = useCallback((user: AuthState["user"], name: string, wh: string) => {
+    const session = { user, operatorName: name, warehouse: wh };
     localStorage.setItem("pomagier_auth", JSON.stringify(session));
     setState(session);
   }, []);
@@ -35,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Call server logout to invalidate session, then clear local state
     fetch("/api/logout", { method: "POST", credentials: "include" }).catch(() => {});
     localStorage.removeItem("pomagier_auth");
-    setState({ token: null, user: null, operatorName: "", warehouse: "" });
+    setState({ user: null, operatorName: "", warehouse: "" });
   }, []);
 
   return (

@@ -1,22 +1,46 @@
-const idempotencyStore = new Map<string, { result: unknown; timestamp: number }>();
-const IDEMPOTENCY_TTL = 5 * 60 * 1000; // 5 minutes
+import { eq, lt } from "drizzle-orm";
+import { getDb, schema } from "../db/index.js";
 
-// Cleanup old entries every minute
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of idempotencyStore) {
-    if (now - val.timestamp > IDEMPOTENCY_TTL) idempotencyStore.delete(key);
-  }
-}, 60000);
+const IDEMPOTENCY_TTL = 5 * 60 * 1000;
 
-export function checkIdempotency(key: string): { result: unknown } | null {
-  const entry = idempotencyStore.get(key);
-  if (entry && Date.now() - entry.timestamp < IDEMPOTENCY_TTL) {
-    return { result: entry.result };
+export async function checkIdempotency(
+  key: string,
+): Promise<{ result: unknown; statusCode: number } | null> {
+  const db = getDb();
+  const now = new Date();
+  await db.delete(schema.idempotencyKeys).where(lt(schema.idempotencyKeys.expiresAt, now));
+  const [entry] = await db
+    .select()
+    .from(schema.idempotencyKeys)
+    .where(eq(schema.idempotencyKeys.key, key));
+  if (!entry || entry.expiresAt <= now) return null;
+  try {
+    return { result: JSON.parse(entry.response) as unknown, statusCode: entry.statusCode };
+  } catch {
+    return null;
   }
-  return null;
 }
 
-export function storeIdempotency(key: string, result: unknown): void {
-  idempotencyStore.set(key, { result, timestamp: Date.now() });
+export async function storeIdempotency(
+  key: string,
+  result: unknown,
+  statusCode = 200,
+): Promise<void> {
+  const db = getDb();
+  await db
+    .insert(schema.idempotencyKeys)
+    .values({
+      key,
+      response: JSON.stringify(result),
+      statusCode,
+      expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL),
+    })
+    .onConflictDoUpdate({
+      target: schema.idempotencyKeys.key,
+      set: {
+        response: JSON.stringify(result),
+        statusCode,
+        expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL),
+      },
+    });
 }

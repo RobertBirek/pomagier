@@ -110,9 +110,10 @@ export function registerErpConfigRoutes(app: Application): void {
     validate(TestConnectionSchema),
     async (req: Request, res: Response) => {
       const { host, port, database, user, password } = req.body;
+      let testAdapter: import("../../erp/mssql.adapter.js").MssqlErpAdapter | undefined;
       try {
         const { MssqlErpAdapter } = await import("../../erp/mssql.adapter.js");
-        const testAdapter = new MssqlErpAdapter();
+        testAdapter = new MssqlErpAdapter();
         await testAdapter.reconnect({
           host,
           port: parseInt(port as string) || 1433,
@@ -125,6 +126,8 @@ export function registerErpConfigRoutes(app: Application): void {
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         res.json({ ok: false, error: message });
+      } finally {
+        await testAdapter?.close?.();
       }
     },
   );

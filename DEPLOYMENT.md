@@ -1,6 +1,6 @@
 # Deployment — PomagierGT
 
-## Stan: v1.1.0 — Produkcyjny
+## Stan: v1.6.1 — Produkcyjny
 
 Środowisko: VPS Linux (Debian/Ubuntu) z systemd.
 
@@ -20,13 +20,21 @@ Klient (przeglądarka/PWA)
        └── /*     → dist/ (statyczne pliki SPA)
 ```
 
+## Procedura przed wdrożeniem
+
+1. `git status` — repozytorium musi być czyste.
+2. Wykonaj i zweryfikuj backup Postgresa; produkcyjny backup powinien mieć rozszerzenie `.tar.gz.gpg`.
+3. Uruchom `npm ci`, `npm run build`, `npm run build:api`, `npm run db:migrate` w kontrolowanym oknie.
+4. Zrestartuj API i sprawdź `GET /api/health` oraz logowanie administratora.
+5. Migracje wykonuj po backupie; rollback schematu wymaga odtworzenia backupu, nie automatycznego downgrade.
+
 ## Usługi systemd
 
-| Usługa | Opis | Port |
-|---|---|---|
-| `pomagier-api` | Express 5 API, auto-restart | 3000 |
-| `caddy` | Reverse proxy HTTPS + static files | 443, 80 |
-| `postgresql` | Postgres 16 (baza aplikacyjna) | 5432 |
+| Usługa         | Opis                               | Port    |
+| -------------- | ---------------------------------- | ------- |
+| `pomagier-api` | Express 5 API, auto-restart        | 3000    |
+| `caddy`        | Reverse proxy HTTPS + static files | 443, 80 |
+| `postgresql`   | Postgres 16 (baza aplikacyjna)     | 5432    |
 
 ## Pliki konfiguracyjne
 
@@ -78,6 +86,7 @@ sudo systemctl restart pomagier-api
 ## Zmienne środowiskowe
 
 Wszystkie zmienne w `.env.example`. Kluczowe:
+
 - `MSSQL_HOST`, `MSSQL_PORT`, `MSSQL_DATABASE`, `MSSQL_USER`, `MSSQL_PASSWORD`
 - `DATABASE_URL` (Postgres)
 - `JWT_SECRET`

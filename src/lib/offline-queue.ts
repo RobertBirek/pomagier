@@ -7,6 +7,7 @@ export interface QueuedScan {
   code: string;
   location?: string;
   timestamp: number;
+  idempotencyKey?: string;
 }
 
 export interface ReplayItem {
@@ -36,7 +37,12 @@ export async function addScanToQueue(code: string, location?: string): Promise<v
   try {
     const db = await openDB();
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).add({ code, location, timestamp: Date.now() });
+    tx.objectStore(STORE).add({
+      code,
+      location,
+      timestamp: Date.now(),
+      idempotencyKey: crypto.randomUUID(),
+    });
     return new Promise((resolve) => {
       tx.oncomplete = () => resolve();
     });
@@ -109,7 +115,10 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
     try {
       const res = await fetch(scan.location ? "/api/locations/assign" : "/api/scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": scan.idempotencyKey || `offline-${scan.id}`,
+        },
         body: JSON.stringify(
           scan.location ? { codes: [scan.code], location: scan.location } : { code: scan.code },
         ),

@@ -79,11 +79,12 @@ export function registerInventoryRoutes(app: Application): void {
       }
       if (pool && grouped.size > 0) {
         const ids = [...grouped.keys()];
-        const pr = await pool
-          .request()
-          .query(
-            `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_JednMiary AS unit, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${ids})`,
-          );
+        const placeholders = ids.map((_, index) => `@id${index}`);
+        const productRequest = pool.request();
+        ids.forEach((id, index) => productRequest.input(`id${index}`, id));
+        const pr = await productRequest.query(
+          `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_JednMiary AS unit, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${placeholders.join(",")})`,
+        );
         for (const p of pr.recordset) {
           const row = p as SubiektInventoryProductRow;
           const g = grouped.get(row.id);
@@ -94,11 +95,11 @@ export function registerInventoryRoutes(app: Application): void {
             g.barcode = row.barcode;
           }
         }
-        const sr = await pool
-          .request()
-          .query(
-            `SELECT st_TowId, SUM(st_Stan) AS total FROM tw_Stan WHERE st_TowId IN (${ids}) GROUP BY st_TowId`,
-          );
+        const stockRequest = pool.request();
+        ids.forEach((id, index) => stockRequest.input(`id${index}`, id));
+        const sr = await stockRequest.query(
+          `SELECT st_TowId, SUM(st_Stan) AS total FROM tw_Stan WHERE st_TowId IN (${placeholders.join(",")}) GROUP BY st_TowId`,
+        );
         for (const s of sr.recordset) {
           const row = s as SubiektStockTotalRow;
           const g = grouped.get(row.st_TowId);

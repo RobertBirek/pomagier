@@ -30,6 +30,21 @@ export const sessions = pgTable("sessions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const loginAttempts = pgTable("login_attempts", {
+  subiektUzId: integer("subiekt_uz_id").primaryKey(),
+  failures: integer("failures").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const idempotencyKeys = pgTable("idempotency_keys", {
+  key: varchar("key", { length: 128 }).primaryKey(),
+  response: text("response").notNull(),
+  statusCode: integer("status_code").notNull().default(200),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").defaultRandom().primaryKey(),
   correlationId: varchar("correlation_id", { length: 36 }).notNull(),

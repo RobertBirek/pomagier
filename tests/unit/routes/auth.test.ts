@@ -3,6 +3,7 @@ import express from "express";
 import request from "supertest";
 import { registerAuthRoutes } from "../../../src/api/routes/auth.js";
 import { errorHandler } from "../../../src/api/error-handler.js";
+import bcrypt from "bcryptjs";
 
 // Mock db
 const mockDb = {
@@ -12,8 +13,12 @@ const mockDb = {
     }),
   }),
   insert: vi.fn().mockReturnValue({
-    values: vi.fn().mockResolvedValue(undefined),
+    values: vi.fn().mockReturnValue({
+      onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+      onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+    }),
   }),
+  delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
 };
 
 vi.mock("../../../src/db/index.js", () => ({
@@ -22,6 +27,7 @@ vi.mock("../../../src/db/index.js", () => ({
     users: {},
     sessions: {},
     auditLog: {},
+    loginAttempts: { subiektUzId: "subiektUzId" },
   },
 }));
 
@@ -47,6 +53,25 @@ describe("Auth routes", () => {
   });
 
   describe("POST /api/login", () => {
+    it("returns identity without exposing the session token in JSON", async () => {
+      const user = {
+        id: "user-1",
+        subiektUzId: 1,
+        pin: bcrypt.hashSync("1234", 4),
+        role: "admin",
+        active: true,
+      };
+      const chain = (rows: unknown[]) => ({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(rows) }),
+      });
+      mockDb.select.mockReturnValueOnce(chain([])).mockReturnValueOnce(chain([user]));
+      const res = await request(app).post("/api/login").send({ subiektUzId: 1, pin: "1234" });
+      expect(res.status).toBe(200);
+      expect(res.body.user).toEqual({ id: "user-1", subiektUzId: 1, role: "admin" });
+      expect(res.body).not.toHaveProperty("token");
+      expect(res.headers["set-cookie"]).toBeDefined();
+    });
+
     it("returns 422 for missing body", async () => {
       const res = await request(app).post("/api/login").send({});
       expect(res.status).toBe(422);

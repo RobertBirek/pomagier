@@ -8,6 +8,8 @@ const envSchema = z.object({
   MSSQL_PASSWORD: z.string().min(1, "MSSQL_PASSWORD is required"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   JWT_SECRET: z.string().min(8, "JWT_SECRET must be at least 8 chars"),
+  CONFIG_ENCRYPTION_KEY: z.string().min(16).optional(),
+  BACKUP_ENCRYPTION_KEY: z.string().min(16).optional(),
   SESSION_TIMEOUT_MINUTES: z.coerce.number().default(15),
   API_PORT: z.coerce.number().default(3000),
   API_HOST: z.string().default("0.0.0.0"),

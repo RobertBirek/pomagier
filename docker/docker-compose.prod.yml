@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: pomagier-db
     environment:
       POSTGRES_DB: pomagier
       POSTGRES_USER: pomagier
@@ -11,14 +12,16 @@ services:
       test: ["CMD-SHELL", "pg_isready -U pomagier"]
       interval: 10s
       retries: 5
+    restart: unless-stopped
 
   app:
+    container_name: pomagier-app
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: prod
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - DATABASE_URL=postgresql://pomagier:${PG_PASSWORD}@postgres:5432/pomagier
       - MSSQL_HOST=${MSSQL_HOST}
@@ -27,9 +30,19 @@ services:
       - MSSQL_PASSWORD=${MSSQL_PASSWORD}
       - NODE_ENV=production
       - API_PORT=3000
+      - API_HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET}
+      - CONFIG_ENCRYPTION_KEY=${CONFIG_ENCRYPTION_KEY}
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
     depends_on:
       postgres:
-        condition: service_healthy
+         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   pgdata:

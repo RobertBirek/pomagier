@@ -1,6 +1,6 @@
 # Architecture Decision Record — PomagierGT
 
-## Architektura (aktualna — v1.5.0)
+## Architektura (aktualna — v1.6.1)
 
 ### Zasada naczelna
 

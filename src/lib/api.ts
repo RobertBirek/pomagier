@@ -60,7 +60,6 @@ export async function login(subiektUzId: number, pin: string) {
     throw new Error(err.error || "Błąd logowania");
   }
   return res.json() as Promise<{
-    token: string;
     user: { id: string; subiektUzId: number; role: string };
   }>;
 }

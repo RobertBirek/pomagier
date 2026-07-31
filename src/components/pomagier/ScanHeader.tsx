@@ -156,11 +156,11 @@ export function ScanHeader({
   handleSubmitCodeRef.current = handleSubmitCode;
 
   useEffect(() => {
-    scanBus.register((code: string) => {
+    const unregister = scanBus.register((code: string) => {
       setValue(code);
       setTimeout(() => handleSubmitCodeRef.current(code), 60);
     });
-    return () => scanBus.unregister(() => {});
+    return unregister;
   }, []);
 
   // ── Autocomplete handler (wraps hook's handleChange) ──

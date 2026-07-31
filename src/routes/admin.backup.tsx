@@ -58,10 +58,14 @@ async function fetchBackups() {
   return r.json() as Promise<{ name: string; size: number; date: string; source: string }[]>;
 }
 async function restoreBackup(filename: string) {
+  const confirmation = window.prompt(
+    `Aby przywrócić backup, wpisz dokładnie jego nazwę:\n${filename}`,
+  );
+  if (confirmation !== filename) throw new Error("Nieprawidłowe potwierdzenie nazwy backupu");
   const r = await fetch("/api/backup/restore", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename, confirm: "TAK" }),
+    body: JSON.stringify({ filename, confirm: confirmation }),
   });
   if (!r.ok) throw new Error((await r.json()).error);
   return r.json();

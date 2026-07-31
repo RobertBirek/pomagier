@@ -1,7 +1,7 @@
 import type { Application, Request, Response } from "express";
 import { getDb, schema } from "../../db/index.js";
 import { getAdapter } from "../adapter-provider.js";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { requireAdmin } from "../auth-middleware.js";
 
 export function registerTerminalsRoutes(app: Application): void {
@@ -22,17 +22,19 @@ export function registerTerminalsRoutes(app: Application): void {
       const userNameMap = new Map<string, string>();
       if (pool) {
         const userIds = [...new Set(terminals.map((t) => t.userId))];
-        const userRows = await db
-          .select()
-          .from(schema.users)
-          .where(sql`${schema.users.id} IN (${userIds.map(() => sql`?`)})`);
+        const userRows =
+          userIds.length > 0
+            ? await db.select().from(schema.users).where(inArray(schema.users.id, userIds))
+            : [];
         const subiektIds = userRows.map((u) => u.subiektUzId);
 
         if (subiektIds.length > 0) {
-          const names = await pool.request().query(`
+          const nameRequest = pool.request();
+          subiektIds.forEach((id, index) => nameRequest.input(`subiektId${index}`, id));
+          const names = await nameRequest.query(`
             SELECT uz_Id AS id, uz_Imie AS firstName, uz_Nazwisko AS lastName
             FROM pd_Uzytkownik
-            WHERE uz_Id IN (${subiektIds.join(",")})
+            WHERE uz_Id IN (${subiektIds.map((_, index) => `@subiektId${index}`).join(",")})
           `);
           for (const row of names.recordset) {
             const r = row as { id: number; firstName: string; lastName: string };

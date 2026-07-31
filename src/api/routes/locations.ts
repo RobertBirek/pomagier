@@ -481,9 +481,9 @@ export function registerLocationsRoutes(app: express.Express) {
 
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
-      const cached = checkIdempotency(idemKey);
+      const cached = await checkIdempotency(idemKey);
       if (cached) {
-        res.json(cached.result);
+        res.status(cached.statusCode).json(cached.result);
         return;
       }
     }
@@ -628,7 +628,7 @@ export function registerLocationsRoutes(app: express.Express) {
         notFound,
       });
       if (idemKey) {
-        storeIdempotency(idemKey, {
+        await storeIdempotency(idemKey, {
           ok: true,
           assigned: grouped.size,
           totalQuantity: foundProducts.length,
@@ -681,9 +681,9 @@ export function registerLocationsRoutes(app: express.Express) {
 
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
-      const cached = checkIdempotency(idemKey);
+      const cached = await checkIdempotency(idemKey);
       if (cached) {
-        res.json(cached.result);
+        res.status(cached.statusCode).json(cached.result);
         return;
       }
     }
@@ -782,7 +782,7 @@ export function registerLocationsRoutes(app: express.Express) {
         }
       }
       res.json({ ok: true, undone });
-      if (idemKey) storeIdempotency(idemKey, { ok: true, undone });
+      if (idemKey) await storeIdempotency(idemKey, { ok: true, undone });
     } catch (err) {
       logger.error({ err }, "Undo failed");
       res.status(500).json({ error: "Nie udało się cofnąć" });
@@ -976,9 +976,9 @@ export function registerLocationsRoutes(app: express.Express) {
 
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
-      const cached = checkIdempotency(idemKey);
+      const cached = await checkIdempotency(idemKey);
       if (cached) {
-        res.json(cached.result);
+        res.status(cached.statusCode).json(cached.result);
         return;
       }
     }
@@ -1121,7 +1121,12 @@ export function registerLocationsRoutes(app: express.Express) {
       logger.info({ from: fromParsed.raw, to: toParsed.raw, moved }, "Transfer completed");
       res.json({ ok: true, moved, from: fromParsed.raw, to: toParsed.raw });
       if (idemKey)
-        storeIdempotency(idemKey, { ok: true, moved, from: fromParsed.raw, to: toParsed.raw });
+        await storeIdempotency(idemKey, {
+          ok: true,
+          moved,
+          from: fromParsed.raw,
+          to: toParsed.raw,
+        });
     } catch (err) {
       logger.error({ err }, "Transfer failed");
       res.status(500).json({ error: "Transfer nie powiódł się" });

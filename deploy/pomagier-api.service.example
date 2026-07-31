@@ -1,0 +1,23 @@
+[Unit]
+Description=PomagierGT API
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pomagier
+Group=pomagier
+WorkingDirectory=/pomagier
+EnvironmentFile=/pomagier/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /pomagier/dist/api/server.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/pomagier/dist /backups /var/log/pomagier
+
+[Install]
+WantedBy=multi-user.target

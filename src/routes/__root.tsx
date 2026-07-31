@@ -10,6 +10,7 @@ function isIpAddress(hostname: string): boolean {
 
 export const Route = createRootRoute({
   component: RootComponent,
+  errorComponent: RootErrorComponent,
   notFoundComponent: () => (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
@@ -19,6 +20,25 @@ export const Route = createRootRoute({
     </div>
   ),
 });
+
+function RootErrorComponent({ error }: { error: unknown }) {
+  const message = error instanceof Error ? error.message : "Nieoczekiwany błąd aplikacji";
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+        <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-destructive" />
+        <h1 className="text-lg font-semibold">Aplikacja napotkała błąd</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        <button
+          className="touch-target mt-5 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+          onClick={() => window.location.reload()}
+        >
+          Odśwież aplikację
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function RootComponent() {
   const [bannerDismissed, setBannerDismissed] = useState(false);

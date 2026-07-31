@@ -46,14 +46,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 /** Public endpoints that do NOT require authentication. Everything else requires a valid session. */
-const PUBLIC_PATHS = new Set([
-  "/api/login",
-  "/api/health",
-  "/api/company",
-  "/api/wizard/status",
-  "/ca",
-  "/api/ca",
-]);
+const PUBLIC_PATHS = new Set(["/api/login", "/api/health", "/api/wizard/status", "/ca", "/api/ca"]);
 
 /** Global auth-by-default middleware. Rejects any /api request without req.user unless whitelisted. */
 export function requireAuthByDefault(req: Request, res: Response, next: NextFunction) {

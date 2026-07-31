@@ -22,6 +22,29 @@
 | expires_at | timestamp | |
 | created_at | timestamp | |
 
+### login_attempts
+
+Trwały lockout PIN współdzielony między restartami i instancjami API.
+
+| Kolumna | Typ | Opis |
+|---|---|---|
+| subiekt_uz_id | int PK | Id operatora Subiekta |
+| failures | int | Liczba kolejnych nieudanych prób |
+| locked_until | timestamp nullable | Koniec blokady |
+| updated_at | timestamp | |
+
+### idempotency_keys
+
+Trwały cache odpowiedzi dla powtarzanych mutacji.
+
+| Kolumna | Typ | Opis |
+|---|---|---|
+| key | varchar(128) PK | `X-Idempotency-Key` |
+| response | text | JSON odpowiedzi |
+| status_code | int | Kod HTTP |
+| expires_at | timestamp | TTL 5 minut |
+| created_at | timestamp | |
+
 ### config
 | Kolumna | Typ | Opis |
 |---|---|---|

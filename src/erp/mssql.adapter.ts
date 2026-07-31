@@ -60,6 +60,13 @@ export class MssqlErpAdapter implements ErpAdapter {
     logger.info("MSSQL reconnected with new config");
   }
 
+  async close(): Promise<void> {
+    if (this.pool) {
+      await this.pool.close();
+      this.pool = null;
+    }
+  }
+
   private async _connect(cfg: {
     host: string;
     port: number;
@@ -116,7 +123,7 @@ export class MssqlErpAdapter implements ErpAdapter {
         LEFT JOIN sl_Magazyn m ON m.mag_Id = s.st_MagId
         WHERE t.tw_PodstKodKresk = @code
            OR t.tw_Symbol = @code
-           OR t.tw_Id = (
+           OR t.tw_Id IN (
              SELECT usk_IdSynchronizacja
              FROM uf_SynchroKodyKresk
              WHERE usk_Kod = @code

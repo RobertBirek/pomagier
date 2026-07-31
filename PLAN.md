@@ -1,8 +1,8 @@
 # Plan — PomagierGT
 
-## Stan: v1.5.0 Production
+## Stan: v1.6.1 Production
 
-MVP (v1.0.0) osiągnięty 2026-07-26. Refaktoryzacja API (v1.4.0) i frontendu (v1.5.0) zakończona. Projekt gotowy na rozwój kolejnych modułów magazynowych.
+MVP (v1.0.0) osiągnięty 2026-07-26. Refaktoryzacja API/frontendu oraz security hardening v1.6.1 zakończone. Projekt gotowy na rozwój kolejnych modułów magazynowych.
 
 ## 1. Podsumowanie projektu
 

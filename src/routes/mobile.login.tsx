@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
-import { getUsers, getWarehouses, login as apiLogin } from "@/lib/api";
+import { login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
 import {
   Dialog,
@@ -12,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { User, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/login")({
   component: Login,
@@ -21,31 +20,16 @@ export const Route = createFileRoute("/mobile/login")({
 function Login() {
   const nav = useNavigate();
   const auth = useAuth();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [subiektId, setSubiektId] = useState("");
   const [warehouse, setWarehouse] = useState("");
 
-  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: getUsers });
-  const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
-
-  // Set default warehouse when data loads
-  const whSymbols = useMemo(() => warehouses.map((w) => w.symbol).join(","), [warehouses]);
-
-  useEffect(() => {
-    if (warehouses.length > 0 && !warehouse) {
-      setWarehouse(warehouses.find((w) => w.isMain)?.symbol || warehouses[0]?.symbol || "");
-    }
-  }, [whSymbols, warehouse, warehouses]);
-
-  const userMap = useMemo(() => new Map(users.map((u) => [u.subiektId, u])), [users]);
-  const selected = selectedId != null ? userMap.get(selectedId) : null;
-
   const submit = async (pin: string) => {
-    if (!selectedId) return;
+    const selectedId = Number(subiektId);
+    if (!Number.isInteger(selectedId) || selectedId <= 0) return;
     try {
       const result = await apiLogin(selectedId, pin);
-      const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
-      auth.login(result.token, result.user, name, warehouse);
-      toast.success(`Witaj, ${name}!`);
+      auth.login(result.user, `Operator ${selectedId}`, warehouse);
+      toast.success("Zalogowano operatora");
       nav({ to: "/mobile/dashboard" });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Błąd logowania");
@@ -64,70 +48,34 @@ function Login() {
 
       <div className="mb-3">
         <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Wybierz operatora
+          Identyfikator operatora Subiekt GT
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {users
-            .filter((u) => u.active)
-            .map((u) => (
-              <button
-                key={u.subiektId}
-                onClick={() => setSelectedId(u.subiektId)}
-                className={`touch-target rounded-lg border p-2 text-left text-xs transition ${
-                  selectedId === u.subiektId
-                    ? "border-primary bg-primary/10"
-                    : "bg-card hover:bg-accent"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-semibold">
-                  <User className="h-3.5 w-3.5" />
-                  {[u.firstName, u.lastName].filter(Boolean).join(" ") || `ID ${u.subiektId}`}
-                </div>
-                <div className="mt-0.5 text-muted-foreground">{u.role}</div>
-                {!u.hasPin && <div className="mt-0.5 text-warning">Brak PIN (skonfiguruj)</div>}
-              </button>
-            ))}
-          {users.length === 0 && (
-            <p className="text-muted-foreground col-span-2 text-xs">
-              Brak użytkowników (Subiekt niedostępny)
-            </p>
-          )}
-        </div>
+        <input
+          className="w-full rounded-md border px-3 py-2"
+          inputMode="numeric"
+          value={subiektId}
+          onChange={(e) => setSubiektId(e.target.value.replace(/\D/g, ""))}
+        />
       </div>
 
-      {warehouses.length > 0 && (
-        <div className="mb-3">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Magazyn
-          </label>
-          <select
-            value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value)}
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {warehouses.map((w) => (
-              <option key={w.symbol} value={w.symbol}>
-                {w.symbol} — {w.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div className="mb-3">
+        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Magazyn
+        </label>
+        <input
+          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+          value={warehouse}
+          onChange={(e) => setWarehouse(e.target.value)}
+          placeholder="np. MAG1"
+        />
+      </div>
 
-      {selected && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setSelectedId(null);
-          }}
-        >
+      {subiektId && (
+        <Dialog open>
           <DialogContent className="max-w-xs">
             <DialogHeader>
               <DialogTitle className="text-center">PIN</DialogTitle>
-              <DialogDescription className="text-center">
-                {[selected.firstName, selected.lastName].filter(Boolean).join(" ") ||
-                  `ID ${selected.subiektId}`}
-              </DialogDescription>
+              <DialogDescription className="text-center">Operator ID {subiektId}</DialogDescription>
             </DialogHeader>
             <PinPad onSubmit={submit} />
           </DialogContent>

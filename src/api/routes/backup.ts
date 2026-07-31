@@ -89,8 +89,8 @@ export function registerBackupRoutes(app: express.Express) {
       const output = execSync("bash /pomagier/scripts/backup.sh 2>&1", {
         timeout: 120000,
       }).toString();
-      const match = output.match(/pomagier_backup_\d{4}-\d{2}-\d{2}_\d{4}\.tar\.gz/);
-      res.json({ ok: true, filename: match?.[0] || "unknown", output: output.slice(-200) });
+      const match = output.match(/pomagier_backup_\d{4}-\d{2}-\d{2}_\d{4}\.tar\.gz(?:\.gpg)?/);
+      res.json({ ok: true, filename: match?.[0] || "unknown" });
     } catch (err) {
       const e = err as { message?: string; stderr?: { toString?: () => string } };
       res.status(500).json({ error: e.message || e.stderr?.toString?.() });
@@ -104,7 +104,7 @@ export function registerBackupRoutes(app: express.Express) {
     try {
       const { readdirSync, statSync } = await import("node:fs");
       for (const f of readdirSync(localDir)) {
-        if (!f.endsWith(".tar.gz")) continue;
+        if (!f.endsWith(".tar.gz") && !f.endsWith(".tar.gz.gpg")) continue;
         const stat = statSync(`${localDir}/${f}`);
         local.push({ name: f, size: stat.size, date: stat.mtime.toISOString(), source: "local" });
       }
@@ -185,8 +185,8 @@ export function registerBackupRoutes(app: express.Express) {
   // Restore from uploaded file
   app.post("/api/backup/restore", requireAdmin, async (req, res) => {
     const { filename, confirm } = req.body ?? {};
-    if (confirm !== "TAK") {
-      res.status(400).json({ error: "Wpisz TAK aby potwierdzić przywrócenie" });
+    if (confirm !== filename || typeof filename !== "string") {
+      res.status(400).json({ error: "Potwierdź przywrócenie wpisując dokładną nazwę pliku" });
       return;
     }
     if (!validateBackupFilename(filename)) {
@@ -195,27 +195,80 @@ export function registerBackupRoutes(app: express.Express) {
     }
 
     try {
-      const { execSync } = await import("node:child_process");
+      const { execFileSync } = await import("node:child_process");
+      const { mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } = await import("node:fs");
       const localPath = `/backups/local/${filename}`;
 
       // Safety: auto-backup current state before restore
       const preRestoreName = `pre-restore-${Date.now()}.tar.gz`;
       try {
-        execSync(
-          `docker exec pomagier-db pg_dump -U pomagier pomagier > /tmp/pre-restore.sql && cd /tmp && tar -czf "${preRestoreName}" pre-restore.sql && mv "${preRestoreName}" /backups/local/ && rm -f /tmp/pre-restore.sql`,
+        const preDump = execFileSync(
+          "docker",
+          [
+            "exec",
+            "pomagier-db",
+            "pg_dump",
+            "-U",
+            "pomagier",
+            "--exclude-table=sessions",
+            "pomagier",
+          ],
           { timeout: 60000 },
         );
+        writeFileSync("/tmp/pre-restore.sql", preDump, { mode: 0o600 });
+        execFileSync(
+          "tar",
+          ["-czf", `/backups/local/${preRestoreName}`, "-C", "/tmp", "pre-restore.sql"],
+          { timeout: 30000 },
+        );
+        rmSync("/tmp/pre-restore.sql", { force: true });
         logger.info({ preRestoreName }, "Pre-restore safety backup created");
       } catch (e) {
-        logger.warn({ err: e }, "Pre-restore backup failed — proceeding anyway");
+        logger.error({ err: e }, "Pre-restore backup failed — restore aborted");
+        res.status(503).json({ error: "Nie utworzono kopii bezpieczeństwa przed restore" });
+        return;
       }
 
-      execSync(`cd /tmp && tar -xzf "${localPath}"`, { timeout: 30000 });
-      const sqlFile = filename.replace(".tar.gz", ".sql");
-      execSync(`docker exec -i pomagier-db psql -U pomagier pomagier < /tmp/${sqlFile}`, {
+      const restoreDir = `/tmp/pomagier-restore-${Date.now()}`;
+      mkdirSync(restoreDir, { recursive: true, mode: 0o700 });
+      const archivePath = filename.endsWith(".gpg") ? `${restoreDir}/backup.tar.gz` : localPath;
+      if (filename.endsWith(".gpg")) {
+        const keyFile = `${restoreDir}/key`;
+        writeFileSync(keyFile, process.env.BACKUP_ENCRYPTION_KEY || "", { mode: 0o600 });
+        execFileSync(
+          "gpg",
+          [
+            "--batch",
+            "--yes",
+            "--passphrase-file",
+            keyFile,
+            "--output",
+            archivePath,
+            "--decrypt",
+            localPath,
+          ],
+          { timeout: 60000 },
+        );
+      }
+      const entries = execFileSync("tar", ["-tzf", archivePath], {
+        encoding: "utf8",
+        timeout: 30000,
+      })
+        .split("\n")
+        .filter(Boolean);
+      if (!entries.every((entry) => /^[a-zA-Z0-9_.-]+$/.test(entry)))
+        throw new Error("Nieprawidłowa zawartość archiwum");
+      execFileSync("tar", ["-xzf", archivePath, "-C", restoreDir, "--no-same-owner"], {
+        timeout: 30000,
+      });
+      const sqlEntry = entries.find((entry) => entry.endsWith(".sql"));
+      if (!sqlEntry) throw new Error("Backup nie zawiera dumpa SQL");
+      const sqlData = readFileSync(`${restoreDir}/${sqlEntry}`);
+      execFileSync("docker", ["exec", "-i", "pomagier-db", "psql", "-U", "pomagier", "pomagier"], {
+        input: sqlData,
         timeout: 60000,
       });
-      execSync(`rm -f /tmp/${sqlFile} /tmp/config_*.tar.gz`);
+      rmSync(restoreDir, { recursive: true, force: true });
 
       logger.warn({ filename }, "Database restored from backup");
       res.json({
@@ -224,7 +277,8 @@ export function registerBackupRoutes(app: express.Express) {
       });
     } catch (err) {
       const e = err as { message?: string; stderr?: { toString?: () => string } };
-      res.status(500).json({ error: e.message || e.stderr?.toString?.() });
+      logger.error({ err }, "Backup restore failed");
+      res.status(500).json({ error: "Przywracanie backupu nie powiodło się" });
     }
   });
 

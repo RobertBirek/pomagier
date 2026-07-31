@@ -27,6 +27,16 @@
 - `retry.test.ts`: writeSubiektWithRetry (success, retry, 3-fail-throw)
 - `location-card.test.ts`: masking fix (escape hatch `|| 404` usunięty)
 
+### Sprint 2 — domknięcie bezpieczeństwa
+- Token sesji usunięty z `localStorage` i odpowiedzi JSON logowania; sesja pozostaje w cookie httpOnly.
+- Ekrany logowania nie enumerują publicznie operatorów — przyjmują identyfikator Subiekta i PIN.
+- Lockout PIN przeniesiony do Postgresa (`login_attempts`).
+- Idempotencja przeniesiona do Postgresa (`idempotency_keys`), a offline queue wysyła stabilny klucz.
+- Parametryzowane listy `IN (...)` w inventory/terminals; poprawiony query Drizzle dla aktywnych sesji.
+- Backup restore wymaga wpisania dokładnej nazwy pliku, weryfikuje archiwum i nie zwraca błędów shell klientowi.
+- Dodano graceful shutdown, ErrorBoundary root, poprawne unregister skanera oraz scoping cen — operator nie otrzymuje `openPrice`.
+- Dodano przykładowe pliki deploymentu: `deploy/pomagier-api.service.example`, `deploy/Caddyfile.example`.
+
 ## [1.6.0] — 2026-07-30 Koszyk skanów + Postgres Cache
 
 ### Nowe funkcje

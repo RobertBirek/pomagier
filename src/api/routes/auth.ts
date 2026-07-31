@@ -39,38 +39,44 @@ function generateToken(): string {
 // --- Lockout ---
 const PIN_LOCKOUT_MAX = 5;
 const PIN_LOCKOUT_MS = 5 * 60 * 1000;
-const pinAttempts = new Map<number, { count: number; lockedUntil: number }>();
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, entry] of pinAttempts) {
-    if (now > entry.lockedUntil) pinAttempts.delete(id);
-  }
-}, 60_000);
-
-function checkPinLockout(subiektUzId: number): string | null {
-  const entry = pinAttempts.get(subiektUzId);
-  if (!entry) return null;
-  if (Date.now() < entry.lockedUntil) {
-    const remaining = Math.ceil((entry.lockedUntil - Date.now()) / 60_000);
+async function checkPinLockout(subiektUzId: number): Promise<string | null> {
+  const db = getDb();
+  const [entry] = await db
+    .select()
+    .from(schema.loginAttempts)
+    .where(eq(schema.loginAttempts.subiektUzId, subiektUzId));
+  if (!entry?.lockedUntil) return null;
+  if (new Date(entry.lockedUntil).getTime() > Date.now()) {
+    const remaining = Math.ceil((new Date(entry.lockedUntil).getTime() - Date.now()) / 60_000);
     return `Konto zablokowane. Spróbuj ponownie za ${remaining} min.`;
   }
-  pinAttempts.delete(subiektUzId);
+  await db.delete(schema.loginAttempts).where(eq(schema.loginAttempts.subiektUzId, subiektUzId));
   return null;
 }
 
-function recordPinFailure(subiektUzId: number): void {
-  const entry = pinAttempts.get(subiektUzId) || { count: 0, lockedUntil: 0 };
-  entry.count++;
-  if (entry.count >= PIN_LOCKOUT_MAX) {
-    entry.lockedUntil = Date.now() + PIN_LOCKOUT_MS;
-    logger.warn({ subiektUzId, attempts: entry.count }, "PIN lockout activated");
-  }
-  pinAttempts.set(subiektUzId, entry);
+async function recordPinFailure(subiektUzId: number): Promise<void> {
+  const db = getDb();
+  const [entry] = await db
+    .select()
+    .from(schema.loginAttempts)
+    .where(eq(schema.loginAttempts.subiektUzId, subiektUzId));
+  const failures = (entry?.failures ?? 0) + 1;
+  const lockedUntil = failures >= PIN_LOCKOUT_MAX ? new Date(Date.now() + PIN_LOCKOUT_MS) : null;
+  await db
+    .insert(schema.loginAttempts)
+    .values({ subiektUzId, failures, lockedUntil })
+    .onConflictDoUpdate({
+      target: schema.loginAttempts.subiektUzId,
+      set: { failures, lockedUntil, updatedAt: new Date() },
+    });
+  if (lockedUntil) logger.warn({ subiektUzId, attempts: failures }, "PIN lockout activated");
 }
 
-function clearPinAttempts(subiektUzId: number): void {
-  pinAttempts.delete(subiektUzId);
+async function clearPinAttempts(subiektUzId: number): Promise<void> {
+  await getDb()
+    .delete(schema.loginAttempts)
+    .where(eq(schema.loginAttempts.subiektUzId, subiektUzId));
 }
 
 // --- Registration ---
@@ -79,7 +85,7 @@ export function registerAuthRoutes(app: Application): void {
   app.post("/api/login", validate(LoginSchema), async (req: Request, res: Response) => {
     const { subiektUzId, pin } = req.body;
 
-    const lockoutMsg = checkPinLockout(subiektUzId);
+    const lockoutMsg = await checkPinLockout(subiektUzId);
     if (lockoutMsg) {
       res.status(429).json({ error: lockoutMsg });
       return;
@@ -93,7 +99,7 @@ export function registerAuthRoutes(app: Application): void {
         .where(and(eq(schema.users.subiektUzId, subiektUzId), eq(schema.users.active, true)));
 
       if (!user) {
-        recordPinFailure(subiektUzId);
+        await recordPinFailure(subiektUzId);
         try {
           await db.insert(schema.auditLog).values({
             correlationId: crypto.randomUUID(),
@@ -107,7 +113,7 @@ export function registerAuthRoutes(app: Application): void {
       }
 
       if (!verifyPin(pin, user.pin)) {
-        recordPinFailure(subiektUzId);
+        await recordPinFailure(subiektUzId);
         try {
           await db.insert(schema.auditLog).values({
             correlationId: crypto.randomUUID(),
@@ -121,7 +127,7 @@ export function registerAuthRoutes(app: Application): void {
         throw ApiError.unauthorized("Nieprawidłowy PIN");
       }
 
-      clearPinAttempts(subiektUzId);
+      await clearPinAttempts(subiektUzId);
 
       const token = generateToken();
       const timeoutMinutes = parseInt(process.env.SESSION_TIMEOUT_MINUTES || "15");
@@ -148,7 +154,8 @@ export function registerAuthRoutes(app: Application): void {
         path: "/",
       });
 
-      res.json({ token, user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
+      // Token is intentionally only delivered via the httpOnly cookie.
+      res.json({ user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
     } catch (err) {
       if (err instanceof ApiError) throw err;
       logger.error({ err }, "Login failed");

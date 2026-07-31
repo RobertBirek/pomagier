@@ -164,8 +164,7 @@ async function shutdown(signal: string) {
   try {
     const { getAdapter } = await import("./adapter-provider.js");
     const adapter = getAdapter();
-    const pool = await adapter.getPool?.();
-    await pool?.close();
+    await adapter.close?.();
     logger.info("MSSQL pool closed");
   } catch {
     /* pool already closed */
