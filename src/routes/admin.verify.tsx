@@ -43,17 +43,23 @@ async function batchFix(ids: number[], dir: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ productIds: ids, direction: dir }),
   });
-  return r.json();
+  const data = await r.json();
+  if (!r.ok || data.error) throw new Error(data.error || "Błąd zapisu");
+  return data as { ok: boolean; fixed?: number; imported?: number; cleared?: number };
 }
 
 async function fixAll() {
   const r = await fetch("/api/locations/fix-sync", { method: "POST" });
-  return r.json();
+  const data = await r.json();
+  if (!r.ok || data.error) throw new Error(data.error || "Błąd zapisu");
+  return data as { ok: boolean; fixed: number };
 }
 
 async function clearAll() {
   const r = await fetch("/api/locations/clear-field", { method: "POST" });
-  return r.json();
+  const data = await r.json();
+  if (!r.ok || data.error) throw new Error(data.error || "Błąd zapisu");
+  return data as { ok: boolean; rowsAffected?: number };
 }
 
 function SortTh({
@@ -151,8 +157,16 @@ function VerifyPage() {
 
   const batchMut = useMutation({
     mutationFn: ({ ids, dir }: { ids: number[]; dir: string }) => batchFix(ids, dir),
-    onSuccess: () => {
-      toast.success("Wykonano");
+    onSuccess: (data) => {
+      const msg =
+        data.fixed != null
+          ? `Zaktualizowano ${data.fixed} produktów`
+          : data.imported != null
+            ? `Zaimportowano ${data.imported}`
+            : data.cleared != null
+              ? `Wyczyszczono ${data.cleared}`
+              : "Wykonano";
+      toast.success(msg);
       qc.invalidateQueries({ queryKey: ["verify-detail"] });
       setSelected(new Set());
     },
