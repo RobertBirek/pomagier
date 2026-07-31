@@ -34,13 +34,29 @@ export class MssqlErpAdapter implements ErpAdapter {
     if (this.config) {
       return this._connect(this.config);
     }
-    return this._connect({
+    const config = {
       host: process.env.MSSQL_HOST || "localhost",
       port: parseInt(process.env.MSSQL_PORT || "1433"),
       database: process.env.MSSQL_DATABASE || "",
       user: process.env.MSSQL_USER || "",
       password: process.env.MSSQL_PASSWORD || "",
-    });
+    };
+    // Production may keep the password outside .env in the encrypted app config.
+    if (!config.password || !config.database || !config.user) {
+      const [{ getDb, schema }, { decryptConfig }] = await Promise.all([
+        import("../db/index.js"),
+        import("../lib/crypto-config.js"),
+      ]);
+      const rows = await getDb().select().from(schema.config);
+      const values = new Map(rows.map((row) => [row.key, row.value]));
+      config.host = values.get("mssql_host") || config.host;
+      config.port = parseInt(values.get("mssql_port") || String(config.port), 10);
+      config.database = values.get("mssql_database") || config.database;
+      config.user = values.get("mssql_user") || config.user;
+      config.password = decryptConfig(values.get("mssql_password") || "") || config.password;
+    }
+    this.config = config;
+    return this._connect(config);
   }
 
   async reconnect(config: {

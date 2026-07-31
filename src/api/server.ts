@@ -139,19 +139,25 @@ registerBackupRoutes(app);
 // Global error handler (must be last middleware)
 app.use(errorHandler);
 
-// Auto-migrate on startup
-try {
-  import("drizzle-orm/postgres-js/migrator")
-    .then(async ({ migrate }) => {
-      const db = getDb();
-      await migrate(db, { migrationsFolder: "./src/db/migrations" });
-      logger.info("Database migrations completed");
-    })
-    .catch((err) => {
-      logger.warn({ err }, "Migration execution failed");
-    });
-} catch (err) {
-  logger.warn({ err }, "Migration skipped");
+// Migrations are opt-in in production; deploy scripts should run them after backup.
+if (process.env.AUTO_MIGRATE === "true") {
+  try {
+    import("drizzle-orm/postgres-js/migrator")
+      .then(async ({ migrate }) => {
+        const db = getDb();
+        await migrate(db, { migrationsFolder: "./src/db/migrations" });
+        logger.info("Database migrations completed");
+      })
+      .catch((err) => {
+        logger.warn({ err }, "Migration execution failed");
+      });
+  } catch (err) {
+    logger.warn({ err }, "Migration skipped");
+  }
+} else {
+  logger.info(
+    "Automatic migrations disabled; use npm run db:migrate in a controlled deploy window",
+  );
 }
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);

@@ -5,7 +5,8 @@ const envSchema = z.object({
   MSSQL_PORT: z.coerce.number().default(1433),
   MSSQL_DATABASE: z.string().min(1, "MSSQL_DATABASE is required"),
   MSSQL_USER: z.string().min(1, "MSSQL_USER is required"),
-  MSSQL_PASSWORD: z.string().min(1, "MSSQL_PASSWORD is required"),
+  // May be loaded from encrypted Postgres config at adapter startup.
+  MSSQL_PASSWORD: z.string().optional(),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   JWT_SECRET: z.string().min(8, "JWT_SECRET must be at least 8 chars"),
   CONFIG_ENCRYPTION_KEY: z.string().min(16).optional(),

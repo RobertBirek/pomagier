@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { getDb, schema } from "@/db/index";
+import { getDb, schema } from "../db/index.js";
 import { eq } from "drizzle-orm";
 
 /* eslint-disable @typescript-eslint/no-namespace */

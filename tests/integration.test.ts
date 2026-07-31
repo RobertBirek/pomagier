@@ -2,22 +2,26 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 const BASE = "http://localhost:3000";
 
-describe("Critical flow: login → scan → assign", () => {
-  let token: string;
+describe.skipIf(!process.env.RUN_INTEGRATION)("Critical flow: login → scan → assign", () => {
+  let cookie: string;
 
   beforeAll(async () => {
     const r = await fetch(`${BASE}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subiektUzId: 1, pin: "0000" }),
+      body: JSON.stringify({
+        subiektUzId: Number(process.env.TEST_SUBIEKT_ID),
+        pin: process.env.TEST_PIN,
+      }),
     });
     const data = await r.json();
-    token = data.token;
-    expect(token).toBeTruthy();
+    cookie = r.headers.get("set-cookie")?.split(";", 1)[0] || "";
+    expect(cookie).toMatch(/^token=/);
+    expect(data.token).toBeUndefined();
   });
 
   it("should login with correct PIN", async () => {
-    expect(token.length).toBeGreaterThan(10);
+    expect(cookie.length).toBeGreaterThan(10);
   });
 
   it("should reject wrong PIN", async () => {
@@ -32,7 +36,7 @@ describe("Critical flow: login → scan → assign", () => {
   it("should scan a product by EAN", async () => {
     const r = await fetch(`${BASE}/api/scan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({ code: "5905316604070" }),
     });
     expect(r.status).toBe(200);
@@ -54,7 +58,7 @@ describe("Critical flow: login → scan → assign", () => {
   it("should assign product to location", async () => {
     const r = await fetch(`${BASE}/api/locations/assign`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({ codes: ["5905316604070"], location: "A 1-1-1-1" }),
     });
     expect(r.status).toBe(200);

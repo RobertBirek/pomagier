@@ -10,6 +10,7 @@ Group=pomagier
 WorkingDirectory=/pomagier
 EnvironmentFile=/pomagier/.env
 Environment=NODE_ENV=production
+Environment=AUTO_MIGRATE=false
 ExecStart=/usr/bin/node /pomagier/dist/api/server.js
 Restart=always
 RestartSec=5
