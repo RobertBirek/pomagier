@@ -28,6 +28,8 @@ Klient (przeglądarka/PWA)
 4. Zrestartuj API i sprawdź `GET /api/health` oraz logowanie administratora.
 5. Migracje wykonuj po backupie; rollback schematu wymaga odtworzenia backupu, nie automatycznego downgrade.
 
+Indeksy MSSQL dla skanowania są przygotowane w `scripts/mssql-indexes.sql`. Uruchomienie wymaga osobnej zgody administratora Subiekta, backupu MSSQL i okna serwisowego.
+
 ## Usługi systemd
 
 | Usługa         | Opis                               | Port    |

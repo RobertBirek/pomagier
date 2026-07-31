@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 interface AuthState {
-  user: { id: string; subiektUzId: number; role: string } | null;
+  user: { id: string; subiektUzId: number; role: string; warehouseId: number | null } | null;
   operatorName: string;
   warehouse: string;
 }

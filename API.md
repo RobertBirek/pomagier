@@ -20,6 +20,7 @@
 | POST   | `/api/logout`                | auth.ts           | Unieważnienie sesji                   |
 | PUT    | `/api/users/:id/pin`         | auth.ts           | Zmiana PIN (admin)                    |
 | PUT    | `/api/users/:id/role`        | auth.ts           | Zmiana roli (admin)                   |
+| PUT    | `/api/users/:id/warehouse`   | users.ts          | Przypisanie magazynu (admin)          |
 | GET    | `/api/users`                 | users.ts          | Lista użytkowników                    |
 | GET    | `/api/warehouses`            | users.ts          | Lista magazynów                       |
 | GET    | `/api/stats`                 | stats.ts          | KPI (produkty, magazyny, użytkownicy) |

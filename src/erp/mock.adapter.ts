@@ -76,7 +76,7 @@ const mockProducts: ProductInfo[] = [
 ];
 
 export class MockErpAdapter implements ErpAdapter {
-  async scan(code: string): Promise<ScanResult> {
+  async scan(code: string, _warehouseId?: number | null): Promise<ScanResult> {
     const matching = mockProducts.filter((p) => p.barcode === code || p.symbol === code);
     return {
       found: matching.length > 0,

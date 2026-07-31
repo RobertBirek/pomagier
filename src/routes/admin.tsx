@@ -16,8 +16,8 @@ export const Route = createFileRoute("/admin")({
     if (location.pathname === "/admin/login") return; // allow login page
     const data = localStorage.getItem("pomagier_auth");
     if (data) {
-      const { token, user } = JSON.parse(data);
-      if (token && user?.role === "admin") return;
+      const { user } = JSON.parse(data);
+      if (user?.role === "admin") return;
     }
     throw redirect({ to: "/admin/login" });
   },

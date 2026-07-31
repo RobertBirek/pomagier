@@ -100,10 +100,13 @@ export class MssqlErpAdapter implements ErpAdapter {
     return this.pool;
   }
 
-  async scan(code: string): Promise<ScanResult> {
+  async scan(code: string, warehouseId?: number | null): Promise<ScanResult> {
     const pool = await this.getPool();
 
-    const result = await pool.request().input("code", sql.VarChar(50), code).query(`
+    const result = await pool
+      .request()
+      .input("code", sql.VarChar(50), code)
+      .input("magId", sql.Int, warehouseId ?? null).query(`
         SELECT
           t.tw_Id AS productId,
           t.tw_Symbol AS symbol,
@@ -128,6 +131,7 @@ export class MssqlErpAdapter implements ErpAdapter {
              FROM uf_SynchroKodyKresk
              WHERE usk_Kod = @code
            )
+           AND (@magId IS NULL OR s.st_MagId = @magId)
         ORDER BY m.mag_Symbol
       `);
 

@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   subiektUzId: integer("subiekt_uz_id").notNull().unique(),
   pin: varchar("pin", { length: 64 }).notNull(),
   role: varchar("role", { length: 20 }).notNull().default("operator"),
+  warehouseId: integer("warehouse_id"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

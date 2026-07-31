@@ -143,8 +143,17 @@ export function registerScanRoutes(app: Application): void {
     const { code } = req.body;
 
     try {
+      if (req.user?.role !== "admin" && !req.user?.warehouseId) {
+        res.status(403).json({
+          error: "Operator nie ma przypisanego magazynu",
+          found: false,
+          barcode: code,
+          products: [],
+        });
+        return;
+      }
       const adapter = getAdapter();
-      const result = await adapter.scan(code.trim());
+      const result = await adapter.scan(code.trim(), req.user?.warehouseId);
       logger.info({ code: code.trim(), found: result.found }, "Scan completed");
       res.json(result);
     } catch (err) {

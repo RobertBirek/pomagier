@@ -155,7 +155,14 @@ export function registerAuthRoutes(app: Application): void {
       });
 
       // Token is intentionally only delivered via the httpOnly cookie.
-      res.json({ user: { id: user.id, subiektUzId: user.subiektUzId, role: user.role } });
+      res.json({
+        user: {
+          id: user.id,
+          subiektUzId: user.subiektUzId,
+          role: user.role,
+          warehouseId: user.warehouseId,
+        },
+      });
     } catch (err) {
       if (err instanceof ApiError) throw err;
       logger.error({ err }, "Login failed");

@@ -15,6 +15,10 @@ describe("Scan routes", () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = { id: "test-user", role: "operator", subiektUzId: 1, warehouseId: 1 };
+      next();
+    });
     registerScanRoutes(app);
     app.use(errorHandler);
   });

@@ -3,6 +3,10 @@ import { getAdapter } from "../adapter-provider.js";
 import { getDb, schema } from "../../db/index.js";
 import { logger } from "../../lib/logger.js";
 import type { UserRow, WarehouseRow } from "../types.js";
+import { eq } from "drizzle-orm";
+import { requireAdmin } from "../auth-middleware.js";
+import { validate } from "../validation.js";
+import { z } from "zod";
 
 export function registerUsersRoutes(app: Application): void {
   app.get("/api/users", async (_req: Request, res: Response) => {
@@ -61,4 +65,23 @@ export function registerUsersRoutes(app: Application): void {
       res.json([]);
     }
   });
+
+  app.put(
+    "/api/users/:subiektId/warehouse",
+    requireAdmin,
+    validate(z.object({ warehouseId: z.number().int().positive().nullable() })),
+    async (req, res) => {
+      const subiektId = Number(req.params.subiektId);
+      if (!Number.isInteger(subiektId) || subiektId <= 0) {
+        res.status(400).json({ error: "Nieprawidłowy identyfikator użytkownika" });
+        return;
+      }
+      const db = getDb();
+      await db
+        .update(schema.users)
+        .set({ warehouseId: req.body.warehouseId })
+        .where(eq(schema.users.subiektUzId, subiektId));
+      res.json({ ok: true, subiektId, warehouseId: req.body.warehouseId });
+    },
+  );
 }

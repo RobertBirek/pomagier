@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { KpiCard, SectionTitle, LoadingRow, StatusBadge } from "@/components/pomagier/primitives";
 import { useErpConfig, AVAILABLE_FIELDS } from "@/hooks/use-erp-config";
+import { useCallback, useEffect, useState } from "react";
 import { ErpConnectionForm } from "@/components/admin/ErpConnectionForm";
 import { ErpTestButton } from "@/components/admin/ErpTestButton";
 import { ErpStatusBadge } from "@/components/admin/ErpStatusBadge";
@@ -10,6 +11,43 @@ export const Route = createFileRoute("/admin/erp")({ component: AdminErp });
 
 function AdminErp() {
   const erp = useErpConfig();
+  const [indexStatus, setIndexStatus] = useState<{ name: string; present: boolean }[]>([]);
+  const [indexBusy, setIndexBusy] = useState(false);
+  const [indexMessage, setIndexMessage] = useState("");
+
+  const refreshIndexes = useCallback(async () => {
+    const response = await fetch("/api/erp-indexes");
+    if (!response.ok) throw new Error("Nie udało się sprawdzić indeksów");
+    const data = (await response.json()) as { indexes: { name: string; present: boolean }[] };
+    setIndexStatus(data.indexes);
+  }, []);
+
+  useEffect(() => {
+    if (erp.health?.erp?.ok)
+      refreshIndexes().catch(() => setIndexMessage("Brak dostępu do statusu indeksów"));
+  }, [erp.health?.erp?.ok, refreshIndexes]);
+
+  const applyIndexes = async () => {
+    const confirmation = window.prompt("Wpisz dokładnie: UTWÓRZ INDEKSY");
+    if (confirmation !== "UTWÓRZ INDEKSY") return;
+    setIndexBusy(true);
+    setIndexMessage("");
+    try {
+      const response = await fetch("/api/erp-indexes/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation }),
+      });
+      const data = (await response.json()) as { error?: string; created?: string[] };
+      if (!response.ok) throw new Error(data.error || "Nie udało się utworzyć indeksów");
+      setIndexMessage(`Utworzono: ${data.created?.length ?? 0}`);
+      await refreshIndexes();
+    } catch (error) {
+      setIndexMessage(error instanceof Error ? error.message : "Błąd indeksów");
+    } finally {
+      setIndexBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -100,6 +138,47 @@ function AdminErp() {
             />
           </div>
         )}
+
+        <div className="rounded-lg border bg-card p-4 max-w-2xl">
+          <SectionTitle
+            title="Indeksy wydajności Subiekt GT"
+            description="Sprawdź i utwórz brakujące indeksy skanowania. Operacja zmienia schemat MSSQL, ale nie dane ERP."
+          />
+          <div className="mt-3 space-y-2 text-sm">
+            {indexStatus.map((index) => (
+              <div
+                key={index.name}
+                className="flex items-center justify-between rounded border px-3 py-2"
+              >
+                <code>{index.name}</code>
+                <span className={index.present ? "text-green-600" : "text-amber-600"}>
+                  {index.present ? "obecny" : "brak"}
+                </span>
+              </div>
+            ))}
+            {indexStatus.length === 0 && (
+              <p className="text-muted-foreground">
+                Brak danych — odśwież status po połączeniu z ERP.
+              </p>
+            )}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              className="rounded-md border px-3 py-2 text-sm"
+              onClick={() => refreshIndexes().catch(() => setIndexMessage("Błąd odczytu indeksów"))}
+            >
+              Sprawdź ponownie
+            </button>
+            <button
+              className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+              disabled={indexBusy || indexStatus.every((index) => index.present)}
+              onClick={applyIndexes}
+            >
+              {indexBusy ? "Tworzę…" : "Utwórz brakujące"}
+            </button>
+            {indexMessage && <span className="text-sm text-muted-foreground">{indexMessage}</span>}
+          </div>
+        </div>
       </div>
 
       <ErpConnectionForm

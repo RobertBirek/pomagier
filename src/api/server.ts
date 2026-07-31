@@ -17,6 +17,7 @@ import { registerStatsRoutes } from "./routes/stats.js";
 import { registerScanRoutes } from "./routes/scan.js";
 import { registerProductsRoutes } from "./routes/products.js";
 import { registerErpConfigRoutes } from "./routes/erp-config.js";
+import { registerErpIndexesRoutes } from "./routes/erp-indexes.js";
 import { registerFieldMappingsRoutes } from "./routes/field-mappings.js";
 import { registerInventoryRoutes } from "./routes/inventory.js";
 import { registerActivityRoutes } from "./routes/activity.js";
@@ -91,6 +92,7 @@ app.use("/api", globalLimiter);
 
 // --- ERP Config + Test Connection routes ---
 registerErpConfigRoutes(app);
+registerErpIndexesRoutes(app);
 
 // --- Field Mappings routes ---
 registerFieldMappingsRoutes(app);

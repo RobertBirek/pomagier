@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; role: string; subiektUzId: number };
+      user?: { id: string; role: string; subiektUzId: number; warehouseId: number | null };
     }
   }
 }
@@ -25,7 +25,13 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     if (!session || new Date(session.expiresAt) < new Date()) return next();
 
     const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.userId!));
-    if (user) req.user = { id: user.id, role: user.role, subiektUzId: user.subiektUzId };
+    if (user)
+      req.user = {
+        id: user.id,
+        role: user.role,
+        subiektUzId: user.subiektUzId,
+        warehouseId: user.warehouseId,
+      };
   } catch {
     /* no session to destroy */
   }

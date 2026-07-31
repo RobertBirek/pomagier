@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Shield } from "lucide-react";
 
@@ -21,14 +21,17 @@ function Login() {
   const nav = useNavigate();
   const auth = useAuth();
   const [subiektId, setSubiektId] = useState("");
-  const [warehouse, setWarehouse] = useState("");
 
   const submit = async (pin: string) => {
     const selectedId = Number(subiektId);
     if (!Number.isInteger(selectedId) || selectedId <= 0) return;
     try {
       const result = await apiLogin(selectedId, pin);
-      auth.login(result.user, `Operator ${selectedId}`, warehouse);
+      auth.login(
+        result.user,
+        `Operator ${selectedId}`,
+        result.user.warehouseId ? String(result.user.warehouseId) : "",
+      );
       toast.success("Zalogowano operatora");
       nav({ to: "/mobile/dashboard" });
     } catch (err: unknown) {
@@ -55,18 +58,6 @@ function Login() {
           inputMode="numeric"
           value={subiektId}
           onChange={(e) => setSubiektId(e.target.value.replace(/\D/g, ""))}
-        />
-      </div>
-
-      <div className="mb-3">
-        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Magazyn
-        </label>
-        <input
-          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-          value={warehouse}
-          onChange={(e) => setWarehouse(e.target.value)}
-          placeholder="np. MAG1"
         />
       </div>
 
