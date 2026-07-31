@@ -1307,6 +1307,9 @@ export function registerLocationsRoutes(app: express.Express) {
       const result = await pool
         .request()
         .query(`UPDATE tw__Towar SET ${locationField} = '' WHERE ${locationField} IS NOT NULL`);
+      // Also clear Postgres product_locations to keep both sides in sync
+      const db = getDb();
+      await db.delete(schema.productLocations);
       res.json({ ok: true, rowsAffected: result.rowsAffected?.[0] || 0 });
     } catch (err) {
       logger.error({ err }, "Clear field failed");
