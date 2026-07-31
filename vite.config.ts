@@ -17,7 +17,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         runtimeCaching: [
           {
-            urlPattern: /\/api\/(health|company|users|warehouses|locations|stats|products\/random)/,
+            urlPattern: /\/api\/(health|company)/,
             handler: "StaleWhileRevalidate",
             options: { cacheName: "api-cache", expiration: { maxAgeSeconds: 300 } },
           },
@@ -31,6 +31,20 @@ export default defineConfig({
     }),
   ],
   resolve: { tsconfigPaths: true },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("@tanstack")) return "vendor-react";
+            if (id.includes("@radix-ui")) return "vendor-radix";
+            if (id.includes("zod") || id.includes("date-fns") || id.includes("lucide"))
+              return "vendor-utils";
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: { "/api": { target: "http://localhost:3000", changeOrigin: true } },
     allowedHosts: ["pomagier.local", "localhost", ".local"],
