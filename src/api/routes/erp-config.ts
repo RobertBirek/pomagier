@@ -24,7 +24,7 @@ const TestConnectionSchema = z.object({
 });
 
 export function registerErpConfigRoutes(app: Application): void {
-  app.get("/api/erp-config", async (_req: Request, res: Response) => {
+  app.get("/api/erp-config", requireAdmin, async (_req: Request, res: Response) => {
     try {
       const db = getDb();
       const rows = await db.select().from(schema.config);
@@ -49,6 +49,7 @@ export function registerErpConfigRoutes(app: Application): void {
 
   app.post(
     "/api/erp-config",
+    requireAdmin,
     validate(ErpConfigSaveSchema),
     async (req: Request, res: Response) => {
       const { host, port, database, user, password } = req.body;

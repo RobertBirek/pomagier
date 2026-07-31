@@ -16,7 +16,7 @@ const FieldMappingsPutSchema = z.object({
 });
 
 export function registerFieldMappingsRoutes(app: Application): void {
-  app.get("/api/field-mappings", async (_req: Request, res: Response) => {
+  app.get("/api/field-mappings", requireAdmin, async (_req: Request, res: Response) => {
     try {
       const db = getDb();
       const rows = await db

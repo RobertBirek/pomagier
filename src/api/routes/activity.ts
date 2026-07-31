@@ -2,9 +2,10 @@ import type { Application, Request, Response } from "express";
 import { getDb, schema } from "../../db/index.js";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
+import { requireAdmin } from "../auth-middleware.js";
 
 export function registerActivityRoutes(app: Application): void {
-  app.get("/api/activity", async (_req: Request, res: Response) => {
+  app.get("/api/activity", requireAdmin, async (_req: Request, res: Response) => {
     try {
       const db = getDb();
       const now = new Date();
@@ -41,7 +42,7 @@ export function registerActivityRoutes(app: Application): void {
     }
   });
 
-  app.get("/api/logs", async (req: Request, res: Response) => {
+  app.get("/api/logs", requireAdmin, async (req: Request, res: Response) => {
     try {
       const db = getDb();
       const page = Math.max(1, parseInt(req.query.page as string) || 1);

@@ -110,6 +110,34 @@ async function getOperatorName(subiektUzId: number): Promise<string> {
   }
 }
 
+/** Retry helper for MSSQL writes with exponential backoff (100ms → 200ms → 400ms). */
+async function writeSubiektWithRetry(
+  fn: () => Promise<void>,
+  correlationId: string,
+): Promise<void> {
+  const maxRetries = 3;
+  const delays = [100, 200, 400];
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await fn();
+      return;
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries - 1) {
+        logger.warn(
+          { attempt: attempt + 1, correlationId, delay: delays[attempt] },
+          "MSSQL write retry",
+        );
+        await new Promise((r) => setTimeout(r, delays[attempt]));
+      }
+    }
+  }
+  logger.error({ err: lastError, correlationId }, "MSSQL write failed after retries");
+  throw lastError;
+}
+
 export function registerLocationsRoutes(app: express.Express) {
   // --- Lokalizacje (tylko Postgres) ---
   app.get("/api/locations", async (_req, res) => {
@@ -157,23 +185,25 @@ export function registerLocationsRoutes(app: express.Express) {
       for (const loc of existing) {
         const parsed = parseLocation(loc.code);
         if (parsed && parsed.raw !== loc.code) {
-          // Delete old malformed, insert corrected
-          await db.delete(schema.locations).where(eq(schema.locations.id, loc.id));
-          try {
+          // Check if normalized code already exists
+          const [existingNorm] = await db
+            .select()
+            .from(schema.locations)
+            .where(eq(schema.locations.code, parsed.raw));
+          if (existingNorm) {
+            // Relink product_locations to existing normalized location
             await db
-              .insert(schema.locations)
-              .values({
-                code: parsed.raw,
-                area: parsed.area,
-                aisle: parsed.aisle,
-                rack: parsed.rack,
-                shelf: parsed.shelf,
-                spot: parsed.spot,
-                label: parsed.label,
-              })
-              .onConflictDoNothing();
-          } catch {
-            /* skip if already exists */
+              .update(schema.productLocations)
+              .set({ locationId: existingNorm.id })
+              .where(eq(schema.productLocations.locationId, loc.id));
+            // Delete the old malformed location (now safe — FK constraints moved)
+            await db.delete(schema.locations).where(eq(schema.locations.id, loc.id));
+          } else {
+            // No conflict — just update the code
+            await db
+              .update(schema.locations)
+              .set({ code: parsed.raw })
+              .where(eq(schema.locations.id, loc.id));
           }
         }
       }
@@ -288,11 +318,12 @@ export function registerLocationsRoutes(app: express.Express) {
       const pool = await adapter.getPool?.();
       if (!pool) return res.json([]);
 
+      const locationField = await getLocationField();
       const result = await pool.request().input("location", location).query(`
-          SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_Pole1 AS location,
+          SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, ${locationField} AS location,
                  tw_JednMiary AS unit, tw_PodstKodKresk AS barcode
           FROM tw__Towar
-          WHERE tw_Pole1 = @location
+          WHERE ${locationField} = @location
           ORDER BY tw_Symbol
         `);
 
@@ -339,8 +370,9 @@ export function registerLocationsRoutes(app: express.Express) {
         .map((s: string) => s.trim())
         .filter(Boolean);
 
-      // Sprawdź czy lokalizacja już istnieje
-      if (locations.includes(parsed.raw)) {
+      // Sprawdź czy lokalizacja już istnieje (z normalizacją formatu)
+      const locationsNormalized = locations.map((s: string) => parseLocation(s)?.raw || s);
+      if (locationsNormalized.includes(parsed.raw)) {
         res.json({ ok: true, location: parsed.raw, message: "Lokalizacja już przypisana" });
         return;
       }
@@ -536,13 +568,17 @@ export function registerLocationsRoutes(app: express.Express) {
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
-        if (!existing.includes(parsed.raw)) {
+        // Normalize existing tokens for dedup (old format "A1-2-3-4" vs new "A 1-2-3-4")
+        const existingNormalized = existing.map((s: string) => parseLocation(s)?.raw || s);
+        if (!existingNormalized.includes(parsed.raw)) {
           existing.push(parsed.raw);
-          await pool
-            .request()
-            .input("id", productId)
-            .input("val", existing.join(","))
-            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+          await writeSubiektWithRetry(async () => {
+            await pool
+              .request()
+              .input("id", productId)
+              .input("val", existing.join(","))
+              .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+          }, `assign-${productId}`);
         }
       }
 
@@ -671,13 +707,20 @@ export function registerLocationsRoutes(app: express.Express) {
             .split(/[,;]/)
             .map((s: string) => s.trim())
             .filter(Boolean);
-          const updated = existing.filter((s: string) => s !== parsed.raw);
+          // Normalize comparison for old format codes (e.g. "A1-2-3-4" vs "A 1-2-3-4")
+          const updated = existing.filter(
+            (s: string) => (parseLocation(s)?.raw || s) !== parsed.raw,
+          );
           if (updated.length !== existing.length) {
-            await pool
-              .request()
-              .input("id", productId)
-              .input("val", updated.join(",") || null)
-              .query(`UPDATE tw__Towar SET ${locationField} = NULLIF(@val, '') WHERE tw_Id = @id`);
+            await writeSubiektWithRetry(async () => {
+              await pool
+                .request()
+                .input("id", productId)
+                .input("val", updated.join(",") || null)
+                .query(
+                  `UPDATE tw__Towar SET ${locationField} = NULLIF(@val, '') WHERE tw_Id = @id`,
+                );
+            }, `undo-${productId}`);
           }
           undone++;
         }
@@ -747,10 +790,11 @@ export function registerLocationsRoutes(app: express.Express) {
       // Stock in Subiekt
       let inSubiekt = 0;
       if (pool) {
+        const locationField = await getLocationField();
         const stockResult = await pool.request().input("location", location)
           .query(`SELECT ISNULL(SUM(s.st_Stan), 0) AS total FROM tw_Stan s
                   INNER JOIN tw__Towar t ON t.tw_Id = s.st_TowId
-                  WHERE t.tw_Pole1 LIKE '%' + @location + '%'`);
+                  WHERE t.${locationField} LIKE '%' + @location + '%'`);
         inSubiekt = (stockResult.recordset[0] as SubiektStockRow | undefined)?.total || 0;
       }
 
@@ -1003,13 +1047,19 @@ export function registerLocationsRoutes(app: express.Express) {
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
-        const updated = locations.filter((s: string) => s !== fromParsed.raw);
-        if (!updated.includes(toParsed.raw)) updated.push(toParsed.raw);
-        await pool
-          .request()
-          .input("id", productId)
-          .input("val", updated.join(","))
-          .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        // Normalize comparison for old format codes (e.g. "A1-2-3-4" vs "A 1-2-3-4")
+        const updated = locations.filter(
+          (s: string) => (parseLocation(s)?.raw || s) !== fromParsed.raw,
+        );
+        const updatedNormalized = updated.map((s: string) => parseLocation(s)?.raw || s);
+        if (!updatedNormalized.includes(toParsed.raw)) updated.push(toParsed.raw);
+        await writeSubiektWithRetry(async () => {
+          await pool
+            .request()
+            .input("id", productId)
+            .input("val", updated.join(","))
+            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+        }, `transfer-${productId}`);
 
         // Log movement
         await db.insert(schema.productMovements).values({

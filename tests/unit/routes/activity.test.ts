@@ -4,6 +4,12 @@ import request from "supertest";
 import { registerActivityRoutes } from "../../../src/api/routes/activity.js";
 import { errorHandler } from "../../../src/api/error-handler.js";
 
+vi.mock("../../../src/api/auth-middleware.js", () => ({
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 vi.mock("../../../src/api/adapter-provider.js", () => ({
   getAdapter: () => ({}),
 }));

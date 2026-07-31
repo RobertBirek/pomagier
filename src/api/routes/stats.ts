@@ -1,10 +1,11 @@
 import type { Application, Request, Response } from "express";
 import { getAdapter } from "../adapter-provider.js";
 import { logger } from "../../lib/logger.js";
+import { requireAuth } from "../auth-middleware.js";
 import type { StatRow } from "../types.js";
 
 export function registerStatsRoutes(app: Application): void {
-  app.get("/api/stats", async (_req: Request, res: Response) => {
+  app.get("/api/stats", requireAuth, async (_req: Request, res: Response) => {
     try {
       const adapter = getAdapter();
       const pool = await adapter.getPool?.();

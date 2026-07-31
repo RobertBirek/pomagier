@@ -4,6 +4,12 @@ import request from "supertest";
 import { registerStatsRoutes } from "../../../src/api/routes/stats.js";
 import { errorHandler } from "../../../src/api/error-handler.js";
 
+vi.mock("../../../src/api/auth-middleware.js", () => ({
+  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 describe("Stats routes", () => {
   let app: express.Express;
 

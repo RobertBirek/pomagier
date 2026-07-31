@@ -124,7 +124,8 @@ export function registerAuthRoutes(app: Application): void {
       clearPinAttempts(subiektUzId);
 
       const token = generateToken();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      const timeoutMinutes = parseInt(process.env.SESSION_TIMEOUT_MINUTES || "15");
+      const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000);
 
       await db.insert(schema.sessions).values({
         userId: user.id,
@@ -143,7 +144,7 @@ export function registerAuthRoutes(app: Application): void {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        maxAge: 15 * 60 * 1000,
+        maxAge: timeoutMinutes * 60 * 1000,
         path: "/",
       });
 

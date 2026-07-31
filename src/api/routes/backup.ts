@@ -19,7 +19,7 @@ function validateBackupFilename(name: unknown): name is string {
 
 export function registerBackupRoutes(app: express.Express) {
   // S3 config
-  app.get("/api/backup/config", async (_req, res) => {
+  app.get("/api/backup/config", requireAdmin, async (_req, res) => {
     try {
       const db = getDb();
       const rows = await db.select().from(schema.config);
@@ -98,7 +98,7 @@ export function registerBackupRoutes(app: express.Express) {
   });
 
   // List backups
-  app.get("/api/backup/list", async (_req, res) => {
+  app.get("/api/backup/list", requireAdmin, async (_req, res) => {
     const localDir = "/backups/local";
     const local: { name: string; size: number; date: string; source: string }[] = [];
     try {

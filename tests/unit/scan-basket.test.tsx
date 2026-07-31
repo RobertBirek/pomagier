@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { ScanBasketProvider, useScanBasket, type BasketItem } from "../../src/lib/scan-basket.js";
 import type { ReactNode } from "react";
@@ -28,6 +28,10 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("useScanBasket", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("starts with empty basket", () => {
     const { result } = renderHook(() => useScanBasket(), { wrapper });
 

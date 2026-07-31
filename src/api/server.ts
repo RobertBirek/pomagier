@@ -23,6 +23,7 @@ import { registerActivityRoutes } from "./routes/activity.js";
 import { registerTerminalsRoutes } from "./routes/terminals.js";
 import { registerCaRoutes } from "./routes/ca.js";
 import { registerWizardRoutes } from "./routes/wizard.js";
+import { errorHandler } from "./error-handler.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {
@@ -129,6 +130,9 @@ registerLocationsRoutes(app);
 
 // --- Backup & Restore ---
 registerBackupRoutes(app);
+
+// Global error handler (must be last middleware)
+app.use(errorHandler);
 
 // Auto-migrate on startup
 try {
