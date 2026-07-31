@@ -1112,6 +1112,7 @@ export function registerLocationsRoutes(app: express.Express) {
       const pageSize = Math.min(200, Math.max(10, parseInt(req.query.pageSize as string) || 50));
       const area = (req.query.area as string) || "";
       const status = (req.query.status as string) || "all"; // all | mismatch | synced
+      const q = (req.query.q as string) || "";
       const offset = (page - 1) * pageSize;
 
       // 1. Get all Postgres locations grouped by productId
@@ -1167,6 +1168,11 @@ export function registerLocationsRoutes(app: express.Express) {
         if (status === "mismatch" && isMatch) continue;
         if (status === "synced" && !isMatch) continue;
         if (area && pg && ![...pg.areas].some((a) => a === area)) continue;
+        if (
+          q &&
+          ![...pgCodes, ...subCodes].some((code) => code.toLowerCase().includes(q.toLowerCase()))
+        )
+          continue;
 
         allRows.push({
           productId: id,

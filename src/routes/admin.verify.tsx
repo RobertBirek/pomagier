@@ -63,12 +63,13 @@ function VerifyPage() {
   const [page, setPage] = useState(1);
   const [area, setArea] = useState("");
   const [status, setStatus] = useState("mismatch");
+  const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const pageSize = 50;
 
   const params = useMemo(
-    () => ({ page: String(page), pageSize: String(pageSize), area, status }),
-    [page, area, status],
+    () => ({ page: String(page), pageSize: String(pageSize), area, status, q }),
+    [page, area, status, q],
   );
 
   const { data, isLoading } = useQuery({
@@ -178,6 +179,16 @@ function VerifyPage() {
             </option>
           ))}
         </select>
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Szukaj lokalizacji np. A 1-2-3-4..."
+          className="rounded border px-3 py-1.5 text-sm min-w-[200px] flex-1"
+        />
       </div>
 
       {/* Table */}
