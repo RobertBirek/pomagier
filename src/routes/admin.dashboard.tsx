@@ -7,6 +7,7 @@ import { Package, MapPin, Users, ArrowRightLeft, Clock, BarChart3 } from "lucide
 
 async function fetchActivity() {
   const r = await fetch("/api/activity");
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json() as Promise<{
     movements: {
       id: string;

@@ -19,6 +19,7 @@ export async function healthCheck() {
 
 export async function getCompany() {
   const res = await fetch(`${BASE}/company`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<{
     name: string;
     nip: string;
@@ -32,6 +33,7 @@ export async function getCompany() {
 
 export async function getUsers() {
   const res = await fetch(`${BASE}/users`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<
     {
       subiektId: number;
@@ -47,6 +49,7 @@ export async function getUsers() {
 
 export async function getWarehouses() {
   const res = await fetch(`${BASE}/warehouses`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<{ id: number; symbol: string; name: string; isMain: boolean }[]>;
 }
 
@@ -67,5 +70,6 @@ export async function login(subiektUzId: number, pin: string) {
 
 export async function getStats() {
   const res = await fetch(`${BASE}/stats`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<{ products: number; warehouses: number; users: number }>;
 }
