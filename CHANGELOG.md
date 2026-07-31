@@ -1,5 +1,20 @@
 # CHANGELOG — PomagierGT
 
+## [Unreleased] — Tech debt cleanup + planowanie kolejnego modułu
+
+### Porządki techniczne (tech debt)
+- **Skrypty test w `package.json`**: dodane `"test": "vitest run"` i `"test:watch": "vitest"`. `npm test` wcześniej failowało z `Missing script: "test"` mimo że dokumentacja (AGENTS.md, CHANGELOG.md) deklarowała istnienie testów.
+- **Usunięty deprecated `vite-tsconfig-paths`**: plugin w `vitest.config.ts` wyrzucał ostrzeżenie przy każdym uruchomieniu. Zastąpiony natywną opcją Vite `resolve.tsconfigPaths: true`. Zależność `vite-tsconfig-paths` usunięta z `devDependencies`.
+- **`react-hooks/exhaustive-deps` w skanerze**: 3 ostrzeżenia lint na krytycznej ścieżce skanowania (`ScanHeader.tsx` × 2, `use-scan-input.ts` × 1). Wszystkie trzy referencje są stabilne (state setter, ref, stabilny callback z pustymi deps) — dodanie ich do tablicy deps nie zmienia zachowania, czyni jedynie zależność jawną.
+
+### Stan techniczny po porządkach
+- `npm run typecheck` — czysto
+- `npm run lint` — 0 errors, 0 warnings
+- `npm test` — 110 passed / 6 skipped (34 pliki)
+- `npm run build` — sukces, PWA generuje SW
+- `npm run build:api` — sukces
+- Brak zmian w `.env.example`, brak zmian w kontraktach API/DB
+
 ## [Unreleased] — Audyt + Security hardening
 
 ### Security (CRITICAL)

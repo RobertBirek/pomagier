@@ -10,7 +10,7 @@
 | ERP | Insert Subiekt GT (MSSQL read+write, whitelist-validated fields) | ✓ Produkcyjny |
 | Reverse proxy | Caddy (HTTPS, port 443) | ✓ Produkcyjny |
 | mDNS | avahi-daemon (pomagier.local) | ✓ Produkcyjny |
-| Testy | Vitest (112/112), Playwright E2E, RTL render tests | ✓ Aktywne |
+| Testy | Vitest (110 pass / 6 skip), Playwright E2E, RTL render tests | ✓ Aktywne |
 | Deployment | systemd (pomagier-api), Caddy static files (frontend) | ✓ Produkcyjny |
 
 ## Workflow projektu

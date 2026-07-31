@@ -16,6 +16,25 @@
 
 ---
 
+# TASKS — Tech debt cleanup (2026-07-31)
+
+| Data | Zadanie | Status |
+|---|---|---|
+| 2026-07-31 | Branch `chore/tech-debt-cleanup` z `main` (working tree czysty) | ✅ |
+| 2026-07-31 | FIX 1: Dodane skrypty `test` + `test:watch` w `package.json` | ✅ |
+| 2026-07-31 | FIX 1: Weryfikacja — `npm test` uruchamia 110/110 (6 skip) | ✅ |
+| 2026-07-31 | FIX 2: Usunięty deprecated `vite-tsconfig-paths` → natywny `resolve.tsconfigPaths` | ✅ |
+| 2026-07-31 | FIX 2: Weryfikacja — brak ostrzeżenia pluginu, testy zielone | ✅ |
+| 2026-07-31 | FIX 3: Dodane brakujące deps w `ScanHeader.tsx` (×2) i `use-scan-input.ts` (×1) | ✅ |
+| 2026-07-31 | FIX 3: Weryfikacja — `npm run lint` 0/0, typecheck OK, testy zielone | ✅ |
+| 2026-07-31 | Weryfikacja finalna: `npm run build` (PWA 3.48s) + `npm run build:api` | ✅ |
+| 2026-07-31 | CHANGELOG.md: dodana sekcja "Tech debt cleanup" | ✅ |
+| 2026-07-31 | 3 commity na branchu `chore/tech-debt-cleanup` (1 chore + 1 chore + 1 fix) | ✅ |
+
+**Następny krok**: Decyzja użytkownika (Q1 + Q2) → PLAN v0 dla wybranego modułu (inwentaryzacja / kompletacja / przyjęcie dostaw / przesunięcia / zadania).
+
+---
+
 # TASKS — PomagierGT v1.5.0 (archived)
 
 | Data | Zadanie | Status |
