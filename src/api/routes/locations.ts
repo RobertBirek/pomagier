@@ -110,7 +110,7 @@ async function getOperatorName(subiektUzId: number): Promise<string> {
 }
 
 /** Retry helper for MSSQL writes with exponential backoff (100ms → 200ms → 400ms). */
-async function writeSubiektWithRetry(
+export async function writeSubiektWithRetry(
   fn: () => Promise<void>,
   correlationId: string,
 ): Promise<void> {
