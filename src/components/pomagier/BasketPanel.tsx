@@ -128,9 +128,12 @@ function BasketRow({
   const hasStockData = stocks && stocks.length > 0;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-4 py-2 text-sm">
+    <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-3 py-2 text-sm">
       {/* Left — product info */}
-      <button onClick={handleClick} className="min-w-0 text-left">
+      <button
+        onClick={handleClick}
+        className="min-w-0 text-left hover:bg-accent active:scale-[0.98] transition-all touch-target"
+      >
         <div className="font-mono font-semibold text-[13px] break-all leading-tight truncate flex items-center gap-1.5">
           <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           {item.code}

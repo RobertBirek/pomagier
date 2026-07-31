@@ -61,7 +61,7 @@ function ScanPage() {
         hint="🟢 Zeskanuj kod — wynik zostanie dodany do koszyka"
       />
 
-      <div className="flex-1 p-4 space-y-3">
+      <div className="flex-1 p-3 space-y-3">
         {items.length > 0 && (
           <div className="rounded-lg border bg-card">
             <BasketHeader count={items.length} onClear={clearBasket} />
@@ -177,7 +177,7 @@ function ScanProductRow({
   const available = stocks ? stocks.total - stocks.reserved : 0;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-4 py-2 text-sm border-t">
+    <div className="grid grid-cols-[1fr_auto_auto] items-start gap-2 px-3 py-2 text-sm border-t">
       {/* Left — product info */}
       <button
         onClick={onOpen}
