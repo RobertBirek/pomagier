@@ -1,29 +1,35 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { login as apiLogin } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { getUsers, login as apiLogin } from "@/lib/api";
 import { PinPad } from "@/components/pomagier/scan";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Shield, ArrowLeft } from "lucide-react";
+import { User, Shield, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/admin/login")({ component: AdminLogin });
 
 function AdminLogin() {
   const nav = useNavigate();
   const auth = useAuth();
-  const [subiektId, setSubiektId] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: getUsers });
+  const admins = users.filter((u) => u.active && u.role === "admin");
+  const adminMap = useMemo(() => new Map(admins.map((u) => [u.subiektId, u])), [admins]);
+  const selected = selectedId != null ? adminMap.get(selectedId) : null;
 
   const submit = async (pin: string) => {
-    const selectedId = Number(subiektId);
-    if (!Number.isInteger(selectedId) || selectedId <= 0) return;
+    if (!selectedId) return;
     try {
       const result = await apiLogin(selectedId, pin);
       if (result.user.role !== "admin") {
         toast.error("Brak uprawnień administratora");
         return;
       }
-      auth.login(result.user, `Administrator ${selectedId}`, "");
-      toast.success("Zalogowano administratora");
+      const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
+      auth.login(result.user, name, "");
+      toast.success(`Witaj, ${name}!`);
       nav({ to: "/admin/dashboard" });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Błąd logowania");
@@ -41,21 +47,52 @@ function AdminLogin() {
           <p className="text-xs text-muted-foreground">Panel administracyjny</p>
         </div>
 
-        <div className="space-y-3 rounded-lg border bg-card p-3">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Identyfikator administratora Subiekt GT
-          </label>
-          <input
-            className="w-full rounded-md border px-3 py-2"
-            inputMode="numeric"
-            value={subiektId}
-            onChange={(e) => setSubiektId(e.target.value.replace(/\D/g, ""))}
-          />
-          <p className="text-xs text-muted-foreground">
-            PIN zostanie zweryfikowany dopiero po wysłaniu formularza.
-          </p>
-          <PinPad onSubmit={submit} />
-        </div>
+        {admins.length === 0 ? (
+          <div className="text-center text-sm text-muted-foreground">
+            <Shield className="mx-auto h-8 w-8 opacity-30 mb-2" />
+            <p>Brak administratorów</p>
+            <p className="text-xs mt-1">Skonfiguruj role w bazie danych</p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Wybierz administratora
+              </div>
+              <div className="space-y-1">
+                {admins.map((u) => (
+                  <button
+                    key={u.subiektId}
+                    onClick={() => setSelectedId(u.subiektId)}
+                    className={`touch-target flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${selectedId === u.subiektId ? "border-primary bg-primary/10" : "bg-card hover:bg-accent"}`}
+                  >
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold">
+                        {u.firstName} {u.lastName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Administrator</div>
+                    </div>
+                    {selectedId === u.subiektId && <Shield className="h-4 w-4 text-primary" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {selected && (
+              <div className="rounded-lg border bg-card p-3">
+                <div className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  PIN dla:{" "}
+                  <b className="text-foreground">
+                    {[selected.firstName, selected.lastName].filter(Boolean).join(" ") ||
+                      `ID ${selected.subiektId}`}
+                  </b>
+                </div>
+                <PinPad onSubmit={submit} />
+              </div>
+            )}
+          </>
+        )}
 
         <Link
           to="/mobile/login"
