@@ -1,5 +1,32 @@
 # CHANGELOG — PomagierGT
 
+## [Unreleased] — Audyt + Security hardening
+
+### Security (CRITICAL)
+- **Auth-by-default**: globalny `requireAuthByDefault` middleware — wszystkie endpointy `/api/*` wymagają sesji (whitelist: login, health, company, ca)
+- **Fail-closed szyfrowanie configu**: `encryptConfig` rzuca błąd zamiast fallbacku do plaintext
+- **CONFIG_ENCRYPTION_KEY**: dedykowany klucz szyfrowania sekretów w config (backward compat z JWT_SECRET)
+- **Backup encryption**: `backup.sh` szyfruje tar.gz przez gpg AES-256, wyklucza `.env` i tabelę `sessions`
+- **drizzle-orm 0.42→0.45.2**: CVE SQL injection (GHSA-gpj5-g38j-94v9)
+- **NULLIF→''**: undo handler zgodny z `NOT NULL` na `tw_Pole1-8`
+- **PIN generator**: seed.ts i wizard generują losowe 6-cyfrowe PINy (nie `0000`)
+- **Whitelist**: `tw_Opis`/`tw_Uwagi` usunięte z `ALLOWED_LOCATION_FIELDS`
+
+### Ulepszenia
+- Correlation ID middleware (`withCorrelation`) podpięty do pipeline
+- Frontend `logout()` woła `/api/logout` (invalidacja serwerowej sesji)
+- SIGTERM/SIGINT graceful shutdown (zamyka MSSQL pool + HTTP)
+- Inventory `whereConditions` typowanie naprawione
+- Postgres bind `127.0.0.1` (był `0.0.0.0`)
+- Code split: `manualChunks` (vendor-react/radix/utils)
+- `manifest.json`: `start_url` relative, `scope`, maskable icons
+- SW cache: usunięto `/api/users`, `/api/warehouses` z StaleWhileRevalidate
+
+### Testy (+7, total 112)
+- `crypto-config.test.ts`: encrypt/decrypt round-trip, random IV, CONFIG_ENCRYPTION_KEY
+- `retry.test.ts`: writeSubiektWithRetry (success, retry, 3-fail-throw)
+- `location-card.test.ts`: masking fix (escape hatch `|| 404` usunięty)
+
 ## [1.6.0] — 2026-07-30 Koszyk skanów + Postgres Cache
 
 ### Nowe funkcje

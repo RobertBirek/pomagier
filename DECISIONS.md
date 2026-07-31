@@ -75,3 +75,35 @@ Każda ważna decyzja architektoniczna zawiera:
 - **Decyzja**: In-memory lockout — 5 nieudanych prób = 5 minut blokady per `subiektUzId`. Czyszczone po udanym logowaniu. Nie wymaga migracji bazy
 - **Konsekwencje**: ochrona przed brute-force bez zmiany schematu DB. Nie przetrwa restartu serwera (akceptowalne dla MVP)
 - **Wycofanie**: przeniesienie do trwałego storage (tabela w Postgres)
+
+### 9. MSSQL write retry + dual-write compensation (2026-07-31)
+
+- **Kontekst**: zapisy do MSSQL (tw_Pole1) mogą zawieść wskutek chwilowej niedostępności sieci, overdadowania puli połączeń
+- **Opcje**: no-retry (500 na klienta), retry + postepowanie (wymaga transakcji rozproszonych 2PC), retry + postep krok-po-kroku (kompensacja)
+- **Decyzja**: `writeSubiektWithRetry` (3 próby: 100/200ms) + w endpointie POST `/api/locations/assign` zamknięcie rollbacku: jeśli MSSQL write nie powiedzie się mimo prób, wpis w Postgresie zostaje usunięty ("kompensacja") z rejestracją w logu
+- **Konsekwencje**: spójność Postgres↔MSSQL nawet przy przejściowych awariach ERP. Nie chroni przed uszkodzeniem całej transakcji (np. crash API między próbami)
+- **Wycofanie**: transakcje rozproszone (MSDTC) jeśli dostępne w sieci Subiekta
+
+### 10. Szyfrowanie mssql_password AES-256-GCM (2026-07-31)
+
+- **Kontekst**: hasło MSSQL przechowywane w tabeli `config` (Postgres) jako plaintext
+- **Rozważane opcje**: brak szyfrowania (ryzyko backup-leak), szyfrowanie aplikacyjne (AES-GCM), szyfrowanie na poziomie TDE (wymaga Enterprise)
+- **Decyzja**: AES-256-GCM w `crypto-config.ts`, klucz wyprowadzany z `CONFIG_ENCRYPTION_KEY` (fallback: `JWT_SECRET`), random IV per rekord. Fail-closed: błąd szyfrowania = throw (nie plaintext). Prefiks `aes:` dla odróżnienia od starych plaintext wartości
+- **Konsekwencje**: backupy Postgresa nie zawierają czystego hasła MSSQL. Rotacja `CONFIG_ENCRYPTION_KEY` wymaga re-encrypt wszystkich wartości w `config.mssql_password`
+- **Wycofanie**: przejście na zewnętrzny secret manager (HashiCorp Vault, AWS Secrets Manager)
+
+### 11. POST /api/logout — serwerowa invalidacja sesji (2026-07-31)
+
+- **Kontekst**: wylogowanie na terminalu (dzielony między operatorów) wymagalo natychmiastowej invalidacji sesji serwerowej, nie tylko lokalnej
+- **Rozważane opcje**: (a) tylko localStorage clear (sesja żyje do expiracji), (b) DELETE FROM sessions + clear cookie, (c) JWT blacklist
+- **Decyzja**: `POST /api/logout` — usuwa sesję z tabeli `sessions` i czyści cookie `token`. Frontend `logout()` wysyła żądanie + czyści localStorage
+- **Konsekwencje**: natychmiastowe wylogowanie na dzielonych terminalach. Brak JWT blacklist (token sesji jest losowy, nie JWT)
+- **Wycofanie**: dodanie sliding sesji (przedłużanie przy aktywności) jeśli potrzebne
+
+### 12. Whitelist zmniejszona do tw_Pole1-8 (2026-07-31)
+
+- **Kontekst**: `ALLOWED_LOCATION_FIELDS` zawierała `tw_Opis` i `tw_Uwagi` (biznesowe pola opisowe towarów w Subiekcie). Admin mógł ustawić `fieldmap_location` na `tw_Opis`, co nadpisze opisy towarów lokalizacjami
+- **Opcje**: (a) zostawić (ryzyko nadpisania), (b) ograniczyć do tw_Pole1-8, (c) dodać runtime check na wartość
+- **Decyzja**: ograniczenie whitelist do `tw_Pole1..tw_Pole8` tylko. `tw_Opis` i `tw_Uwagi` usunięte
+- **Konsekwencje**: admin nie może nadpisać opisów towarów w Subiekcie przez konfigurację pola. Jeśli aktualnie używa `tw_Opis`, endpoint fallbackuje do `tw_Pole1` i zwraca ostrzeżenie w logu
+- **Wycofanie**: przywrócenie `tw_Opis`/`tw_Uwagi` z dodatkową potwierdzącą flagą w config

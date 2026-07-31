@@ -16,7 +16,13 @@ vi.mock("../../src/db/index.js", () => ({
   getDb: () => ({}),
   schema: {},
 }));
-vi.mock("drizzle-orm", () => ({ eq: vi.fn(), and: vi.fn(), or: vi.fn(), inArray: vi.fn(), sql: vi.fn() }));
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn(),
+  and: vi.fn(),
+  or: vi.fn(),
+  inArray: vi.fn(),
+  sql: vi.fn(),
+}));
 
 describe("writeSubiektWithRetry", () => {
   it("succeeds on first attempt (no retry)", async () => {

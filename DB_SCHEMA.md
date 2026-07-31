@@ -33,13 +33,14 @@
 | Kolumna | Typ | Opis |
 |---|---|---|
 | id | uuid PK | |
-| code | varchar(20) UNIQUE | "A 1-2-3-4" |
+| code | varchar(30) UNIQUE | "A 1-2-3-4" |
 | area | varchar(5) | A, B... |
 | aisle | int | Alejka |
 | rack | int | Regał |
 | shelf | int | Półka |
 | spot | int | Miejsce (zawsze 1) |
 | label | varchar(100) | "Obszar A, Alejka 1..." |
+| created_by | varchar(100) nullable | Operator tworzący |
 | created_at | timestamp | |
 
 ### product_locations
@@ -68,15 +69,15 @@
 | correlation_id | varchar(36) | |
 | created_at | timestamp | |
 
-### audit_log (gotowa, nieużywana w MVP)
-| Kolumna | Typ |
-|---|---|
-| id | uuid PK |
-| correlation_id | varchar(36) |
-| user_id | uuid FK → users |
-| action | varchar(50) |
-| details | text |
-| created_at | timestamp |
+### audit_log
+| Kolumna | Typ | Opis |
+|---|---|---|
+| id | uuid PK | |
+| correlation_id | varchar(36) | |
+| user_id | uuid FK → users | |
+| action | varchar(50) | login, login_failed, inventory_report |
+| details | text | JSON z kontekstem |
+| created_at | timestamp | |
 
 ### products_cache (v1.6.0)
 
