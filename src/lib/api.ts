@@ -40,6 +40,7 @@ export async function getUsers() {
       active: boolean;
       hasPin: boolean;
       role: string;
+      warehouseId: number | null;
     }[]
   >;
 }

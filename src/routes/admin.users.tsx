@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUsers } from "@/lib/api";
+import { getUsers, getWarehouses } from "@/lib/api";
 import {
   KpiCard,
   StatusBadge,
@@ -34,6 +34,16 @@ async function setRole(subiektUzId: number, role: string) {
   return res.json();
 }
 
+async function setWarehouse(subiektUzId: number, warehouseId: number | null) {
+  const res = await fetch(`/api/users/${subiektUzId}/warehouse`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ warehouseId }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
 });
@@ -45,6 +55,7 @@ function AdminUsers() {
     isLoading,
     error,
   } = useQuery({ queryKey: ["users"], queryFn: getUsers, refetchInterval: 30_000 });
+  const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const [pinUser, setPinUser] = useState<{ subiektId: number; name: string } | null>(null);
 
   const setPinMut = useMutation({
@@ -61,6 +72,16 @@ function AdminUsers() {
     mutationFn: ({ id, role }: { id: number; role: string }) => setRole(id, role),
     onSuccess: () => {
       toast.success("Rola zmieniona");
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setWarehouseMut = useMutation({
+    mutationFn: ({ id, warehouseId }: { id: number; warehouseId: number | null }) =>
+      setWarehouse(id, warehouseId),
+    onSuccess: () => {
+      toast.success("Magazyn przypisany");
       qc.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -145,6 +166,7 @@ function AdminUsers() {
                 <th className="px-4 py-2 text-left font-medium">Imię</th>
                 <th className="px-4 py-2 text-left font-medium">Nazwisko</th>
                 <th className="px-4 py-2 text-left font-medium">Rola</th>
+                <th className="px-4 py-2 text-left font-medium">Magazyn</th>
                 <th className="px-4 py-2 text-left font-medium">Status</th>
                 <th className="px-4 py-2 text-left font-medium">PIN</th>
                 <th className="px-4 py-2 text-left font-medium w-10"></th>
@@ -156,6 +178,25 @@ function AdminUsers() {
                   <td className="px-4 py-2 font-mono text-xs">{u.subiektId}</td>
                   <td className="px-4 py-2">
                     {u.firstName || <span className="text-muted-foreground italic">—</span>}
+                  </td>
+                  <td className="px-4 py-2">
+                    <select
+                      value={u.warehouseId ?? ""}
+                      onChange={(e) =>
+                        setWarehouseMut.mutate({
+                          id: u.subiektId,
+                          warehouseId: e.target.value ? Number(e.target.value) : null,
+                        })
+                      }
+                      className="rounded border bg-background px-2 py-1 text-xs"
+                    >
+                      <option value="">Brak przypisania</option>
+                      {warehouses.map((warehouse) => (
+                        <option key={warehouse.id} value={warehouse.id}>
+                          {warehouse.symbol}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-4 py-2 font-semibold">{u.lastName}</td>
                   <td className="px-4 py-2">

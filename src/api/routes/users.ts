@@ -36,6 +36,7 @@ export function registerUsersRoutes(app: Application): void {
           active: u.active === true || u.active === 1,
           hasPin: !!appUser,
           role: appUser?.role || "operator",
+          warehouseId: appUser?.warehouseId ?? null,
         };
       });
 
