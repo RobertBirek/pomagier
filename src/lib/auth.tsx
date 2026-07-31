@@ -32,6 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Call server logout to invalidate session, then clear local state
+    fetch("/api/logout", { method: "POST", credentials: "include" }).catch(() => {});
     localStorage.removeItem("pomagier_auth");
     setState({ token: null, user: null, operatorName: "", warehouse: "" });
   }, []);

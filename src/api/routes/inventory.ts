@@ -59,7 +59,7 @@ export function registerInventoryRoutes(app: Application): void {
         })
         .from(schema.productLocations)
         .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
-        .where(and(...(whereConditions as [SQL, ...SQL[]])));
+        .where(and(...whereConditions));
       const grouped = new Map();
       for (const r of rows) {
         if (!r.productId) continue;

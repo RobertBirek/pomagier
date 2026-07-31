@@ -54,7 +54,8 @@ interface GridResult {
   };
 }
 
-/** Whitelist of allowed Subiekt GT field names for location mapping. Prevents SQL Injection. */
+/** Whitelist of allowed Subiekt GT field names for location mapping. Prevents SQL Injection.
+ *  Only tw_Pole1-8 (free-use fields) — tw_Opis/tw_Uwagi excluded to prevent overwriting business data. */
 const ALLOWED_LOCATION_FIELDS = new Set([
   "tw_Pole1",
   "tw_Pole2",
@@ -64,8 +65,6 @@ const ALLOWED_LOCATION_FIELDS = new Set([
   "tw_Pole6",
   "tw_Pole7",
   "tw_Pole8",
-  "tw_Opis",
-  "tw_Uwagi",
 ]);
 
 async function getLocationField(): Promise<string> {

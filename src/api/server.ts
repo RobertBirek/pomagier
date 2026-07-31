@@ -5,7 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import { getDb } from "../db/index.js";
-import { logger } from "../lib/logger.js";
+import { logger, withCorrelation } from "../lib/logger.js";
 import { authMiddleware, requireAuthByDefault } from "./auth-middleware.js";
 import { registerBackupRoutes } from "./routes/backup.js";
 import { registerLocationsRoutes } from "./routes/locations.js";
@@ -56,6 +56,7 @@ app.use(
   }),
 );
 app.use(cookieParser());
+app.use((req, res, next) => withCorrelation(() => next()));
 app.use(authMiddleware);
 app.use(requireAuthByDefault); // Auth-by-default: all /api endpoints require session unless whitelisted
 app.use(
@@ -152,6 +153,24 @@ try {
 }
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
-app.listen(port, () => {
+const server = app.listen(port, () => {
   logger.info({ port }, "API server started");
 });
+
+// Graceful shutdown: close MSSQL pool and HTTP server
+async function shutdown(signal: string) {
+  logger.info({ signal }, "Shutting down...");
+  server.close(() => logger.info("HTTP server closed"));
+  try {
+    const { getAdapter } = await import("./adapter-provider.js");
+    const adapter = getAdapter();
+    const pool = await adapter.getPool?.();
+    await pool?.close();
+    logger.info("MSSQL pool closed");
+  } catch {
+    /* pool already closed */
+  }
+  process.exit(0);
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
