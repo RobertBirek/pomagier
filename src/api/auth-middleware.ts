@@ -44,3 +44,22 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ error: "Brak uprawnień administratora" });
   next();
 }
+
+/** Public endpoints that do NOT require authentication. Everything else requires a valid session. */
+const PUBLIC_PATHS = new Set([
+  "/api/login",
+  "/api/health",
+  "/api/company",
+  "/api/wizard/status",
+  "/ca",
+  "/api/ca",
+]);
+
+/** Global auth-by-default middleware. Rejects any /api request without req.user unless whitelisted. */
+export function requireAuthByDefault(req: Request, res: Response, next: NextFunction) {
+  // Only protect /api and /ca paths
+  if (!req.path.startsWith("/api") && !req.path.startsWith("/ca")) return next();
+  if (PUBLIC_PATHS.has(req.path)) return next();
+  if (!req.user) return res.status(401).json({ error: "Zaloguj się" });
+  next();
+}

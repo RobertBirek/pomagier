@@ -749,10 +749,8 @@ export function registerLocationsRoutes(app: express.Express) {
               await pool
                 .request()
                 .input("id", productId)
-                .input("val", updated.join(",") || null)
-                .query(
-                  `UPDATE tw__Towar SET ${locationField} = NULLIF(@val, '') WHERE tw_Id = @id`,
-                );
+                .input("val", updated.join(",") || "")
+                .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
             }, `undo-${productId}`);
           }
           undone++;

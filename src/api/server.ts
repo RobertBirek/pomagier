@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import { getDb } from "../db/index.js";
 import { logger } from "../lib/logger.js";
-import { authMiddleware } from "./auth-middleware.js";
+import { authMiddleware, requireAuthByDefault } from "./auth-middleware.js";
 import { registerBackupRoutes } from "./routes/backup.js";
 import { registerLocationsRoutes } from "./routes/locations.js";
 import { getEnv } from "../lib/env.js";
@@ -57,6 +57,7 @@ app.use(
 );
 app.use(cookieParser());
 app.use(authMiddleware);
+app.use(requireAuthByDefault); // Auth-by-default: all /api endpoints require session unless whitelisted
 app.use(
   cors({
     origin:

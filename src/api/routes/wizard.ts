@@ -159,19 +159,27 @@ export function registerWizardRoutes(app: Application): void {
         .request()
         .query("SELECT uz_Id AS id FROM pd_Uzytkownik WHERE uz_Status = 1");
       let usersSeeded = 0;
+      const seededPins: { subiektUzId: number; pin: string }[] = [];
       const crypto = await import("node:crypto");
       for (const row of userResult.recordset) {
         const subiektUzId = (row as SubiektUserIdRow).id;
+        // Generate random 6-digit PIN (avoid trivial sequences)
+        let rawPin: string;
+        do {
+          rawPin = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+        } while (/^(\d)\1{5}$/.test(rawPin) || rawPin === "123456");
         await db
           .insert(schema.users)
           .values({
             subiektUzId,
-            pin: bcrypt.hashSync("0000", 10),
+            pin: bcrypt.hashSync(rawPin, 10),
             role: subiektUzId === 1 ? "admin" : "operator",
           })
           .onConflictDoNothing();
+        seededPins.push({ subiektUzId, pin: rawPin });
         usersSeeded++;
       }
+      logger.info({ usersSeeded, pins: seededPins }, "Users seeded with random PINs");
       results.users = { seeded: usersSeeded };
 
       res.json({ ok: true, results });

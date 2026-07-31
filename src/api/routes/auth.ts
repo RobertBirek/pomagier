@@ -152,7 +152,7 @@ export function registerAuthRoutes(app: Application): void {
     } catch (err) {
       if (err instanceof ApiError) throw err;
       logger.error({ err }, "Login failed");
-      throw ApiError.badRequest("Błąd logowania"); // 500 → errorHandler
+      throw new ApiError(500, "Błąd logowania"); // Server error, not client error
     }
   });
 

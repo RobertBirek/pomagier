@@ -8,28 +8,38 @@ const TAG_LEN = 16; // 128 bits auth tag
 const PREFIX = "aes:";
 
 function getKey(): Buffer {
-  const secret = process.env.JWT_SECRET || "pomagier-dev-key-change-me";
+  // Prefer CONFIG_ENCRYPTION_KEY (dedicated secret). Fall back to JWT_SECRET for backward compat
+  // with values encrypted before CONFIG_ENCRYPTION_KEY was introduced (logged as warning).
+  const secret = process.env.CONFIG_ENCRYPTION_KEY || process.env.JWT_SECRET;
+  if (!secret || secret.length < 8) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CONFIG_ENCRYPTION_KEY (or JWT_SECRET) must be set in production for config encryption",
+      );
+    }
+    logger.warn(
+      "Config encryption using fallback dev key — set CONFIG_ENCRYPTION_KEY in production",
+    );
+    return crypto.scryptSync("pomagier-dev-key-change-me", "pomagier-salt", KEY_LEN);
+  }
+  // Per-record random salt would be ideal, but backward compat requires static salt for existing values.
+  // New installations should use CONFIG_ENCRYPTION_KEY for clean separation.
   return crypto.scryptSync(secret, "pomagier-salt", KEY_LEN);
 }
 
-/** Encrypt a string value. Returns "aes:<base64>" or original if encryption fails. */
+/** Encrypt a string value. Returns "aes:<base64>". Throws on failure — NEVER falls back to plaintext. */
 export function encryptConfig(value: string): string {
-  try {
-    const iv = crypto.randomBytes(IV_LEN);
-    const cipher = crypto.createCipheriv(ALGO, getKey(), iv);
-    const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    const combined = Buffer.concat([iv, tag, encrypted]);
-    return PREFIX + combined.toString("base64");
-  } catch (err) {
-    logger.error({ err }, "Config encryption failed — storing plaintext");
-    return value;
-  }
+  const iv = crypto.randomBytes(IV_LEN);
+  const cipher = crypto.createCipheriv(ALGO, getKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const combined = Buffer.concat([iv, tag, encrypted]);
+  return PREFIX + combined.toString("base64");
 }
 
-/** Decrypt an aes:-prefixed string. Returns plaintext value. */
+/** Decrypt an aes:-prefixed string. Returns plaintext value or empty string on failure. */
 export function decryptConfig(value: string): string {
-  if (!value.startsWith(PREFIX)) return value; // Plaintext (legacy or fallback)
+  if (!value.startsWith(PREFIX)) return value; // Plaintext (legacy pre-encryption)
   try {
     const combined = Buffer.from(value.slice(PREFIX.length), "base64");
     const iv = combined.subarray(0, IV_LEN);
@@ -39,7 +49,7 @@ export function decryptConfig(value: string): string {
     decipher.setAuthTag(tag);
     return decipher.update(encrypted).toString("utf8") + decipher.final("utf8");
   } catch (err) {
-    logger.error({ err }, "Config decryption failed");
-    return value.replace(PREFIX, ""); // Best-effort: return stripped prefix
+    logger.error({ err }, "Config decryption failed — returning empty");
+    return "";
   }
 }
