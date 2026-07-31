@@ -5,6 +5,7 @@ import { getStats, getCompany, healthCheck } from "@/lib/api";
 
 async function fetchErpConfig() {
   const res = await fetch("/api/erp-config");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<{
     host: string;
     port: number;
@@ -47,6 +48,7 @@ async function testConnection(data: {
 
 async function fetchFieldMappings() {
   const res = await fetch("/api/field-mappings");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<
     { key: string; label: string; subiektField: string; subiektTable: string }[]
   >;
@@ -71,8 +73,6 @@ export const AVAILABLE_FIELDS = [
   { value: "tw_Pole6", label: "tw_Pole6 (varchar 50)" },
   { value: "tw_Pole7", label: "tw_Pole7 (varchar 50)" },
   { value: "tw_Pole8", label: "tw_Pole8 (varchar 50)" },
-  { value: "tw_Opis", label: "tw_Opis (opis)" },
-  { value: "tw_Uwagi", label: "tw_Uwagi (uwagi)" },
 ];
 
 export function useErpConfig() {
@@ -116,7 +116,7 @@ export function useErpConfig() {
   }, [config]);
 
   useEffect(() => {
-    if (fieldMappings) {
+    if (Array.isArray(fieldMappings)) {
       setFieldMap(fieldMappings.map((m) => ({ key: m.key, subiektField: m.subiektField })));
     }
   }, [fieldMappings]);

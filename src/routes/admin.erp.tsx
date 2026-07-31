@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { KpiCard, SectionTitle, LoadingRow, StatusBadge } from "@/components/pomagier/primitives";
 import { useErpConfig, AVAILABLE_FIELDS } from "@/hooks/use-erp-config";
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ErpConnectionForm } from "@/components/admin/ErpConnectionForm";
 import { ErpTestButton } from "@/components/admin/ErpTestButton";
 import { ErpStatusBadge } from "@/components/admin/ErpStatusBadge";
@@ -11,9 +12,26 @@ export const Route = createFileRoute("/admin/erp")({ component: AdminErp });
 
 function AdminErp() {
   const erp = useErpConfig();
+  const qc = useQueryClient();
+  const nav = useNavigate();
   const [indexStatus, setIndexStatus] = useState<{ name: string; present: boolean }[]>([]);
   const [indexBusy, setIndexBusy] = useState(false);
   const [indexMessage, setIndexMessage] = useState("");
+
+  // Redirect to login on 401 (session expired) — happens across all queries in this page
+  useEffect(() => {
+    const authError = qc
+      .getQueryCache()
+      .findAll()
+      .some((q) => {
+        const err = q.state.error as Error | null;
+        return err?.message.startsWith("HTTP 401");
+      });
+    if (authError) {
+      qc.clear();
+      nav({ to: "/admin/login" });
+    }
+  }, [qc, nav, erp.health, erp.config, erp.fieldMappings]);
 
   const refreshIndexes = useCallback(async () => {
     const response = await fetch("/api/erp-indexes");

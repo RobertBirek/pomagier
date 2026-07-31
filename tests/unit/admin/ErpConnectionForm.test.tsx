@@ -16,7 +16,7 @@ describe("ErpConnectionForm", () => {
 
   it("renders all form fields", () => {
     render(<ErpConnectionForm {...defaultProps} />);
-    expect(screen.getByPlaceholderText(/10\.10\.254\.87/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/serwer/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("pomagier")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("sa")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/pozostaw puste/i)).toBeInTheDocument();
