@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { ApiError } from "../error-handler.js";
 import { validate } from "../validation.js";
-import { requireAdmin } from "../auth-middleware.js";
+import { requireAdmin, requireAuth } from "../auth-middleware.js";
 
 // --- Schemas ---
 const LoginSchema = z.object({
@@ -153,6 +153,28 @@ export function registerAuthRoutes(app: Application): void {
       if (err instanceof ApiError) throw err;
       logger.error({ err }, "Login failed");
       throw ApiError.badRequest("Błąd logowania"); // 500 → errorHandler
+    }
+  });
+
+  // POST /api/logout
+  app.post("/api/logout", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const token = req.cookies?.token || (req.headers.authorization || "").replace("Bearer ", "");
+      if (token) {
+        const db = getDb();
+        await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
+      }
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+      });
+      logger.info({ userId: req.user?.id }, "User logged out");
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, "Logout failed");
+      res.status(500).json({ error: "Błąd wylogowania" });
     }
   });
 

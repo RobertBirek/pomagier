@@ -4,7 +4,7 @@ import { getDb, schema } from "../../db/index.js";
 import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { requireAdmin } from "../auth-middleware.js";
-import { checkIdempotency } from "../idempotency.js";
+import { checkIdempotency, storeIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
 
 interface SubiektLocationRow {
@@ -422,45 +422,47 @@ export function registerLocationsRoutes(app: express.Express) {
       let inserted = 0;
       let skipped = 0;
 
-      // Wyczyść starą tabelę
-      await db.delete(schema.productLocations);
+      // Atomically clear and rebuild product_locations
+      await db.transaction(async (tx) => {
+        await tx.delete(schema.productLocations);
 
-      for (const row of result.recordset) {
-        const productId = (row as SubiektProductLocRow).productId;
-        const locRaw = (row as SubiektProductLocRow).locRaw;
-        const parts = locRaw
-          .split(/[,;]/)
-          .map((s: string) => s.trim())
-          .filter(Boolean);
+        for (const row of result.recordset) {
+          const productId = (row as SubiektProductLocRow).productId;
+          const locRaw = (row as SubiektProductLocRow).locRaw;
+          const parts = locRaw
+            .split(/[,;]/)
+            .map((s: string) => s.trim())
+            .filter(Boolean);
 
-        for (const part of parts) {
-          const parsed = parseLocation(part);
-          if (!parsed) {
-            skipped++;
-            continue;
-          }
+          for (const part of parts) {
+            const parsed = parseLocation(part);
+            if (!parsed) {
+              skipped++;
+              continue;
+            }
 
-          const loc = allLocations.find((l) => l.code === parsed.raw);
-          if (!loc) {
-            skipped++;
-            continue;
-          }
+            const loc = allLocations.find((l) => l.code === parsed.raw);
+            if (!loc) {
+              skipped++;
+              continue;
+            }
 
-          try {
-            await db
-              .insert(schema.productLocations)
-              .values({
-                productId,
-                locationId: loc.id,
-                quantity: 1,
-              })
-              .onConflictDoNothing();
-            inserted++;
-          } catch {
-            skipped++;
+            try {
+              await tx
+                .insert(schema.productLocations)
+                .values({
+                  productId,
+                  locationId: loc.id,
+                  quantity: 1,
+                })
+                .onConflictDoNothing();
+              inserted++;
+            } catch {
+              skipped++;
+            }
           }
         }
-      }
+      });
 
       logger.info({ inserted, skipped }, "Product-location sync completed");
       res.json({ ok: true, inserted, skipped });
@@ -551,34 +553,47 @@ export function registerLocationsRoutes(app: express.Express) {
       // Zapisz do product_locations
       const locationField = await getLocationField();
       for (const [productId, qty] of grouped) {
-        await db
-          .insert(schema.productLocations)
-          .values({ productId, locationId: loc.id, quantity: qty })
-          .onConflictDoUpdate({
-            target: [schema.productLocations.productId, schema.productLocations.locationId],
-            set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` },
-          });
+        try {
+          // Write Postgres first
+          await db
+            .insert(schema.productLocations)
+            .values({ productId, locationId: loc.id, quantity: qty })
+            .onConflictDoUpdate({
+              target: [schema.productLocations.productId, schema.productLocations.locationId],
+              set: { quantity: sql`${schema.productLocations.quantity} + ${qty}` },
+            });
 
-        // Aktualizuj tw_Pole1 w Subiekcie
-        const current = await pool
-          .request()
-          .input("id", productId)
-          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const existing = ((current.recordset[0] as SubiektFieldRow | undefined)?.val || "")
-          .split(/[,;]/)
-          .map((s: string) => s.trim())
-          .filter(Boolean);
-        // Normalize existing tokens for dedup (old format "A1-2-3-4" vs new "A 1-2-3-4")
-        const existingNormalized = existing.map((s: string) => parseLocation(s)?.raw || s);
-        if (!existingNormalized.includes(parsed.raw)) {
-          existing.push(parsed.raw);
-          await writeSubiektWithRetry(async () => {
-            await pool
-              .request()
-              .input("id", productId)
-              .input("val", existing.join(","))
-              .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
-          }, `assign-${productId}`);
+          // Aktualizuj tw_Pole1 w Subiekcie
+          const current = await pool
+            .request()
+            .input("id", productId)
+            .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+          const existing = ((current.recordset[0] as SubiektFieldRow | undefined)?.val || "")
+            .split(/[,;]/)
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+          const existingNormalized = existing.map((s: string) => parseLocation(s)?.raw || s);
+          if (!existingNormalized.includes(parsed.raw)) {
+            existing.push(parsed.raw);
+            await writeSubiektWithRetry(async () => {
+              await pool
+                .request()
+                .input("id", productId)
+                .input("val", existing.join(","))
+                .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+            }, `assign-${productId}`);
+          }
+        } catch (mssqlErr) {
+          // Compensate: remove Postgres entry if MSSQL write failed
+          await db
+            .delete(schema.productLocations)
+            .where(
+              and(
+                eq(schema.productLocations.productId, productId),
+                eq(schema.productLocations.locationId, loc.id),
+              ),
+            );
+          throw mssqlErr;
         }
       }
 
@@ -613,6 +628,15 @@ export function registerLocationsRoutes(app: express.Express) {
         }),
         notFound,
       });
+      if (idemKey) {
+        storeIdempotency(idemKey, {
+          ok: true,
+          assigned: grouped.size,
+          totalQuantity: foundProducts.length,
+          location: parsed.raw,
+          notFound,
+        });
+      }
     } catch (err) {
       logger.error({ err }, "Assign failed");
       res.status(500).json({ error: "Błąd zapisu" });
@@ -654,6 +678,15 @@ export function registerLocationsRoutes(app: express.Express) {
     if (!location || !Array.isArray(codes) || codes.length === 0) {
       res.status(400).json({ error: "Brak lokalizacji lub kodów" });
       return;
+    }
+
+    const idemKey = req.headers["x-idempotency-key"] as string;
+    if (idemKey) {
+      const cached = checkIdempotency(idemKey);
+      if (cached) {
+        res.json(cached.result);
+        return;
+      }
     }
 
     const { parseLocation } = await import("../../lib/locations.js");
@@ -752,6 +785,7 @@ export function registerLocationsRoutes(app: express.Express) {
         }
       }
       res.json({ ok: true, undone });
+      if (idemKey) storeIdempotency(idemKey, { ok: true, undone });
     } catch (err) {
       logger.error({ err }, "Undo failed");
       res.status(500).json({ error: "Nie udało się cofnąć" });
@@ -943,6 +977,15 @@ export function registerLocationsRoutes(app: express.Express) {
       return;
     }
 
+    const idemKey = req.headers["x-idempotency-key"] as string;
+    if (idemKey) {
+      const cached = checkIdempotency(idemKey);
+      if (cached) {
+        res.json(cached.result);
+        return;
+      }
+    }
+
     const { parseLocation } = await import("../../lib/locations.js");
     const fromParsed = parseLocation(fromLocation);
     const toParsed = parseLocation(toLocation);
@@ -1080,6 +1123,8 @@ export function registerLocationsRoutes(app: express.Express) {
 
       logger.info({ from: fromParsed.raw, to: toParsed.raw, moved }, "Transfer completed");
       res.json({ ok: true, moved, from: fromParsed.raw, to: toParsed.raw });
+      if (idemKey)
+        storeIdempotency(idemKey, { ok: true, moved, from: fromParsed.raw, to: toParsed.raw });
     } catch (err) {
       logger.error({ err }, "Transfer failed");
       res.status(500).json({ error: "Transfer nie powiódł się" });

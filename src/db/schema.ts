@@ -47,7 +47,7 @@ export const config = pgTable("config", {
 
 export const locations = pgTable("locations", {
   id: uuid("id").defaultRandom().primaryKey(),
-  code: varchar("code", { length: 20 }).notNull().unique(),
+  code: varchar("code", { length: 30 }).notNull().unique(),
   area: varchar("area", { length: 5 }).notNull(),
   aisle: integer("aisle").notNull(),
   rack: integer("rack").notNull(),

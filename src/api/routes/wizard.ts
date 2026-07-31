@@ -113,43 +113,46 @@ export function registerWizardRoutes(app: Application): void {
       }
       results.locations = { imported, skipped };
 
-      await db.delete(schema.productLocations);
-      let plInserted = 0,
-        plSkipped = 0;
       const allLocs = await db.select().from(schema.locations);
       const allProducts = await pool
         .request()
         .query(
           `SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
         );
-      for (const row of allProducts.recordset) {
-        const productId = (row as SubiektProductLocRow).productId;
-        const parts = (row as SubiektProductLocRow).locRaw
-          .split(/[,;]/)
-          .map((s: string) => s.trim())
-          .filter(Boolean);
-        for (const part of parts) {
-          const parsed = parseLocation(part);
-          if (!parsed) {
-            plSkipped++;
-            continue;
-          }
-          const loc = allLocs.find((l) => l.code === parsed.raw);
-          if (!loc) {
-            plSkipped++;
-            continue;
-          }
-          try {
-            await db
-              .insert(schema.productLocations)
-              .values({ productId, locationId: loc.id, quantity: 1 })
-              .onConflictDoNothing();
-            plInserted++;
-          } catch {
-            plSkipped++;
+      let plInserted = 0,
+        plSkipped = 0;
+
+      await db.transaction(async (tx) => {
+        await tx.delete(schema.productLocations);
+        for (const row of allProducts.recordset) {
+          const productId = (row as SubiektProductLocRow).productId;
+          const parts = (row as SubiektProductLocRow).locRaw
+            .split(/[,;]/)
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+          for (const part of parts) {
+            const parsed = parseLocation(part);
+            if (!parsed) {
+              plSkipped++;
+              continue;
+            }
+            const loc = allLocs.find((l) => l.code === parsed.raw);
+            if (!loc) {
+              plSkipped++;
+              continue;
+            }
+            try {
+              await tx
+                .insert(schema.productLocations)
+                .values({ productId, locationId: loc.id, quantity: 1 })
+                .onConflictDoNothing();
+              plInserted++;
+            } catch {
+              plSkipped++;
+            }
           }
         }
-      }
+      });
       results.productLocations = { inserted: plInserted, skipped: plSkipped };
 
       const userResult = await pool

@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { validate } from "../validation.js";
+import { encryptConfig, decryptConfig } from "../../lib/crypto-config.js";
 
 const ErpConfigSaveSchema = z.object({
   host: z.string().min(1),
@@ -62,7 +63,7 @@ export function registerErpConfigRoutes(app: Application): void {
           { key: "mssql_user", value: user },
         ];
         if (password && password !== "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022") {
-          entries.push({ key: "mssql_password", value: password });
+          entries.push({ key: "mssql_password", value: encryptConfig(password) });
         }
         for (const e of entries) {
           await db
@@ -75,9 +76,14 @@ export function registerErpConfigRoutes(app: Application): void {
         const storedPwd =
           password && password !== "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             ? password
-            : (
-                await db.select().from(schema.config).where(eq(schema.config.key, "mssql_password"))
-              )[0]?.value ||
+            : decryptConfig(
+                (
+                  await db
+                    .select()
+                    .from(schema.config)
+                    .where(eq(schema.config.key, "mssql_password"))
+                )[0]?.value || "",
+              ) ||
               process.env.MSSQL_PASSWORD ||
               "";
         await adapter.reconnect?.({

@@ -66,6 +66,7 @@ app.use(
             "https://pomagier.ilovelighting.hmcloud.pl",
             "https://localhost",
             "http://localhost:5173",
+            "http://localhost:4173",
           ],
     credentials: true,
   }),
