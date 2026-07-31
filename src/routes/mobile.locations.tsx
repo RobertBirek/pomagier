@@ -70,6 +70,7 @@ function LocationsPage() {
     useBasket();
   const [pendingLocation, setPendingLocation] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [undoing, setUndoing] = useState(false);
   const [lastLocation, setLastLocation] = useState<string | null>(() =>
@@ -163,7 +164,13 @@ function LocationsPage() {
   );
 
   // ── Save / Transfer / Reset ──
+  const handleSaveClick = () => {
+    if (!pendingLocation || basket.length === 0) return;
+    setConfirmSave(true);
+  };
+
   const handleSave = async () => {
+    setConfirmSave(false);
     if (!pendingLocation || basket.length === 0) return;
     setSaving(true);
     try {
@@ -380,7 +387,7 @@ function LocationsPage() {
                 <div className="text-xs text-muted-foreground mt-1">{totalQty} towarów</div>
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={handleSave}
+                    onClick={handleSaveClick}
                     disabled={saving}
                     className="touch-target inline-flex items-center gap-1.5 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground flex-1 justify-center"
                   >
@@ -460,6 +467,63 @@ function LocationsPage() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm save modal */}
+        {confirmSave && pendingLocation && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setConfirmSave(false)}
+          >
+            <div
+              className="mx-4 w-full max-w-sm max-h-[80vh] overflow-y-auto rounded-xl bg-card p-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-sm font-bold mb-3">
+                Przypisać {basket.length}{" "}
+                {basket.length === 1 ? "produkt" : basket.length < 5 ? "produkty" : "produktów"} do:
+              </div>
+              <div className="font-mono text-lg font-bold mb-3">{pendingLocation}</div>
+
+              <div className="divide-y border rounded-lg max-h-48 overflow-y-auto mb-3">
+                {basket.map((item) => (
+                  <div key={item.code} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-mono font-semibold text-[13px] break-all leading-tight">
+                        {item.code}
+                      </div>
+                      {item.name && (
+                        <div className="text-xs text-muted-foreground truncate">{item.name}</div>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-mono text-xs font-semibold tabular-nums">
+                      ×{item.qty}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-xs text-muted-foreground text-center mb-3">
+                Łącznie: {totalQty} szt.
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 touch-target rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {saving ? "Zapisuję…" : "Potwierdź"}
+                </button>
+                <button
+                  onClick={() => setConfirmSave(false)}
+                  className="touch-target rounded-md border px-4 py-2.5 text-sm"
+                >
+                  Anuluj
+                </button>
               </div>
             </div>
           </div>
