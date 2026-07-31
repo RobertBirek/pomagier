@@ -56,6 +56,33 @@ async function clearAll() {
   return r.json();
 }
 
+function SortTh({
+  col,
+  label,
+  sortBy,
+  sortOrder,
+  onClick,
+}: {
+  col: string;
+  label: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  onClick: (col: string) => void;
+}) {
+  const active = sortBy === col;
+  return (
+    <th
+      className="px-3 py-2 text-left font-semibold cursor-pointer hover:bg-muted/50 select-none"
+      onClick={() => onClick(col)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active && <span className="text-xs">{sortOrder === "asc" ? "▲" : "▼"}</span>}
+      </span>
+    </th>
+  );
+}
+
 export const Route = createFileRoute("/admin/verify")({ component: VerifyPage });
 
 function VerifyPage() {
@@ -64,6 +91,8 @@ function VerifyPage() {
   const [area, setArea] = useState("");
   const [status, setStatus] = useState("mismatch");
   const [q, setQ] = useState("");
+  const [sortBy, setSortBy] = useState<string>("productId");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const pageSize = 50;
 
@@ -76,6 +105,49 @@ function VerifyPage() {
     queryKey: ["verify-detail", params],
     queryFn: () => fetchVerify(params),
   });
+
+  const sortedRows = useMemo(() => {
+    if (!data?.rows) return [];
+    const rows = [...data.rows];
+    rows.sort((a, b) => {
+      let va: string | number = "",
+        vb: string | number = "";
+      switch (sortBy) {
+        case "productId":
+          va = a.productId;
+          vb = b.productId;
+          break;
+        case "symbol":
+          va = a.symbol;
+          vb = b.symbol;
+          break;
+        case "name":
+          va = a.name;
+          vb = b.name;
+          break;
+        case "postgres":
+          va = a.postgres.join(", ");
+          vb = b.postgres.join(", ");
+          break;
+        case "subiekt":
+          va = a.subiekt.join(", ");
+          vb = b.subiekt.join(", ");
+          break;
+      }
+      if (va < vb) return sortOrder === "asc" ? -1 : 1;
+      if (va > vb) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+    return rows;
+  }, [data, sortBy, sortOrder]);
+
+  const handleSort = (col: string) => {
+    if (sortBy === col) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    else {
+      setSortBy(col);
+      setSortOrder("asc");
+    }
+  };
 
   const batchMut = useMutation({
     mutationFn: ({ ids, dir }: { ids: number[]; dir: string }) => batchFix(ids, dir),
@@ -107,10 +179,10 @@ function VerifyPage() {
 
   const toggleAll = () => {
     if (!data) return;
-    if (selected.size === data.rows.length) {
+    if (selected.size === sortedRows.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(data.rows.map((r) => r.productId)));
+      setSelected(new Set(sortedRows.map((r) => r.productId)));
     }
   };
 
@@ -196,7 +268,7 @@ function VerifyPage() {
         <div className="text-sm text-muted-foreground py-8 text-center">Ładowanie...</div>
       )}
 
-      {data && data.rows.length === 0 && (
+      {data && sortedRows.length === 0 && (
         <div className="text-center py-8">
           <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500 mb-2" />
           <p className="text-sm font-semibold">Brak rozbieżności</p>
@@ -204,7 +276,7 @@ function VerifyPage() {
         </div>
       )}
 
-      {data && data.rows.length > 0 && (
+      {data && sortedRows.length > 0 && (
         <>
           <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
@@ -213,20 +285,50 @@ function VerifyPage() {
                   <th className="px-3 py-2 text-left w-8">
                     <input
                       type="checkbox"
-                      checked={selected.size === data.rows.length && data.rows.length > 0}
+                      checked={selected.size === sortedRows.length && sortedRows.length > 0}
                       onChange={toggleAll}
                     />
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold">ID</th>
-                  <th className="px-3 py-2 text-left font-semibold">Symbol</th>
-                  <th className="px-3 py-2 text-left font-semibold">Nazwa</th>
-                  <th className="px-3 py-2 text-left font-semibold">Postgres</th>
-                  <th className="px-3 py-2 text-left font-semibold">Subiekt</th>
+                  <SortTh
+                    col="productId"
+                    label="ID"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onClick={handleSort}
+                  />
+                  <SortTh
+                    col="symbol"
+                    label="Symbol"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onClick={handleSort}
+                  />
+                  <SortTh
+                    col="name"
+                    label="Nazwa"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onClick={handleSort}
+                  />
+                  <SortTh
+                    col="postgres"
+                    label="Postgres"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onClick={handleSort}
+                  />
+                  <SortTh
+                    col="subiekt"
+                    label="Subiekt"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onClick={handleSort}
+                  />
                   <th className="px-3 py-2 text-right font-semibold">Akcje</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {data.rows.map((row) => {
+                {sortedRows.map((row) => {
                   const isMismatch = row.postgres.join(",") !== row.subiekt.join(",");
                   return (
                     <tr
