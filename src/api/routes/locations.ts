@@ -1462,6 +1462,79 @@ export function registerLocationsRoutes(app: express.Express) {
     }
   });
 
+  // --- Normalize location codes (A1-2-3-4 → A 1-2-3-4) in Postgres + Subiekt ---
+  app.post("/api/locations/normalize", requireAdmin, async (req, res) => {
+    const { productIds } = req.body ?? {};
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      res.status(400).json({ error: "Brak productIds" });
+      return;
+    }
+    try {
+      const db = getDb();
+      const adapter = getAdapter();
+      const pool = await adapter.getPool?.();
+      if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+      const locationField = await getLocationField();
+      const { parseLocation } = await import("../../lib/locations.js");
+
+      let fixedPostgres = 0;
+      let fixedSubiekt = 0;
+
+      for (const productId of productIds) {
+        // 1. Fix Postgres locations.code for this product
+        const plRows = await db
+          .select({ locId: schema.productLocations.locationId, code: schema.locations.code })
+          .from(schema.productLocations)
+          .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
+          .where(eq(schema.productLocations.productId, productId));
+
+        for (const row of plRows) {
+          const parsed = parseLocation(row.code);
+          if (parsed && parsed.raw !== row.code) {
+            await db
+              .update(schema.locations)
+              .set({ code: parsed.raw })
+              .where(eq(schema.locations.id, row.locId));
+            fixedPostgres++;
+          }
+        }
+
+        // 2. Fix Subiekt tw_Pole1
+        const subiektRow = await pool
+          .request()
+          .input("id", productId)
+          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+        const val = (subiektRow.recordset[0] as SubiektFieldRow | undefined)?.val || "";
+        const codes = val
+          .split(/[,;]/)
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+        const normalized = codes.map((c) => {
+          const p = parseLocation(c);
+          return p ? p.raw : c;
+        });
+        const newVal = normalized.join(",");
+        if (newVal !== val) {
+          await pool
+            .request()
+            .input("id", productId)
+            .input("val", newVal)
+            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+          fixedSubiekt++;
+        }
+      }
+
+      logger.info(
+        { productCount: productIds.length, fixedPostgres, fixedSubiekt },
+        "Normalize completed",
+      );
+      res.json({ ok: true, fixedPostgres, fixedSubiekt });
+    } catch (err) {
+      logger.error({ err }, "Normalize failed");
+      res.status(500).json({ error: "Normalizacja nie powiodła się" });
+    }
+  });
+
   // --- Fix sync per selected products ---
   app.post("/api/locations/fix-sync-batch", requireAdmin, async (req, res) => {
     const { productIds, direction } = req.body ?? {};

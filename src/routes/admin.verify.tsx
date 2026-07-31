@@ -100,7 +100,10 @@ function VerifyPage() {
   const [sortBy, setSortBy] = useState<string>("productId");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [malformedOnly, setMalformedOnly] = useState(false);
   const pageSize = 50;
+
+  const isMalformed = (codes: string[]) => codes.some((c) => /^[A-Z]\d/.test(c.trim()));
 
   const params = useMemo(
     () => ({ page: String(page), pageSize: String(pageSize), area, status, q }),
@@ -144,8 +147,9 @@ function VerifyPage() {
       if (va > vb) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
+    if (malformedOnly) return rows.filter((r) => isMalformed(r.postgres) || isMalformed(r.subiekt));
     return rows;
-  }, [data, sortBy, sortOrder]);
+  }, [data, sortBy, sortOrder, malformedOnly]);
 
   const handleSort = (col: string) => {
     if (sortBy === col) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
@@ -187,6 +191,25 @@ function VerifyPage() {
     onSuccess: () => {
       toast.success("Wyzerowano wszystkie lokalizacje");
       qc.invalidateQueries({ queryKey: ["verify-detail"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const normalizeMut = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const r = await fetch("/api/locations/normalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productIds: ids }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(data.error || "Błąd");
+      return data as { ok: boolean; fixedPostgres: number; fixedSubiekt: number };
+    },
+    onSuccess: (data) => {
+      toast.success(`Postgres: ${data.fixedPostgres}, Subiekt: ${data.fixedSubiekt}`);
+      qc.invalidateQueries({ queryKey: ["verify-detail"] });
+      setSelected(new Set());
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -275,6 +298,17 @@ function VerifyPage() {
           placeholder="Szukaj lokalizacji np. A 1-2-3-4..."
           className="rounded border px-3 py-1.5 text-sm min-w-[200px] flex-1"
         />
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={malformedOnly}
+            onChange={(e) => {
+              setMalformedOnly(e.target.checked);
+              setPage(1);
+            }}
+          />
+          Nieprawidłowy format
+        </label>
       </div>
 
       {/* Table */}
@@ -385,6 +419,15 @@ function VerifyPage() {
                         >
                           Fix →
                         </button>
+                        {(isMalformed(row.postgres) || isMalformed(row.subiekt)) && (
+                          <button
+                            onClick={() => normalizeMut.mutate([row.productId])}
+                            disabled={normalizeMut.isPending}
+                            className="text-xs underline hover:no-underline text-blue-600 ml-2"
+                          >
+                            Popraw
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -445,6 +488,13 @@ function VerifyPage() {
                   className="rounded-md border border-destructive/30 px-3 py-1.5 text-xs text-destructive disabled:opacity-50"
                 >
                   ✕ Wyczyść
+                </button>
+                <button
+                  onClick={() => normalizeMut.mutate([...selected])}
+                  disabled={normalizeMut.isPending}
+                  className="rounded-md border border-blue-300 px-3 py-1.5 text-xs text-blue-600 disabled:opacity-50"
+                >
+                  Popraw format
                 </button>
               </>
             )}
