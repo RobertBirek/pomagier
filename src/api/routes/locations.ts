@@ -1099,6 +1099,145 @@ export function registerLocationsRoutes(app: express.Express) {
     }
   });
 
+  // --- Verif sync detail — paginowana, z nazwami produktów i filtrami ---
+  app.get("/api/locations/verify-sync-detail", async (req, res) => {
+    try {
+      const db = getDb();
+      const adapter = getAdapter();
+      const pool = await adapter.getPool?.();
+      if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+      const locationField = await getLocationField();
+
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const pageSize = Math.min(200, Math.max(10, parseInt(req.query.pageSize as string) || 50));
+      const area = (req.query.area as string) || "";
+      const status = (req.query.status as string) || "all"; // all | mismatch | synced
+      const offset = (page - 1) * pageSize;
+
+      // 1. Get all Postgres locations grouped by productId
+      const plRows = await db
+        .select({
+          productId: schema.productLocations.productId,
+          code: schema.locations.code,
+          area: schema.locations.area,
+        })
+        .from(schema.productLocations)
+        .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id));
+      const postgresMap = new Map<number, { codes: Set<string>; areas: Set<string> }>();
+      for (const r of plRows) {
+        const e = postgresMap.get(r.productId) || {
+          codes: new Set<string>(),
+          areas: new Set<string>(),
+        };
+        e.codes.add(r.code);
+        if (r.area) e.areas.add(r.area);
+        postgresMap.set(r.productId, e);
+      }
+
+      // 2. Get Subiekt data
+      const subiektRows = await pool
+        .request()
+        .query(
+          `SELECT tw_Id AS id, NULLIF(${locationField},'') AS val FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
+        );
+      const subiektMap = new Map<number, Set<string>>();
+      for (const r of subiektRows.recordset) {
+        const codes = ((r as SubiektFieldRow).val || "")
+          .split(/[,;]/)
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+        subiektMap.set((r as SubiektIdRow).id, new Set(codes));
+      }
+
+      // 3. Compare and build rows
+      const allIds = new Set([...postgresMap.keys(), ...subiektMap.keys()]);
+      const allRows: {
+        productId: number;
+        postgres: string[];
+        subiekt: string[];
+        areas: string[];
+      }[] = [];
+
+      for (const id of allIds) {
+        const pg = postgresMap.get(id);
+        const pgCodes = [...(pg?.codes || new Set())].sort();
+        const subCodes = [...(subiektMap.get(id) || new Set())].sort();
+        const isMatch = pgCodes.join(",") === subCodes.join(",");
+
+        if (status === "mismatch" && isMatch) continue;
+        if (status === "synced" && !isMatch) continue;
+        if (area && pg && ![...pg.areas].some((a) => a === area)) continue;
+
+        allRows.push({
+          productId: id,
+          postgres: pgCodes,
+          subiekt: subCodes,
+          areas: pg ? [...pg.areas] : [],
+        });
+      }
+
+      const totalMismatch = allRows.filter(
+        (r) => r.postgres.join(",") !== r.subiekt.join(","),
+      ).length;
+      const totalSynced = allRows.length - totalMismatch;
+
+      // 4. Get product labels from cache + MSSQL
+      const pagedRows = allRows.slice(offset, offset + pageSize);
+      const cacheMap = new Map<number, { symbol: string; name: string; barcode: string }>();
+      if (pagedRows.length > 0) {
+        const cached = await db
+          .select()
+          .from(schema.productsCache)
+          .where(
+            inArray(
+              schema.productsCache.id,
+              pagedRows.map((r) => r.productId),
+            ),
+          );
+        for (const c of cached)
+          cacheMap.set(c.id, { symbol: c.symbol, name: c.name, barcode: c.barcode || "" });
+
+        // MSSQL fallback for missing
+        const missing = pagedRows.filter((r) => !cacheMap.has(r.productId)).map((r) => r.productId);
+        if (missing.length > 0) {
+          const placeholders = missing.map((_, i) => `@id${i}`);
+          const req2 = pool.request();
+          missing.forEach((id, i) => req2.input(`id${i}`, id));
+          const mssqlResult = await req2.query(
+            `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${placeholders.join(",")})`,
+          );
+          for (const row of mssqlResult.recordset) {
+            const r = row as { id: number; symbol: string; name: string; barcode: string | null };
+            cacheMap.set(r.id, { symbol: r.symbol, name: r.name, barcode: r.barcode || "" });
+          }
+        }
+      }
+
+      res.json({
+        totalProducts: allIds.size,
+        synced: totalSynced,
+        mismatches: totalMismatch,
+        rows: pagedRows.map((r) => {
+          const c = cacheMap.get(r.productId);
+          return {
+            productId: r.productId,
+            symbol: c?.symbol ?? `#${r.productId}`,
+            name: c?.name ?? "",
+            barcode: c?.barcode ?? "",
+            postgres: r.postgres,
+            subiekt: r.subiekt,
+          };
+        }),
+        page,
+        pageSize,
+        totalPages: Math.ceil(allRows.length / pageSize),
+      });
+    } catch (err) {
+      logger.error({ err }, "Verify sync detail failed");
+      res.status(500).json({ error: "Weryfikacja nie powiodła się" });
+    }
+  });
+
   // --- Siatka magazynu (grid data) ---
   app.get("/api/locations/grid", async (_req, res) => {
     try {

@@ -68,6 +68,7 @@ const navSections = [
       { title: "Towary", url: "/admin/products", icon: Package },
       { title: "Magazyny", url: "/admin/warehouses", icon: Warehouse },
       { title: "Mapa magazynu", url: "/admin/map", icon: Map },
+      { title: "Weryfikacja", url: "/admin/verify", icon: Search },
     ],
   },
   {

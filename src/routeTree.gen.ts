@@ -32,6 +32,7 @@ import { Route as AdminStatsRouteImport } from './routes/admin.stats'
 import { Route as AdminTasksRouteImport } from './routes/admin.tasks'
 import { Route as AdminTerminalsRouteImport } from './routes/admin.terminals'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminVerifyRouteImport } from './routes/admin.verify'
 import { Route as AdminWarehousesRouteImport } from './routes/admin.warehouses'
 import { Route as MobileIndexRouteImport } from './routes/mobile.index'
 import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
@@ -162,6 +163,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminVerifyRoute = AdminVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminWarehousesRoute = AdminWarehousesRouteImport.update({
   id: '/warehouses',
   path: '/warehouses',
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/admin/tasks': typeof AdminTasksRoute
   '/admin/terminals': typeof AdminTerminalsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/verify': typeof AdminVerifyRoute
   '/admin/warehouses': typeof AdminWarehousesRoute
   '/mobile/dashboard': typeof MobileDashboardRoute
   '/mobile/inventory': typeof MobileInventoryRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/admin/tasks': typeof AdminTasksRoute
   '/admin/terminals': typeof AdminTerminalsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/verify': typeof AdminVerifyRoute
   '/admin/warehouses': typeof AdminWarehousesRoute
   '/mobile/dashboard': typeof MobileDashboardRoute
   '/mobile/inventory': typeof MobileInventoryRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/admin/tasks': typeof AdminTasksRoute
   '/admin/terminals': typeof AdminTerminalsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/verify': typeof AdminVerifyRoute
   '/admin/warehouses': typeof AdminWarehousesRoute
   '/mobile/dashboard': typeof MobileDashboardRoute
   '/mobile/inventory': typeof MobileInventoryRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/admin/tasks'
     | '/admin/terminals'
     | '/admin/users'
+    | '/admin/verify'
     | '/admin/warehouses'
     | '/mobile/dashboard'
     | '/mobile/inventory'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/admin/tasks'
     | '/admin/terminals'
     | '/admin/users'
+    | '/admin/verify'
     | '/admin/warehouses'
     | '/mobile/dashboard'
     | '/mobile/inventory'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/admin/tasks'
     | '/admin/terminals'
     | '/admin/users'
+    | '/admin/verify'
     | '/admin/warehouses'
     | '/mobile/dashboard'
     | '/mobile/inventory'
@@ -638,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/verify': {
+      id: '/admin/verify'
+      path: '/verify'
+      fullPath: '/admin/verify'
+      preLoaderRoute: typeof AdminVerifyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/warehouses': {
       id: '/admin/warehouses'
       path: '/warehouses'
@@ -757,6 +776,7 @@ interface AdminRouteChildren {
   AdminTasksRoute: typeof AdminTasksRoute
   AdminTerminalsRoute: typeof AdminTerminalsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminVerifyRoute: typeof AdminVerifyRoute
   AdminWarehousesRoute: typeof AdminWarehousesRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -779,6 +799,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTasksRoute: AdminTasksRoute,
   AdminTerminalsRoute: AdminTerminalsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminVerifyRoute: AdminVerifyRoute,
   AdminWarehousesRoute: AdminWarehousesRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
