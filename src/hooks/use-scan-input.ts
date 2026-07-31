@@ -27,7 +27,7 @@ export function useScanInput({ onSubmit, hint }: UseScanInputOptions): UseScanIn
 
   useEffect(() => {
     refocus();
-  }, []);
+  }, [refocus]);
 
   const clear = useCallback(() => {
     setValue("");

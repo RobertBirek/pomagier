@@ -161,7 +161,7 @@ export function ScanHeader({
       setTimeout(() => handleSubmitCodeRef.current(code), 60);
     });
     return unregister;
-  }, []);
+  }, [setValue]);
 
   // ── Autocomplete handler (wraps hook's handleChange) ──
   const handleInputChange = useCallback(
@@ -196,7 +196,7 @@ export function ScanHeader({
     });
     setShowTools(false);
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, []);
+  }, [inputRef]);
 
   // ── Camera scan handler ──
   const handleCameraScan = useCallback(
