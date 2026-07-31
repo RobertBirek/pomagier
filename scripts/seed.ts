@@ -11,13 +11,18 @@ function hashPin(pin: string): string {
   return bcrypt.hashSync(pin, 10);
 }
 
-/** Generate a random 6-digit PIN (avoids 0000, 1234, 1111 and other trivial sequences). */
+/**
+ * Domyślny PIN dla setupu.
+ *
+ * Od v1.6.2 (Sprint 3) świadoma decyzja: stały PIN "0000" dla wszystkich
+ * seedowanych userów, aby umożliwić szybki onboarding w środowisku LAN.
+ * Lockout (5 prób / 5 min) ogranicza ryzyko brute-force. Admin powinien
+ * zrotować PIN bezpośrednio po pierwszym logowaniu.
+ *
+ * Patrz: CHANGELOG.md, SECURITY.md (Phase 2 hardening plan)
+ */
 function generatePin(): string {
-  let pin: string;
-  do {
-    pin = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-  } while (/^(\d)\1{5}$/.test(pin) || pin === "123456" || pin === "000000");
-  return pin;
+  return "0000";
 }
 
 async function seed() {

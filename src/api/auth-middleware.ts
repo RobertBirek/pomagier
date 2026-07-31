@@ -52,7 +52,21 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 /** Public endpoints that do NOT require authentication. Everything else requires a valid session. */
-const PUBLIC_PATHS = new Set(["/api/login", "/api/health", "/api/wizard/status", "/ca", "/api/ca"]);
+const PUBLIC_PATHS = new Set([
+  "/api/login",
+  "/api/health",
+  "/api/wizard/status",
+  "/ca",
+  "/api/ca",
+  // Setup wizard (publiczna strona /wizard) + ekran logowania (chicken-and-egg fix)
+  // Patrz SECURITY.md i CHANGELOG.md — Sprint 3 (2026-07-31)
+  "/api/users",
+  "/api/warehouses",
+  "/api/erp-config",
+  "/api/test-connection",
+  "/api/wizard/clear",
+  "/api/wizard/import-all",
+]);
 
 /** Global auth-by-default middleware. Rejects any /api request without req.user unless whitelisted. */
 export function requireAuthByDefault(req: Request, res: Response, next: NextFunction) {

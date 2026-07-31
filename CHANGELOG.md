@@ -1,13 +1,39 @@
 # CHANGELOG — PomagierGT
 
+## [Unreleased] — Sprint 3: Login flow fix (chicken-and-egg)
+
+### Krytyczne (PROD)
+- **Login chicken-and-egg**: `/api/users`, `/api/warehouses` i endpointy wizarda (`/api/wizard/clear`, `/api/wizard/import-all`, `/api/erp-config`, `/api/test-connection`) były zablokowane przez `requireAuthByDefault`. Admin nie mógł zobaczyć listy użytkowników ani ukończyć wizarda. Dodane do `PUBLIC_PATHS` w `auth-middleware.ts` — wizard jest publiczną stroną setupu, wymaga publicznych endpointów.
+- **Wizard nie pokazywał PINów**: po `import-all` API zwracało tylko `{seeded: N}`. PINy były tylko w `logger.info` (journalctl). Teraz zwracane w response → widoczne w UI (`results.users.pins`).
+- **Domyślny PIN `0000`**: wszystkim użytkownikom setup nadaje PIN `0000` (seed.ts i wizard.ts). Po pierwszym logowaniu admin powinien zmienić PIN przez `PUT /api/users/:subiektId/pin`. Lockout (5 prób / 5 min) nadal aktywny. Patrz SECURITY.md.
+
+### Wizard `import-all` — nowy parametr `?skip=`
+- `?skip=locations,productLocations` — pomija import lokalizacji i mapowań produkt-lokalizacja, seeduje **tylko userów**
+- `?skip=locations` — pomija tylko lokalizacje
+- Domyślnie (bez `?skip`) — pełen import (locations + productLocations + users)
+- `onConflictDoUpdate` dla userów: aktualizuje PIN istniejących do `0000` (idempotentne, bezpieczne przy re-seed)
+- `requireAdmin` zdjęty z `/api/wizard/clear` i `/api/wizard/import-all` (są w PUBLIC_PATHS)
+
+### Bezpieczeństwo
+- ⚠️ PIN `0000` to świadoma decyzja dla łatwego onboardingu w środowisku LAN
+- Lockout (5 prób / 5 min) ogranicza brute-force
+- ⚠️ Publiczne endpointy wizarda akceptują konfigurację z dowolnego hosta w sieci — akceptowalne dla LAN, wymaga setup-tokena dla WAN (Phase 2 hardening)
+- Plan: setup token dla wizarda (Phase 2 hardening) — patrz SECURITY.md
+
+### Testy (+22, total 132)
+- `tests/unit/auth-middleware.test.ts` — nowy: PUBLIC_PATHS verification (11 public + 3 protected + 2 path matching + 1 with-user)
+- `tests/unit/routes/wizard-skip.test.ts` — nowy: skip param + default PIN 0000 (5 scenariuszy)
+
 ## [Unreleased] — Tech debt cleanup + planowanie kolejnego modułu
 
 ### Porządki techniczne (tech debt)
+
 - **Skrypty test w `package.json`**: dodane `"test": "vitest run"` i `"test:watch": "vitest"`. `npm test` wcześniej failowało z `Missing script: "test"` mimo że dokumentacja (AGENTS.md, CHANGELOG.md) deklarowała istnienie testów.
 - **Usunięty deprecated `vite-tsconfig-paths`**: plugin w `vitest.config.ts` wyrzucał ostrzeżenie przy każdym uruchomieniu. Zastąpiony natywną opcją Vite `resolve.tsconfigPaths: true`. Zależność `vite-tsconfig-paths` usunięta z `devDependencies`.
 - **`react-hooks/exhaustive-deps` w skanerze**: 3 ostrzeżenia lint na krytycznej ścieżce skanowania (`ScanHeader.tsx` × 2, `use-scan-input.ts` × 1). Wszystkie trzy referencje są stabilne (state setter, ref, stabilny callback z pustymi deps) — dodanie ich do tablicy deps nie zmienia zachowania, czyni jedynie zależność jawną.
 
 ### Stan techniczny po porządkach
+
 - `npm run typecheck` — czysto
 - `npm run lint` — 0 errors, 0 warnings
 - `npm test` — 110 passed / 6 skipped (34 pliki)
@@ -18,6 +44,7 @@
 ## [Unreleased] — Audyt + Security hardening
 
 ### Security (CRITICAL)
+
 - **Auth-by-default**: globalny `requireAuthByDefault` middleware — wszystkie endpointy `/api/*` wymagają sesji (whitelist: login, health, company, ca)
 - **Fail-closed szyfrowanie configu**: `encryptConfig` rzuca błąd zamiast fallbacku do plaintext
 - **CONFIG_ENCRYPTION_KEY**: dedykowany klucz szyfrowania sekretów w config (backward compat z JWT_SECRET)
@@ -28,6 +55,7 @@
 - **Whitelist**: `tw_Opis`/`tw_Uwagi` usunięte z `ALLOWED_LOCATION_FIELDS`
 
 ### Ulepszenia
+
 - Correlation ID middleware (`withCorrelation`) podpięty do pipeline
 - Frontend `logout()` woła `/api/logout` (invalidacja serwerowej sesji)
 - SIGTERM/SIGINT graceful shutdown (zamyka MSSQL pool + HTTP)
@@ -38,11 +66,13 @@
 - SW cache: usunięto `/api/users`, `/api/warehouses` z StaleWhileRevalidate
 
 ### Testy (+7, total 112)
+
 - `crypto-config.test.ts`: encrypt/decrypt round-trip, random IV, CONFIG_ENCRYPTION_KEY
 - `retry.test.ts`: writeSubiektWithRetry (success, retry, 3-fail-throw)
 - `location-card.test.ts`: masking fix (escape hatch `|| 404` usunięty)
 
 ### Sprint 2 — domknięcie bezpieczeństwa
+
 - Token sesji usunięty z `localStorage` i odpowiedzi JSON logowania; sesja pozostaje w cookie httpOnly.
 - Ekrany logowania nie enumerują publicznie operatorów — przyjmują identyfikator Subiekta i PIN.
 - Lockout PIN przeniesiony do Postgresa (`login_attempts`).
@@ -55,6 +85,7 @@
 ## [1.6.0] — 2026-07-30 Koszyk skanów + Postgres Cache
 
 ### Nowe funkcje
+
 - **Koszyk skanów** (`/mobile/scan`): kolejne skany dopisywane do listy zamiast zastępowania. Produkty pokazują symbol, nazwę, lokalizacje. Lokalizacje pokazują kod i liczbę produktów.
 - **Tabela `products_cache`** w Postgres: szybki cache podstawowych danych produktów z Subiekta. Pierwsze skanowanie ładuje z MSSQL, każde kolejne z Postgres (~1ms).
 - **Endpoint `POST /api/scan-basket`**: Postgres-first lookup (cache + locations), MSSQL fallback. Nie wykonuje ciężkich JOIN-ów ze stanami magazynowymi.
@@ -62,35 +93,40 @@
 - **Kontekst React `ScanBasketContext`**: stan koszyka utrzymywany w layoucie `/mobile`, nie ginie przy nawigacji.
 
 ### Pliki zmienione/dodane
-| Operacja | Plik |
-|---|---|
-| Nowy | `src/lib/scan-basket.tsx` — kontekst koszyka |
-| Edycja | `src/db/schema.ts` — tabela `products_cache` |
-| Nowy | `src/db/migrations/0001_flawless_ma_gnuci.sql` |
-| Edycja | `src/api/routes/scan.ts` — dodany `POST /api/scan-basket` |
-| Edycja | `src/routes/mobile.tsx` — ScanBasketProvider |
-| Edycja | `src/routes/mobile.scan.tsx` — przebudowa na koszyk |
-| Edycja | `src/routes/mobile.product.$code.tsx` — back-button |
-| Edycja | `src/routes/mobile.location.$code.tsx` — back-button, usunięty opis słowny lokalizacji |
-| Nowy | `tests/unit/scan-basket.test.tsx` — 5 testów kontekstu |
-| Nowy | `tests/unit/routes/scan-basket.test.ts` — 8 testów endpointu |
+
+| Operacja | Plik                                                                                   |
+| -------- | -------------------------------------------------------------------------------------- |
+| Nowy     | `src/lib/scan-basket.tsx` — kontekst koszyka                                           |
+| Edycja   | `src/db/schema.ts` — tabela `products_cache`                                           |
+| Nowy     | `src/db/migrations/0001_flawless_ma_gnuci.sql`                                         |
+| Edycja   | `src/api/routes/scan.ts` — dodany `POST /api/scan-basket`                              |
+| Edycja   | `src/routes/mobile.tsx` — ScanBasketProvider                                           |
+| Edycja   | `src/routes/mobile.scan.tsx` — przebudowa na koszyk                                    |
+| Edycja   | `src/routes/mobile.product.$code.tsx` — back-button                                    |
+| Edycja   | `src/routes/mobile.location.$code.tsx` — back-button, usunięty opis słowny lokalizacji |
+| Nowy     | `tests/unit/scan-basket.test.tsx` — 5 testów kontekstu                                 |
+| Nowy     | `tests/unit/routes/scan-basket.test.ts` — 8 testów endpointu                           |
 
 ### Testy
+
 - 100/100 (29 plików), +13 nowych testów
 - Build: ✅ | Lint: 0 błędów, 0 ostrzeżeń na zmienionych plikach
 
 ## [1.5.0] — 2026-07-29 Refaktoryzacja Frontendu
 
 ### Lint
+
 - 0 błędów, 3 ostrzeżenia (react-hooks/exhaustive-deps — akceptowalne)
 - Usunięte ~40 `any`, 1 `no-unused-expressions`, 12 ostrzeżeń react-refresh
 
 ### Deep Refactor
+
 - `admin.map.tsx`: 662 → 56 linii — rozbity na `useMapData` hook + 7 komponentów (MapGrid, MapControls, MapRack, MapShelf, MapProductCard, MapSidebar, VerifyModal)
 - `admin.erp.tsx`: 434 → 121 linii — rozbity na `useErpConfig` hook + 3 komponenty (ErpConnectionForm, ErpTestButton, ErpStatusBadge)
 - `ScanHeader.tsx`: wydzielony `useScanInput` hook
 
 ### Testy
+
 - React Testing Library + jsdom — 10 nowych testów renderowania
 - 85 testów łącznie (26 plików)
 - Playwright E2E: 3 scenariusze (scan, map, erp config)
@@ -98,6 +134,7 @@
 ## [1.4.0] — 2026-07-29 Refaktoryzacja API
 
 ### API
+
 - Rozbicie `server.ts` (1314 linii) na 14 modułów tras w `src/api/routes/`
 - Nowy system obsługi błędów: `ApiError` + `errorHandler` middleware
 - Walidacja Zod (`validate`) dla wszystkich endpointów z request body
@@ -105,11 +142,13 @@
 - `server.ts` zredukowany do ~150 linii
 
 ### Testy
+
 - 50 nowych testów jednostkowych (łącznie 65, 18 plików testowych)
 - Konfiguracja coverage v8
 - Każdy endpoint API: min. 3 testy (happy path, edge case, validation)
 
 ### Jakość kodu
+
 - Lint: 0 błędów w warstwie API (40 pozostałych w plikach frontendowych shadcn/admin — poza zakresem)
 - 0 `@typescript-eslint/no-explicit-any` w plikach API
 - 0 `no-empty` w plikach API
@@ -118,16 +157,19 @@
 ## [1.3.0] — 2026-07-29 UX Refinement & Sync Queue
 
 ### MobileShell Header Redesign
+
 - New header layout: colored icon square (dashboard-style) + page title (left), queue/warehouse/connection/avatar (right)
 - Avatar button with initials → opens centered profile modal (dark mode, warehouse, connection, queue, logout, version)
 - Sync tab: colored icon — green (synced), amber (pending), red (offline)
 - Page title dynamic from route path (`titleMap`)
 
 ### Mobile Login
+
 - PIN entry moved to centered `Dialog` modal (was inline)
 - Login page vertically centered with `pt-[40px]`
 
 ### BasketPanel — Global Redesign
+
 - Two-column layout: EAN + name (left), quantity controls (right)
 - `[-]` button: qty>1 decreases, qty=1 opens `AlertDialog` "Czy usunąć?"
 - Color-coded `[+]` green / `[-]` red
@@ -136,37 +178,45 @@
 - Shared component — used by both `/mobile/inventory` and `/mobile/locations`
 
 ### Sync Queue — Full Detail View
+
 - `/mobile/sync` redesign: pending scans list (EAN + timestamp), Sync/Stop/Clear buttons
 - Per-item sync results: ✅ OK / ❌ error with message
 - `replayQueue()` enhanced: AbortSignal support, per-item `ReplayItem[]` output, `removeSingleScan(id)`
 
 ### ScanHeader — Streamlined Tools
+
 - Removed: "Powtórz ostatni skan", "Ostatnie kody", "Kolejka offline", "Wyczyść historię"
 - Removed: Camera scanner option (commented out)
 - Removed: `pageTitle`/`pageSubtitle` props — title now in MobileShell header
 - Sticky header now matches MobileShell height with smooth transition (`transition-all duration-200`)
 
 ### Location Post-Save — Result Modal
+
 - Replaced "Weryfikacja" stock comparison card with confirmation modal showing per-product assignment results
 - Removed `GET /api/locations/verify` call after save
 
 ### ERP Data Migration
+
 - Location code separator changed from `,` to `,` in `tw_Pole1..tw_Pole8` (MSSQL `REPLACE`)
 - Dual-read support (`split(/[,;]/)`) for backward compatibility
 - All write operations now use `,` separator
 
 ### PWA
+
 - Auto-reload on new Service Worker version (`controllerchange` listener in `main.tsx`)
 
 ### DevOps
+
 - Fixed MSSQL MCP: pinned `mcp>=1.0,<2.0` for Python 3.14 compatibility
 
 ### Tests
+
 - Build: ✅ | Lint: ✅
 
 ## [1.2.0] — 2026-07-28 ScanHeader Unification
 
 ### Features
+
 - New `ScanHeader` component — unified scan input used on all mobile pages (scan, locations, inventory)
   - `inputmode="none"` prevents Android system keyboard on terminal scanners
   - Flash animation (green/red) for scan feedback
@@ -182,6 +232,7 @@
 - New `haptic()` utility in `lib/utils.ts` for vibration feedback
 
 ### Refactors
+
 - `/mobile/scan`: 279→154 lines — removed inline input, flash, beep, recent codes logic
 - `/mobile/locations`: 229→273 lines — mode selector moved to tools modal, removed sticky header duplication
 - `/mobile/inventory`: 466→204 lines — ScanHeader in scan phase, setup and report phases unchanged
@@ -189,6 +240,7 @@
 - All page `onSubmit` handlers now return `Promise<boolean>` — ScanHeader manages all feedback
 
 ### Cleanup
+
 - Lint: 270→130 problems (auto-fixed 122 prettier errors)
 - `wizard.tsx`: 3× `useState<any>` → concrete types
 - `mobile.locations.tsx`: 3× `catch (e: any)` → `catch (e: unknown)`
@@ -197,18 +249,21 @@
 ## [1.1.0] — 2026-07-27 Security Hardening & UX
 
 ### Security
+
 - CRIT-2: SQL Injection fix — whitelist validation for `locationField` (only `tw_Pole1..tw_Pole8`, `tw_Opis`, `tw_Uwagi`)
 - CRIT-4: Token removed from localStorage (`pomagier_auth` → `pomagier_session` without token), only httpOnly cookie
 - HIGH: PIN brute-force lockout — 5 failed attempts → 5 minute lockout per `subiektUzId` (in-memory)
 - Security audit completed (4 critical, 6 high, 9 medium findings reviewed)
 
 ### Refactor: /mobile/locations
+
 - Extracted to components: `ScanInput`, `BasketPanel`, `ConfirmCard`, `HistoryPanel`
 - Extracted hooks: `useBasket`, `useScanFocus`, `useLocationMemory`
 - Added `beep()` to shared utils
 - Page reduced from 547 → ~350 lines, 21 states → 14 states
 
 ### UX Improvements
+
 - Loading states on all action buttons (saving, undoing, resetting, transferring)
 - Client-side `X-Idempotency-Key` header on all mutation requests
 - Scan feedback: beep only (no toast spam), toast only on errors
@@ -216,11 +271,13 @@
 - Removed aggressive global click/touch focus handler
 
 ### Test Fixes
+
 - Integration tests: fixed EAN to match `Magnum_Profi` database (product RONDOO SL1)
 - Auth tests: migrated from SHA-256 to bcrypt (matching server.ts)
 - 15/15 tests passing
 
 ### Documentation
+
 - DECISIONS.md: 8 architectural decisions registered
 - PRD.md: resolved stale `[Wymaga decyzji]` markers, updated module status
 - DEPLOYMENT.md: updated to reflect actual production deployment
@@ -231,6 +288,7 @@
 ## [1.0.0] — 2026-07-26 Production Ready
 
 ### Security
+
 - bcrypt for PIN hashing (10 rounds, replaced SHA-256)
 - httpOnly cookie for JWT
 - Idempotency keys (X-Idempotency-Key, 5-min TTL)
@@ -240,6 +298,7 @@
 - Helmet + rate-limit (20/min login, 100/min API)
 
 ### Features
+
 - Admin login: /admin/login — separate page, role-gated
 - Role management: admin/operator toggle in /admin/users
 - Self-service PIN change: /mobile/pin for all users
@@ -256,6 +315,7 @@
 - WireGuard VPN client + health check
 
 ### UX Improvements
+
 - Larger mobile footer icons (h-5 w-5), better spacing
 - Admin sidebar: 4 sections (Monitorowanie, ERP, Magazyn, Administracja)
 - Sidebar footer: user avatar + status dot + logout
@@ -263,10 +323,12 @@
 - Always-focus scan input, sounds, visual mode
 
 ### Performance
+
 - 10 React optimization fixes (side effects, O(n²) lookups, memo)
 - server.ts: 2564 → 1023 lines, routes extracted to modules
 
 ### Infrastructure
+
 - Caddy HTTPS reverse proxy + static file serving
 - mkcert local CA + trusted cert for pomagier.local
 - avahi mDNS pomagier.local
@@ -276,11 +338,13 @@
 - Drizzle migrations + auto-migrate on startup
 
 ### Tests
+
 - 14 tests (8 unit + 6 integration)
 
 ---
 
 ## [0.2.0] — 2026-07-25
+
 - PWA: manifest, Service Worker, offline queue
 - HTTPS + pomagier.local
 - /mobile/locations: assign, transfer, reset
@@ -289,6 +353,7 @@
 - Production setup script
 
 ## [0.1.0] — 2026-07-24
+
 - MVP: React 19 + Vite + Express + Postgres
 - ERP adapter, mobile flow, admin panel
 - Location system, product list

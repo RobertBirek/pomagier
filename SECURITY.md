@@ -38,6 +38,26 @@ Placeholdery w `.env.example`:
 - Audyt działań administracyjnych (audit_log)
 - AES-256-GCM szyfrowanie `mssql_password` w tabeli config (klucz z `CONFIG_ENCRYPTION_KEY` lub `JWT_SECRET`)
 
+### Setup wizard (Sprint 3 — chicken-and-egg fix)
+
+**Kontekst**: Wizard (`/wizard`) jest publiczną stroną setupu, ale jego endpointy backendowe wymagały `requireAdmin`. To tworzyło chicken-and-egg: admin musiałby istnieć zanim ktokolwiek mógłby go utworzyć.
+
+**Decyzja**: Endpointy wizarda (`/api/wizard/clear`, `/api/wizard/import-all`, `/api/erp-config`, `/api/test-connection`) oraz endpointy list (`/api/users`, `/api/warehouses`) dodane do `PUBLIC_PATHS` w `auth-middleware.ts`. `requireAdmin` zdjęty z `/api/wizard/clear` i `/api/wizard/import-all`.
+
+**Domyślny PIN `0000`**: Wszystkim użytkownikom setup nadaje PIN `0000` (seed.ts i wizard.ts). Świadoma decyzja dla szybkiego onboardingu w środowisku LAN. Po pierwszym logowaniu admin powinien zmienić PIN przez `PUT /api/users/:subiektId/pin`.
+
+**Kompromis**:
+- ✅ Szybki onboarding, brak chicken-and-egg
+- ✅ Lockout 5 prób / 5 min ogranicza brute-force
+- ⚠️ Publiczne endpointy wizarda akceptują konfigurację z dowolnego hosta w sieci
+- ⚠️ PIN `0000` dla 13 userów × 5 prób / 5 min = max 65 prób / 5 min na złamanie konta
+
+**Phase 2 hardening (planowane)**:
+- **Setup token**: wizard wymaga podania tokenu z ENV (`SETUP_TOKEN`) — generowany przy pierwszym uruchomieniu, wyświetlany w journalctl
+- **IP whitelist**: setup endpointy akceptują tylko requesty z localhost lub zdefiniowanych IP
+- **Setup lockout**: po 3 nieudanych próbach setup tokenu — cooldown 30 min
+- **Mandatory PIN rotation**: flaga `must_rotate_pin` w tabeli `users`, wymuszająca zmianę PINu przed dostępem do operacji
+
 ### OWASP
 
 - SQL injection: parametryzacja wszystkich zapytań MSSQL, whitelist `ALLOWED_LOCATION_FIELDS`

@@ -4,7 +4,6 @@ import { getDb, schema } from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { getAdapter } from "../adapter-provider.js";
-import { requireAdmin } from "../auth-middleware.js";
 import { getLocationField } from "./locations.js";
 
 interface SubiektLocationRow {
@@ -21,7 +20,17 @@ interface SubiektUserIdRow {
 interface WizardResults {
   locations?: { imported: number; skipped: number };
   productLocations?: { inserted: number; skipped: number };
-  users?: { seeded: number };
+  users?: { seeded: number; updated: number; pins: { subiektUzId: number; pin: string }[] };
+}
+
+/** Parse ?skip=locations,productLocations query param into a Set. */
+function parseSkip(req: Request): Set<string> {
+  return new Set(
+    String(req.query.skip || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
 }
 
 export function registerWizardRoutes(app: Application): void {
@@ -42,7 +51,9 @@ export function registerWizardRoutes(app: Application): void {
     }
   });
 
-  app.post("/api/wizard/clear", requireAdmin, async (req: Request, res: Response) => {
+  // POST /api/wizard/clear — publiczny (setup flow, endpoint w PUBLIC_PATHS)
+  // Zdejmujemy requireAdmin — wizard jest jednorazową stroną setupu.
+  app.post("/api/wizard/clear", async (req: Request, res: Response) => {
     const { tables } = req.body ?? {};
     if (!Array.isArray(tables)) {
       res.status(400).json({ error: "Brak listy tabel" });
@@ -60,7 +71,13 @@ export function registerWizardRoutes(app: Application): void {
     }
   });
 
-  app.post("/api/wizard/import-all", requireAdmin, async (_req: Request, res: Response) => {
+  // POST /api/wizard/import-all
+  //   - publiczny (setup flow)
+  //   - opcjonalny query param ?skip=locations,productLocations pomija wybrane kroki
+  //   - sekcja user ZAWSZE seeduje (default PIN "0000" dla onboardingu w LAN)
+  //   - onConflictDoUpdate dla userów: aktualizuje istniejących do PIN 0000
+  app.post("/api/wizard/import-all", async (req: Request, res: Response) => {
+    const skip = parseSkip(req);
     const results: WizardResults = {};
     try {
       const adapter = getAdapter();
@@ -70,117 +87,135 @@ export function registerWizardRoutes(app: Application): void {
         return;
       }
 
-      const locationField = await getLocationField();
       const db = getDb();
-
-      const locResult = await pool
-        .request()
-        .query(
-          `SELECT NULLIF(${locationField}, '') AS location FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != '' GROUP BY ${locationField}`,
-        );
       const { parseLocation } = await import("../../lib/locations.js");
-      let imported = 0,
-        skipped = 0;
-      for (const row of locResult.recordset) {
-        const parts = (row as SubiektLocationRow).location
-          .split(/[,;]/)
-          .map((s: string) => s.trim())
-          .filter(Boolean);
-        for (const part of parts) {
-          const parsed = parseLocation(part);
-          if (!parsed) {
-            skipped++;
-            continue;
-          }
-          try {
-            await db
-              .insert(schema.locations)
-              .values({
-                code: parsed.raw,
-                area: parsed.area,
-                aisle: parsed.aisle,
-                rack: parsed.rack,
-                shelf: parsed.shelf,
-                spot: parsed.spot,
-                label: parsed.label,
-              })
-              .onConflictDoNothing();
-            imported++;
-          } catch {
-            skipped++;
-          }
-        }
-      }
-      results.locations = { imported, skipped };
+      const locationField = await getLocationField();
 
-      const allLocs = await db.select().from(schema.locations);
-      const allProducts = await pool
-        .request()
-        .query(
-          `SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
-        );
-      let plInserted = 0,
-        plSkipped = 0;
-
-      await db.transaction(async (tx) => {
-        await tx.delete(schema.productLocations);
-        for (const row of allProducts.recordset) {
-          const productId = (row as SubiektProductLocRow).productId;
-          const parts = (row as SubiektProductLocRow).locRaw
+      // 1) Lokalizacje (pomijalne przez ?skip=locations)
+      if (!skip.has("locations")) {
+        const locResult = await pool
+          .request()
+          .query(
+            `SELECT NULLIF(${locationField}, '') AS location FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != '' GROUP BY ${locationField}`,
+          );
+        let imported = 0,
+          skipped = 0;
+        for (const row of locResult.recordset) {
+          const parts = (row as SubiektLocationRow).location
             .split(/[,;]/)
             .map((s: string) => s.trim())
             .filter(Boolean);
           for (const part of parts) {
             const parsed = parseLocation(part);
             if (!parsed) {
-              plSkipped++;
-              continue;
-            }
-            const loc = allLocs.find((l) => l.code === parsed.raw);
-            if (!loc) {
-              plSkipped++;
+              skipped++;
               continue;
             }
             try {
-              await tx
-                .insert(schema.productLocations)
-                .values({ productId, locationId: loc.id, quantity: 1 })
+              await db
+                .insert(schema.locations)
+                .values({
+                  code: parsed.raw,
+                  area: parsed.area,
+                  aisle: parsed.aisle,
+                  rack: parsed.rack,
+                  shelf: parsed.shelf,
+                  spot: parsed.spot,
+                  label: parsed.label,
+                })
                 .onConflictDoNothing();
-              plInserted++;
+              imported++;
             } catch {
-              plSkipped++;
+              skipped++;
             }
           }
         }
-      });
-      results.productLocations = { inserted: plInserted, skipped: plSkipped };
+        results.locations = { imported, skipped };
+      }
 
+      // 2) Product locations (pomijalne przez ?skip=productLocations)
+      if (!skip.has("productLocations")) {
+        const allLocs = await db.select().from(schema.locations);
+        const allProducts = await pool
+          .request()
+          .query(
+            `SELECT tw_Id AS productId, NULLIF(${locationField}, '') AS locRaw FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
+          );
+        let plInserted = 0,
+          plSkipped = 0;
+
+        await db.transaction(async (tx) => {
+          await tx.delete(schema.productLocations);
+          for (const row of allProducts.recordset) {
+            const productId = (row as SubiektProductLocRow).productId;
+            const parts = (row as SubiektProductLocRow).locRaw
+              .split(/[,;]/)
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+            for (const part of parts) {
+              const parsed = parseLocation(part);
+              if (!parsed) {
+                plSkipped++;
+                continue;
+              }
+              const loc = allLocs.find((l) => l.code === parsed.raw);
+              if (!loc) {
+                plSkipped++;
+                continue;
+              }
+              try {
+                await tx
+                  .insert(schema.productLocations)
+                  .values({ productId, locationId: loc.id, quantity: 1 })
+                  .onConflictDoNothing();
+                plInserted++;
+              } catch {
+                plSkipped++;
+              }
+            }
+          }
+        });
+        results.productLocations = { inserted: plInserted, skipped: plSkipped };
+      }
+
+      // 3) Users — ZAWSZE wykonywane (nawet przy skip powyżej)
+      //    Default PIN "0000" dla wszystkich (świadoma decyzja dla LAN onboardingu).
+      //    onConflictDoUpdate: aktualizuje PIN istniejących do "0000" (idempotentne).
       const userResult = await pool
         .request()
         .query("SELECT uz_Id AS id FROM pd_Uzytkownik WHERE uz_Status = 1");
       let usersSeeded = 0;
+      let usersUpdated = 0;
       const seededPins: { subiektUzId: number; pin: string }[] = [];
-      const crypto = await import("node:crypto");
+      const rawPin = "0000";
+      const hashedPin = bcrypt.hashSync(rawPin, 10);
       for (const row of userResult.recordset) {
         const subiektUzId = (row as SubiektUserIdRow).id;
-        // Generate random 6-digit PIN (avoid trivial sequences)
-        let rawPin: string;
-        do {
-          rawPin = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-        } while (/^(\d)\1{5}$/.test(rawPin) || rawPin === "123456");
-        await db
-          .insert(schema.users)
-          .values({
+        const [existing] = await db
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.subiektUzId, subiektUzId));
+        if (existing) {
+          await db
+            .update(schema.users)
+            .set({ pin: hashedPin, active: true })
+            .where(eq(schema.users.subiektUzId, subiektUzId));
+          usersUpdated++;
+        } else {
+          await db.insert(schema.users).values({
             subiektUzId,
-            pin: bcrypt.hashSync(rawPin, 10),
+            pin: hashedPin,
             role: subiektUzId === 1 ? "admin" : "operator",
-          })
-          .onConflictDoNothing();
+          });
+          usersSeeded++;
+        }
         seededPins.push({ subiektUzId, pin: rawPin });
-        usersSeeded++;
       }
-      logger.info({ usersSeeded, pins: seededPins }, "Users seeded with random PINs");
-      results.users = { seeded: usersSeeded };
+      logger.info(
+        { usersSeeded, usersUpdated, totalPins: seededPins.length },
+        "Users seeded/updated with default PIN 0000",
+      );
+      results.users = { seeded: usersSeeded, updated: usersUpdated, pins: seededPins };
 
       res.json({ ok: true, results });
     } catch (err) {
