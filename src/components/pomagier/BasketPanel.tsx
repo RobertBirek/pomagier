@@ -99,6 +99,7 @@ function BasketRow({
 }) {
   const [locations, setLocations] = useState<{ code: string }[]>([]);
   const [locationsLoaded, setLocationsLoaded] = useState(false);
+  const [showQty, setShowQty] = useState(false);
 
   useEffect(() => {
     if (!onNavigate) return;
@@ -152,38 +153,65 @@ function BasketRow({
         </div>
       )}
 
-      {/* Right — chevron + qty controls */}
-      <div className="flex items-center gap-1.5 self-center">
+      {/* Right — chevron + qty box */}
+      <div className="flex items-center gap-1.5 self-center relative">
         {onNavigate && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
 
         <button
-          onClick={() => {
-            beep(400, 80);
-            haptic(30);
-            if (item.qty <= 1) {
-              onConfirmRemove(item);
-            } else {
-              onUpdateQty(item.code, -1);
-            }
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowQty(!showQty);
           }}
-          className="touch-target rounded border px-1.5 py-0.5 text-xs hover:bg-destructive/10 font-mono text-destructive border-destructive/30"
+          className="min-w-[2rem] h-6 rounded border bg-muted/30 px-1.5 text-xs font-mono font-semibold tabular-nums hover:bg-muted/50 transition-colors"
         >
-          −
-        </button>
-        <span className="w-5 text-center font-mono text-xs font-semibold tabular-nums">
           {item.qty}
-        </span>
-        <button
-          onClick={() => {
-            beep(1000, 60);
-            haptic(30);
-            onUpdateQty(item.code, 1);
-          }}
-          className="touch-target rounded border px-1.5 py-0.5 text-xs hover:bg-success/10 font-mono text-success border-success/30"
-        >
-          +
         </button>
       </div>
+
+      {/* Qty edit popup */}
+      {showQty && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowQty(false);
+          }}
+        >
+          <div
+            className="rounded-lg border bg-card p-4 shadow-xl flex items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                beep(400, 80);
+                haptic(30);
+                if (item.qty <= 1) {
+                  onConfirmRemove(item);
+                  setShowQty(false);
+                } else {
+                  onUpdateQty(item.code, -1);
+                }
+              }}
+              className="touch-target rounded border px-2 py-0.5 text-sm hover:bg-destructive/10 font-mono text-destructive border-destructive/30"
+            >
+              −
+            </button>
+            <span className="w-6 text-center font-mono text-sm font-semibold tabular-nums">
+              {item.qty}
+            </span>
+            <button
+              onClick={() => {
+                beep(1000, 60);
+                haptic(30);
+                onUpdateQty(item.code, 1);
+              }}
+              className="touch-target rounded border px-2 py-0.5 text-sm hover:bg-success/10 font-mono text-success border-success/30"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
