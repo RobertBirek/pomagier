@@ -104,6 +104,7 @@ Placeholdery w `.env.example`:
 - [x] Global warehouses (Sprint 4): brak per-user assignment, lista supported, auto-default isMain
 - [x] Auto-logout on 401 (Sprint 5): globalny QueryCache subscription, context-aware useAutoLogout
 - [x] Comprehensive Logging (Sprint 7): 6 kategorii eventów, maskSensitive, /api/logs + UI, 30-day cleanup
+- [x] Comprehensive Logging extension (Sprint 8): queue + system coverage, /api/logs/users, correlation search, CSV injection fix
 
 ### Auto-logout on session expiry (Sprint 5)
 
@@ -141,3 +142,10 @@ Placeholdery w `.env.example`:
 **Sensitive data**: helper `maskSensitive()` automatycznie maskuje `pin`, `password`, `token`, `cookie`, `authorization` w `details` (recursive, case-insensitive). PINy nigdy nie trafiają do DB w plaintext.
 
 **Coverage**: 6 kategorii (auth, admin, mobile, erp, queue, system). Pełen opis w `docs/superpowers/specs/2026-08-01-comprehensive-logging-design.md`.
+
+### Comprehensive Logging extension (Sprint 8)
+
+- **queue + system coverage**: 4 queue events (queue.added, queue.replayed_ok/failed, queue.conflict, idempotency.reused) + 5 system events (startup, shutdown, health.fail, memory.warning, disk.warning). Teraz 6/6 kategorii aktywnych.
+- **/api/logs/users**: nowy endpoint do dynamicznego dropdownu użytkowników (zastąpił hardcoded listę).
+- **Correlation search**: `?correlation=xxx` URL param w /admin/logs auto-filluje filtr z modala.
+- **Defensive**: CSV injection fix (tab prefix), transactional cleanup, clearInterval on shutdown.

@@ -4,6 +4,55 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.8.0] — 2026-08-01 (Sprint 8: queue + system + fixy)
+
+Pełen coverage 6/6 kategorii eventów (auth, admin, mobile, erp, queue, system). Nowe eventy queue + system, dynamiczny dropdown użytkowników, correlation search w UI, plus 4 drobne fixy (CSV injection, transactional cleanup, clearInterval, dead import).
+
+### Nowe kategorie eventów
+
+- **`queue.added`** — skan dodany do IndexedDB (offline)
+- **`queue.replayed_ok` / `queue.replayed_failed`** — sync po powrocie online
+- **`queue.conflict`** — konflikt podczas replay
+- **`idempotency.reused`** — stary idempotency key ponownie użyty
+
+### Nowe eventy systemowe
+
+- **`startup`** — API wystartowało (port, nodeVersion, pid)
+- **`shutdown`** — graceful shutdown (SIGTERM/SIGINT)
+- **`health.fail`** — health check zwrócił 503
+- **`memory.warning`** — heap >80% (throttled co 5 min)
+- **`disk.warning`** — pamięć systemowa <10% wolnego (throttled co 5 min)
+
+### Nowe endpointy
+
+- **`GET /api/logs/users`** — distinct `actor_subiekt_uz_id` z audit_log (dropdown w UI)
+
+### Nowe UI
+
+- **`?correlation=xxx`** search param w /admin/logs — auto-fill filtra z linku w modalu
+- **Dynamic user dropdown** — pobiera listę z /api/logs/users zamiast hardcoded
+
+### Fixes
+
+- CSV injection: tab prefix dla komórek zaczynających się od `=`, `+`, `-`, `@`
+- Transactional cleanup: oba DELETE w `db.transaction()`
+- `clearInterval` on shutdown — czyści cleanup + system monitor handles
+- `logEvent` w activity.ts — komentarz wyjaśniający fire-and-forget pattern
+- `SectionTitle` unused import cleanup w admin.logs.tsx
+
+### Testy (+27, total 214)
+
+- queue.added, queue.replayed (6)
+- idempotency.reused (3)
+- system monitor memory/disk (4)
+- health.fail (2)
+- /api/logs/users (2)
+- correlation search (4)
+- CSV injection (1)
+- transactional cleanup (1, +1 test update)
+- clearInterval (1, +1 test update)
+- admin-logs UI tests (3, first UI tests for this page)
+
 ## [v1.7.0] — 2026-08-01 (Comprehensive Logging)
 
 Pełen audyt kto + co + jaką metodą zmienił w systemie. Dual-write logger (Pino file + Postgres `audit_log`), 6 kategorii eventów, dedykowany UI w `/admin/logs` z filtrami i eksportem, 30-day auto-cleanup.
@@ -46,7 +95,7 @@ Pełen audyt kto + co + jaką metodą zmienił w systemie. Dual-write logger (Pi
 - `tests/integration/logs-endpoints.test.ts` — 3 testy (filtry, export.csv, export.json)
 - `tests/unit/routes/activity.test.ts` — pokrycie logEvent dla activity dashboard
 - `tests/unit/routes/auth.test.ts` — update 3→2 inserts (po usunięciu duplikatów)
-- + pozostałe testy dla T5-T11 (scan, locations, backup, config, server, erp, ui)
+- - pozostałe testy dla T5-T11 (scan, locations, backup, config, server, erp, ui)
 
 ## [v1.6.3] — 2026-08-01 (Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout 401, warehouse in basket)
 

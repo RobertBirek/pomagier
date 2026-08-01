@@ -1,22 +1,40 @@
+# TASKS — Sprint 8: queue + system + fixy (2026-08-01)
+
+| Data       | Zadanie                                                                          | Status |
+| ---------- | -------------------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Branch `feat/sprint-8-queue-system-fixy` z main                                  | ✅     |
+| 2026-08-01 | T1+T2: offline-queue.ts — logEvent queue.added + queue.replayed (TDD)            | ✅     |
+| 2026-08-01 | T3: idempotency.ts — logEvent idempotency.reused                                 | ✅     |
+| 2026-08-01 | T4: server.ts — logEvent startup + shutdown                                      | ✅     |
+| 2026-08-01 | T5: system-monitor.ts + health.ts — memory/disk/health.fail + startSystemMonitor | ✅     |
+| 2026-08-01 | T6: GET /api/logs/users + UI dropdown update                                     | ✅     |
+| 2026-08-01 | T7: Modal correlation search param fix (backend + UI)                            | ✅     |
+| 2026-08-01 | T8: 4 minor fixes (CSV, transactional, clearInterval, comment)                   | ✅     |
+| 2026-08-01 | T9: Docs sync + tag v1.8.0                                                       | ✅     |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 214/214 (+27) | **Branch**: `feat/sprint-8-queue-system-fixy` → merged to `main`
+
+---
+
 # TASKS — Sprint 7: Comprehensive Logging (2026-08-01)
 
-| Data       | Zadanie                                                                                          | Status |
-| ---------- | ------------------------------------------------------------------------------------------------ | ------ |
-| 2026-08-01 | Design spec: docs/superpowers/specs/2026-08-01-comprehensive-logging-design.md                  | ✅     |
-| 2026-08-01 | Branch `feat/comprehensive-logging` z main                                                        | ✅     |
-| 2026-08-01 | Task 1: Schema migration 0006 + Drizzle update                                                   | ✅     |
-| 2026-08-01 | Task 2: app-logger.ts (dual-write + maskSensitive)                                                | ✅     |
-| 2026-08-01 | Task 3: cleanup.ts (30-day)                                                                      | ✅     |
-| 2026-08-01 | Task 4: /api/logs (list, detail, export)                                                         | ✅     |
-| 2026-08-01 | Task 5: auth.ts uses logEvent                                                                    | ✅     |
-| 2026-08-01 | Task 6: scan.ts + locations.ts use logEvent                                                       | ✅     |
-| 2026-08-01 | Task 7: erp-config.ts + backup.ts + users.ts use logEvent                                          | ✅     |
-| 2026-08-01 | Task 8: mssql.adapter.ts logs slow/error                                                         | ✅     |
-| 2026-08-01 | Task 9: server.ts register logs + cleanup interval                                              | ✅     |
-| 2026-08-01 | Task 10: /admin/logs UI redesign                                                                 | ✅     |
-| 2026-08-01 | Task 11: activity.ts uses logEvent                                                               | ✅     |
-| 2026-08-01 | Task 12 chore: remove duplicate manual audit_log inserts (T5 leftover)                           | ✅     |
-| 2026-08-01 | Task 12: Docs sync + tag v1.7.0                                                                  | ✅     |
+| Data       | Zadanie                                                                        | Status |
+| ---------- | ------------------------------------------------------------------------------ | ------ |
+| 2026-08-01 | Design spec: docs/superpowers/specs/2026-08-01-comprehensive-logging-design.md | ✅     |
+| 2026-08-01 | Branch `feat/comprehensive-logging` z main                                     | ✅     |
+| 2026-08-01 | Task 1: Schema migration 0006 + Drizzle update                                 | ✅     |
+| 2026-08-01 | Task 2: app-logger.ts (dual-write + maskSensitive)                             | ✅     |
+| 2026-08-01 | Task 3: cleanup.ts (30-day)                                                    | ✅     |
+| 2026-08-01 | Task 4: /api/logs (list, detail, export)                                       | ✅     |
+| 2026-08-01 | Task 5: auth.ts uses logEvent                                                  | ✅     |
+| 2026-08-01 | Task 6: scan.ts + locations.ts use logEvent                                    | ✅     |
+| 2026-08-01 | Task 7: erp-config.ts + backup.ts + users.ts use logEvent                      | ✅     |
+| 2026-08-01 | Task 8: mssql.adapter.ts logs slow/error                                       | ✅     |
+| 2026-08-01 | Task 9: server.ts register logs + cleanup interval                             | ✅     |
+| 2026-08-01 | Task 10: /admin/logs UI redesign                                               | ✅     |
+| 2026-08-01 | Task 11: activity.ts uses logEvent                                             | ✅     |
+| 2026-08-01 | Task 12 chore: remove duplicate manual audit_log inserts (T5 leftover)         | ✅     |
+| 2026-08-01 | Task 12: Docs sync + tag v1.7.0                                                | ✅     |
 
 **Build**: ✅ | **Lint**: 0E/0W | **Tests**: 187/187 (+31) | **Branch**: `feat/comprehensive-logging` → merged to `main`
 
