@@ -25,7 +25,7 @@ function ScanPage() {
         });
 
         if (!res.ok) {
-          await addScanToQueue(code);
+          await addScanToQueue(code, undefined, warehouse?.id);
           toast.warning("Offline — zapisano w kolejce", { description: code });
           return false;
         }
@@ -40,7 +40,7 @@ function ScanPage() {
         addItem(data as BasketItem);
         return true;
       } catch {
-        await addScanToQueue(code);
+        await addScanToQueue(code, undefined, warehouse?.id);
         toast.warning("Offline — zapisano w kolejce", { description: code });
         return false;
       }

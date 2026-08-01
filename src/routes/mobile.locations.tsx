@@ -31,12 +31,12 @@ async function assignProducts(codes: string[], location: string) {
   return r.json();
 }
 
-async function lookupProduct(code: string) {
+async function lookupProduct(code: string, warehouseId?: number) {
   try {
     const r = await fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, warehouse: warehouseId }),
     });
     if (r.ok) {
       const d = await r.json();
@@ -94,7 +94,8 @@ function LocationsPage() {
   useEffect(() => {
     const fill = async () => {
       if (!prefillCode || basket.length > 0) return;
-      const product = await lookupProduct(prefillCode);
+      // Sprint 4 fix: pass warehouse so /api/scan returns product details
+      const product = await lookupProduct(prefillCode, auth.warehouse?.id);
       if (product) {
         await addToBasket(prefillCode);
       }
@@ -201,7 +202,8 @@ function LocationsPage() {
     } catch (e: unknown) {
       beep(200, 400);
       toast.error(e instanceof Error ? e.message : "Błąd zapisu");
-      for (const item of basket) await addScanToQueue(item.code, pendingLocation);
+      for (const item of basket)
+        await addScanToQueue(item.code, pendingLocation, auth.warehouse?.id);
       toast.warning("Offline — zapisano w kolejce");
     } finally {
       setSaving(false);

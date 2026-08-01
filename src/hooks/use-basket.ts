@@ -44,12 +44,12 @@ function saveBasket(items: BasketItem[], userId: string) {
   }
 }
 
-async function lookupProduct(code: string) {
+async function lookupProduct(code: string, warehouseId?: number) {
   try {
     const res = await fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, warehouse: warehouseId }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -62,7 +62,7 @@ async function lookupProduct(code: string) {
 }
 
 export function useBasket() {
-  const { user } = useAuth();
+  const { user, warehouse } = useAuth();
   const currentUserId = user?.id || "";
 
   const [basket, setBasket] = useState<BasketItem[]>(() => loadBasket(currentUserId));
@@ -74,32 +74,36 @@ export function useBasket() {
 
   const totalQty = basket.reduce((s, b) => s + b.qty, 0);
 
-  const addToBasket = useCallback(async (code: string) => {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    beep(800, 100);
+  const addToBasket = useCallback(
+    async (code: string) => {
+      const trimmed = code.trim();
+      if (!trimmed) return;
+      beep(800, 100);
 
-    setBasket((prev) => {
-      const idx = prev.findIndex((b) => b.code === trimmed);
-      if (idx >= 0) {
-        return prev.map((item, i) => (i === idx ? { ...item, qty: item.qty + 1 } : item));
-      }
-      lookupProduct(trimmed).then((product) => {
-        setBasket((b) =>
-          b.map((item) =>
-            item.code === trimmed
-              ? {
-                  ...item,
-                  name: product?.name || item.name,
-                  stocks: product?.stocks || item.stocks,
-                }
-              : item,
-          ),
-        );
+      setBasket((prev) => {
+        const idx = prev.findIndex((b) => b.code === trimmed);
+        if (idx >= 0) {
+          return prev.map((item, i) => (i === idx ? { ...item, qty: item.qty + 1 } : item));
+        }
+        // Sprint 4 fix: send warehouse so /api/scan returns product details (name, stocks)
+        lookupProduct(trimmed, warehouse?.id).then((product) => {
+          setBasket((b) =>
+            b.map((item) =>
+              item.code === trimmed
+                ? {
+                    ...item,
+                    name: product?.name || item.name,
+                    stocks: product?.stocks || item.stocks,
+                  }
+                : item,
+            ),
+          );
+        });
+        return [...prev, { code: trimmed, qty: 1 }];
       });
-      return [...prev, { code: trimmed, qty: 1 }];
-    });
-  }, []);
+    },
+    [warehouse?.id],
+  );
 
   const removeItem = useCallback((code: string) => {
     setBasket((b) => b.filter((i) => i.code !== code));

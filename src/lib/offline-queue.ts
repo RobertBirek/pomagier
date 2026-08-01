@@ -6,6 +6,7 @@ export interface QueuedScan {
   id?: number;
   code: string;
   location?: string;
+  warehouse?: number;
   timestamp: number;
   idempotencyKey?: string;
 }
@@ -33,13 +34,18 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function addScanToQueue(code: string, location?: string): Promise<void> {
+export async function addScanToQueue(
+  code: string,
+  location?: string,
+  warehouse?: number,
+): Promise<void> {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).add({
       code,
       location,
+      warehouse,
       timestamp: Date.now(),
       idempotencyKey: crypto.randomUUID(),
     });
@@ -120,7 +126,9 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
           "X-Idempotency-Key": scan.idempotencyKey || `offline-${scan.id}`,
         },
         body: JSON.stringify(
-          scan.location ? { codes: [scan.code], location: scan.location } : { code: scan.code },
+          scan.location
+            ? { codes: [scan.code], location: scan.location, warehouse: scan.warehouse }
+            : { code: scan.code, warehouse: scan.warehouse },
         ),
         signal,
       });
