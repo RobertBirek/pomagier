@@ -1,3 +1,5 @@
+import { logEvent } from "./app-logger.js";
+
 const DB_NAME = "pomagier-offline";
 const STORE = "scan-queue";
 const DB_VERSION = 1;
@@ -49,8 +51,16 @@ export async function addScanToQueue(
       timestamp: Date.now(),
       idempotencyKey: crypto.randomUUID(),
     });
-    return new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
       tx.oncomplete = () => resolve();
+    });
+    await logEvent({
+      category: "queue",
+      action: "queue.added",
+      method: "mobile",
+      target: { type: "scan", id: code },
+      details: { location, warehouse },
+      success: true,
     });
   } catch {
     console.warn("IndexedDB unavailable — scan not queued");
@@ -118,6 +128,7 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
   for (const scan of scans) {
     if (signal?.aborted) break;
 
+    const startedAt = Date.now();
     try {
       const res = await fetch(scan.location ? "/api/locations/assign" : "/api/scan", {
         method: "POST",
@@ -136,6 +147,14 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
       if (res.ok) {
         await removeSingleScan(scan.id!);
         items.push({ code: scan.code, ok: true });
+        await logEvent({
+          category: "queue",
+          action: "queue.replayed_ok",
+          method: "mobile",
+          target: { type: "scan", id: scan.code },
+          success: true,
+          durationMs: Date.now() - startedAt,
+        });
       } else {
         let message = `${res.status}`;
         try {
@@ -145,13 +164,31 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
           /* non-JSON response */
         }
         items.push({ code: scan.code, ok: false, error: message });
+        await logEvent({
+          category: "queue",
+          action: "queue.replayed_failed",
+          method: "mobile",
+          target: { type: "scan", id: scan.code },
+          success: false,
+          errorMessage: message,
+          durationMs: Date.now() - startedAt,
+        });
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") break;
+      const message = e instanceof Error ? e.message : "Aborted";
       items.push({
         code: scan.code,
         ok: false,
-        error: e instanceof Error ? e.message : "Brak połączenia",
+        error: message,
+      });
+      await logEvent({
+        category: "queue",
+        action: "queue.replayed_failed",
+        method: "mobile",
+        target: { type: "scan", id: scan.code },
+        success: false,
+        errorMessage: message,
       });
     }
   }
