@@ -108,6 +108,20 @@ function makeExportChain() {
   return chain;
 }
 
+function makeExportChainWith(rows: AuditRow[]) {
+  const chain: Record<string, ReturnType<typeof vi.fn>> = {
+    from: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+  };
+  chain.from.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockResolvedValue(rows);
+  return chain;
+}
+
 function makeCountChain(cnt = 42) {
   return {
     from: vi.fn().mockReturnThis(),
@@ -448,6 +462,28 @@ describe("Logs endpoints", () => {
       const res = await request(app).get("/api/logs/export.csv");
 
       expect(res.status).toBe(500);
+    });
+
+    it("prefixes tab on cells starting with =, +, -, @ (CSV injection protection)", async () => {
+      const maliciousRows: AuditRow[] = [
+        { ...mockRows[0], id: "evil-eq", action: "=SUM(A1:A10)" },
+        { ...mockRows[0], id: "evil-plus", action: "+CMD|calc" },
+        { ...mockRows[0], id: "evil-minus", action: "-2+3" },
+        { ...mockRows[0], id: "evil-at", action: "@import" },
+      ];
+      mockSelect.mockImplementation(() => makeExportChainWith(maliciousRows));
+
+      const res = await request(app).get("/api/logs/export.csv");
+
+      expect(res.status).toBe(200);
+      const lines = res.text.split("\n");
+      const dataLines = lines.slice(1);
+      // action column is index 4 (id, created_at, category, method, action, ...)
+      const actions = dataLines.map((line) => line.split(",")[4]);
+      expect(actions[0]).toBe('"\t=SUM(A1:A10)"');
+      expect(actions[1]).toBe('"\t+CMD|calc"');
+      expect(actions[2]).toBe('"\t-2+3"');
+      expect(actions[3]).toBe('"\t@import"');
     });
   });
 

@@ -76,6 +76,9 @@ function buildConditions(q: LogQuery) {
 function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return "";
   const s = String(v).replace(/"/g, '""');
+  if (/^[=+\-@]/.test(s)) {
+    return `"\t${s}"`;
+  }
   return /[,"\n]/.test(s) ? `"${s}"` : s;
 }
 
