@@ -2,13 +2,11 @@ import type { Application, Request, Response } from "express";
 import { getAdapter } from "../adapter-provider.js";
 import { getDb, schema } from "../../db/index.js";
 import { logger } from "../../lib/logger.js";
-import type { UserRow, WarehouseRow } from "../types.js";
-import { eq } from "drizzle-orm";
-import { requireAdmin } from "../auth-middleware.js";
-import { validate } from "../validation.js";
-import { z } from "zod";
+import type { UserRow } from "../types.js";
+import { resolveSupportedWarehouses } from "./erp-supported-warehouses.js";
 
 export function registerUsersRoutes(app: Application): void {
+  // GET /api/users — public (used by login pages)
   app.get("/api/users", async (_req: Request, res: Response) => {
     try {
       const adapter = getAdapter();
@@ -36,7 +34,6 @@ export function registerUsersRoutes(app: Application): void {
           active: u.active === true || u.active === 1,
           hasPin: !!appUser,
           role: appUser?.role || "operator",
-          warehouseId: appUser?.warehouseId ?? null,
         };
       });
 
@@ -47,42 +44,29 @@ export function registerUsersRoutes(app: Application): void {
     }
   });
 
+  // GET /api/warehouses — public; returns only globally supported warehouses
+  // (auto-defaults to isMain warehouse if config is empty)
   app.get("/api/warehouses", async (_req: Request, res: Response) => {
     try {
-      const adapter = getAdapter();
-      const pool = await adapter.getPool?.();
-      if (!pool) {
+      const { fetchAllWarehouses } = await import("./erp-supported-warehouses.js");
+      const all = await fetchAllWarehouses();
+      if (all.length === 0) {
         res.json([]);
         return;
       }
-
-      const result = await pool.request().query(`
-        SELECT mag_Id AS id, mag_Symbol AS symbol, mag_Nazwa AS name, mag_Glowny AS isMain
-        FROM sl_Magazyn
-        ORDER BY mag_Id
-      `);
-      res.json(result.recordset as WarehouseRow[]);
-    } catch {
+      const { ids, appliedDefault } = await resolveSupportedWarehouses();
+      const supportedSet = new Set(ids);
+      const filtered = all.filter((w) => supportedSet.has(w.id));
+      if (appliedDefault) {
+        logger.info(
+          { defaultCount: filtered.length, appliedDefault: true },
+          "Supported warehouses auto-defaulted to isMain",
+        );
+      }
+      res.json(filtered);
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch warehouses");
       res.json([]);
     }
   });
-
-  app.put(
-    "/api/users/:subiektId/warehouse",
-    requireAdmin,
-    validate(z.object({ warehouseId: z.number().int().positive().nullable() })),
-    async (req, res) => {
-      const subiektId = Number(req.params.subiektId);
-      if (!Number.isInteger(subiektId) || subiektId <= 0) {
-        res.status(400).json({ error: "Nieprawidłowy identyfikator użytkownika" });
-        return;
-      }
-      const db = getDb();
-      await db
-        .update(schema.users)
-        .set({ warehouseId: req.body.warehouseId })
-        .where(eq(schema.users.subiektUzId, subiektId));
-      res.json({ ok: true, subiektId, warehouseId: req.body.warehouseId });
-    },
-  );
 }

@@ -44,7 +44,8 @@ function Login() {
     try {
       const result = await apiLogin(selectedId, pin);
       const name = `${selected?.firstName || ""} ${selected?.lastName || ""}`.trim();
-      auth.login(result.user, name, warehouse);
+      const wh = warehouses.find((w) => w.symbol === warehouse) || null;
+      auth.login(result.user, name, wh ? { id: wh.id, symbol: wh.symbol } : null);
       toast.success(`Witaj, ${name}!`);
       nav({ to: "/mobile/dashboard" });
     } catch (err: unknown) {

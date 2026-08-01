@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUsers, getWarehouses } from "@/lib/api";
+import { getUsers } from "@/lib/api";
 import {
   KpiCard,
   StatusBadge,
@@ -10,7 +10,7 @@ import {
   LoadingRow,
 } from "@/components/pomagier/primitives";
 import { PinPad } from "@/components/pomagier/scan";
-import { Users, Shield, Key, UserX, X } from "lucide-react";
+import { Users, Shield, Key, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -34,16 +34,6 @@ async function setRole(subiektUzId: number, role: string) {
   return res.json();
 }
 
-async function setWarehouse(subiektUzId: number, warehouseId: number | null) {
-  const res = await fetch(`/api/users/${subiektUzId}/warehouse`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ warehouseId }),
-  });
-  if (!res.ok) throw new Error((await res.json()).error);
-  return res.json();
-}
-
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
 });
@@ -55,7 +45,6 @@ function AdminUsers() {
     isLoading,
     error,
   } = useQuery({ queryKey: ["users"], queryFn: getUsers, refetchInterval: 30_000 });
-  const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const [pinUser, setPinUser] = useState<{ subiektId: number; name: string } | null>(null);
 
   const setPinMut = useMutation({
@@ -77,16 +66,6 @@ function AdminUsers() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const setWarehouseMut = useMutation({
-    mutationFn: ({ id, warehouseId }: { id: number; warehouseId: number | null }) =>
-      setWarehouse(id, warehouseId),
-    onSuccess: () => {
-      toast.success("Magazyn przypisany");
-      qc.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const activeUsers = users?.filter((u) => u.active).length ?? 0;
 
   return (
@@ -94,7 +73,11 @@ function AdminUsers() {
       <div>
         <h1 className="text-2xl font-bold">Użytkownicy</h1>
         <p className="text-sm text-muted-foreground">
-          Operatorzy z Subiekt GT + PIN-y z PomagierGT
+          Operatorzy z Subiekt GT + PIN-y z PomagierGT. Przypisanie magazynu odbywa się globalnie w{" "}
+          <a href="/admin/erp" className="underline">
+            Subiekt GT → Obsługiwane magazyny
+          </a>
+          .
         </p>
       </div>
 
@@ -166,7 +149,6 @@ function AdminUsers() {
                 <th className="px-4 py-2 text-left font-medium">Imię</th>
                 <th className="px-4 py-2 text-left font-medium">Nazwisko</th>
                 <th className="px-4 py-2 text-left font-medium">Rola</th>
-                <th className="px-4 py-2 text-left font-medium">Magazyn</th>
                 <th className="px-4 py-2 text-left font-medium">Status</th>
                 <th className="px-4 py-2 text-left font-medium">PIN</th>
                 <th className="px-4 py-2 text-left font-medium w-10"></th>
@@ -178,25 +160,6 @@ function AdminUsers() {
                   <td className="px-4 py-2 font-mono text-xs">{u.subiektId}</td>
                   <td className="px-4 py-2">
                     {u.firstName || <span className="text-muted-foreground italic">—</span>}
-                  </td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={u.warehouseId ?? ""}
-                      onChange={(e) =>
-                        setWarehouseMut.mutate({
-                          id: u.subiektId,
-                          warehouseId: e.target.value ? Number(e.target.value) : null,
-                        })
-                      }
-                      className="rounded border bg-background px-2 py-1 text-xs"
-                    >
-                      <option value="">Brak przypisania</option>
-                      {warehouses.map((warehouse) => (
-                        <option key={warehouse.id} value={warehouse.id}>
-                          {warehouse.symbol}
-                        </option>
-                      ))}
-                    </select>
                   </td>
                   <td className="px-4 py-2 font-semibold">{u.lastName}</td>
                   <td className="px-4 py-2">

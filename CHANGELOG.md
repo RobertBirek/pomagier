@@ -1,13 +1,65 @@
 # CHANGELOG — PomagierGT
 
+## [Unreleased] — Sprint 4: Global warehouses (refactor)
+
+### Breaking changes
+- **Usunięto per-user warehouse assignment** (`/admin/users` — kolumna "Magazyn" + PUT endpoint). Wszyscy operatorzy mogą korzystać z dowolnego włączonego magazynu.
+- **Usunięto kolumnę `users.warehouse_id`** (migracja `0005_drop_user_warehouse.sql`).
+- **`POST /api/scan` wymaga `warehouse` w body** dla operatorów (admin może pominąć). Walidacja: warehouse musi być na liście `supported_warehouses`.
+- **Login response** nie zwraca `warehouseId` per user.
+- **`GET /api/users` response** nie zawiera pola `warehouseId`.
+
+### Nowe funkcje
+- **Nowy endpoint `GET /api/erp/supported-warehouses`** (admin) — zwraca wszystkie magazyny z Subiekta + listę włączonych + flagę `configured`.
+- **Nowy endpoint `PUT /api/erp/supported-warehouses`** (admin) — zapisuje listę włączonych magazynów w `config.supported_warehouses` (JSON array).
+- **Nowa sekcja w `/admin/erp`**: "Obsługiwane magazyny" — toggle per magazyn z Subiekta + auto-default (isMain gdy pusta).
+- **Auto-default isMain**: przy pustej liście `supported_warehouses`, automatycznie włączany jest magazyn z `mag_Glowny=1` (log warning jeśli brak).
+
+### Schemat bazy
+- `DROP INDEX idx_users_warehouse_id`
+- `ALTER TABLE users DROP COLUMN warehouse_id`
+- `config` table: nowy klucz `supported_warehouses` (JSON array warehouse IDs)
+
+### Bezpieczeństwo
+- Wszystkie endpointy `/api/wizard/*` i `/api/erp/*` są publiczne (Sprint 3 chicken-and-egg fix).
+- Magazyn jest wybierany per sesja (frontend `auth.warehouse`), nie per user — prostszy model, mniejsza powierzchnia błędu.
+- Wszystkie zapytania scan (operator) walidują warehouse w `supported_warehouses` — brak możliwości skanowania dla wyłączonego magazynu.
+
+### Testy (+11, total 143)
+- `tests/unit/routes/erp-supported-warehouses.test.ts` — nowy (6 testów)
+- `tests/unit/routes/scan.test.ts` — update (admin może bez warehouse, operator musi + walidacja)
+- `tests/unit/routes/users.test.ts` — update (brak warehouseId w response, /api/warehouses filtrowane, PUT 404)
+
+### Pliki zmienione
+| Plik | Zmiana |
+|---|---|
+| `src/api/routes/erp-supported-warehouses.ts` | nowy (GET/PUT + helper `resolveSupportedWarehouses`) |
+| `src/api/routes/users.ts` | usunięto PUT warehouse, usunięto warehouseId z GET, filtrowanie /api/warehouses |
+| `src/api/routes/scan.ts` | warehouse w body + walidacja |
+| `src/api/routes/auth.ts` | usunięto warehouseId z login response |
+| `src/api/auth-middleware.ts` | usunięto `req.user.warehouseId` |
+| `src/api/server.ts` | rejestracja nowego route'a |
+| `src/db/schema.ts` | usunięto `warehouseId` z `users` |
+| `src/db/migrations/0005_drop_user_warehouse.sql` | nowy |
+| `src/lib/api.ts` | usunięto warehouseId z typów, scanCode przyjmuje warehouse |
+| `src/lib/auth.tsx` | `AuthState.warehouse: AuthWarehouse \| null` (id+symbol) |
+| `src/routes/admin.erp.tsx` | nowa sekcja "Obsługiwane magazyny" |
+| `src/routes/admin.users.tsx` | usunięto kolumnę "Magazyn" + mutację |
+| `src/routes/mobile.login.tsx` | przekazuje `{id, symbol}` do `auth.login` |
+| `src/routes/mobile.scan.tsx` | wysyła `warehouse.id` w body |
+| `src/routes/mobile.dashboard.tsx` | wyświetla `warehouse?.symbol` |
+| `src/components/pomagier/MobileShell.tsx` | wyświetla `warehouse?.symbol` |
+
 ## [Unreleased] — Sprint 3: Login flow fix (chicken-and-egg)
 
 ### Krytyczne (PROD)
+
 - **Login chicken-and-egg**: `/api/users`, `/api/warehouses` i endpointy wizarda (`/api/wizard/clear`, `/api/wizard/import-all`, `/api/erp-config`, `/api/test-connection`) były zablokowane przez `requireAuthByDefault`. Admin nie mógł zobaczyć listy użytkowników ani ukończyć wizarda. Dodane do `PUBLIC_PATHS` w `auth-middleware.ts` — wizard jest publiczną stroną setupu, wymaga publicznych endpointów.
 - **Wizard nie pokazywał PINów**: po `import-all` API zwracało tylko `{seeded: N}`. PINy były tylko w `logger.info` (journalctl). Teraz zwracane w response → widoczne w UI (`results.users.pins`).
 - **Domyślny PIN `0000`**: wszystkim użytkownikom setup nadaje PIN `0000` (seed.ts i wizard.ts). Po pierwszym logowaniu admin powinien zmienić PIN przez `PUT /api/users/:subiektId/pin`. Lockout (5 prób / 5 min) nadal aktywny. Patrz SECURITY.md.
 
 ### Wizard `import-all` — nowy parametr `?skip=`
+
 - `?skip=locations,productLocations` — pomija import lokalizacji i mapowań produkt-lokalizacja, seeduje **tylko userów**
 - `?skip=locations` — pomija tylko lokalizacje
 - Domyślnie (bez `?skip`) — pełen import (locations + productLocations + users)
@@ -15,12 +67,14 @@
 - `requireAdmin` zdjęty z `/api/wizard/clear` i `/api/wizard/import-all` (są w PUBLIC_PATHS)
 
 ### Bezpieczeństwo
+
 - ⚠️ PIN `0000` to świadoma decyzja dla łatwego onboardingu w środowisku LAN
 - Lockout (5 prób / 5 min) ogranicza brute-force
 - ⚠️ Publiczne endpointy wizarda akceptują konfigurację z dowolnego hosta w sieci — akceptowalne dla LAN, wymaga setup-tokena dla WAN (Phase 2 hardening)
 - Plan: setup token dla wizarda (Phase 2 hardening) — patrz SECURITY.md
 
 ### Testy (+22, total 132)
+
 - `tests/unit/auth-middleware.test.ts` — nowy: PUBLIC_PATHS verification (11 public + 3 protected + 2 path matching + 1 with-user)
 - `tests/unit/routes/wizard-skip.test.ts` — nowy: skip param + default PIN 0000 (5 scenariuszy)
 

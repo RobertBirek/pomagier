@@ -160,7 +160,6 @@ export function registerAuthRoutes(app: Application): void {
           id: user.id,
           subiektUzId: user.subiektUzId,
           role: user.role,
-          warehouseId: user.warehouseId,
         },
       });
     } catch (err) {

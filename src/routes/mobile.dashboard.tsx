@@ -105,7 +105,7 @@ function Dashboard() {
         <div className="mb-4">
           <h1 className="text-lg font-bold">{company?.name || "PomagierGT"}</h1>
           <p className="text-xs text-muted-foreground">
-            {operatorName} · {warehouse}
+            {operatorName} · {warehouse?.symbol ?? "—"}
           </p>
         </div>
 

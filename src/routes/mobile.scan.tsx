@@ -5,6 +5,7 @@ import { ScanHeader } from "@/components/pomagier/ScanHeader";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useScanBasket, type BasketItem } from "@/lib/scan-basket";
 import { BasketHeader } from "@/components/pomagier/primitives";
+import { useAuth } from "@/lib/auth";
 import { Package, MapPin, Trash2, Barcode, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
 function ScanPage() {
   const nav = useNavigate();
   const { items, addItem, removeItem, clearBasket } = useScanBasket();
+  const { warehouse } = useAuth();
 
   const handleSubmit = useCallback(
     async (code: string): Promise<boolean> => {
@@ -19,7 +21,7 @@ function ScanPage() {
         const res = await fetch("/api/scan-basket", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, warehouse: warehouse?.id }),
         });
 
         if (!res.ok) {
@@ -43,7 +45,7 @@ function ScanPage() {
         return false;
       }
     },
-    [addItem],
+    [addItem, warehouse?.id],
   );
 
   const handleOpenItem = (item: BasketItem) => {
@@ -147,12 +149,13 @@ function ScanProductRow({
 }) {
   const [stocks, setStocks] = useState<ProductStockSummary | null>(null);
   const [stockLoaded, setStockLoaded] = useState(false);
+  const { warehouse } = useAuth();
 
   useEffect(() => {
     fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: item.barcode || item.code }),
+      body: JSON.stringify({ code: item.barcode || item.code, warehouse: warehouse?.id }),
     })
       .then((r) => r.json())
       .then((data) => {
@@ -171,7 +174,7 @@ function ScanProductRow({
       })
       .catch(() => {})
       .finally(() => setStockLoaded(true));
-  }, [item.code, item.barcode]);
+  }, [item.code, item.barcode, warehouse?.id]);
 
   const hasStock = stocks !== null;
   const available = stocks ? stocks.total - stocks.reserved : 0;

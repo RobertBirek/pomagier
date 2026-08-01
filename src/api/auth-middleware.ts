@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; role: string; subiektUzId: number; warehouseId: number | null };
+      user?: { id: string; role: string; subiektUzId: number };
     }
   }
 }
@@ -30,7 +30,6 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         id: user.id,
         role: user.role,
         subiektUzId: user.subiektUzId,
-        warehouseId: user.warehouseId,
       };
   } catch {
     /* no session to destroy */

@@ -112,7 +112,7 @@ export function MobileShell() {
                 )}
                 {warehouse && (
                   <StatusBadge tone="primary" icon={<Package className="h-3 w-3" />}>
-                    {warehouse}
+                    {warehouse.symbol}
                   </StatusBadge>
                 )}
                 <span
@@ -164,7 +164,7 @@ export function MobileShell() {
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-sm">{operatorName || "Operator"}</div>
-                  <div className="text-xs text-muted-foreground">{warehouse}</div>
+                  <div className="text-xs text-muted-foreground">{warehouse?.symbol ?? "—"}</div>
                 </div>
               </div>
 
@@ -191,7 +191,7 @@ export function MobileShell() {
                 <div className="flex items-center gap-2 px-1 py-1">
                   <Package className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-muted-foreground">Magazyn</span>
-                  <span className="ml-auto font-medium">{warehouse}</span>
+                  <span className="ml-auto font-medium">{warehouse?.symbol ?? "—"}</span>
                 </div>
                 <div className="flex items-center gap-2 px-1 py-1">
                   {online ? (

@@ -6,9 +6,11 @@ import { getDb, schema } from "../../db/index.js";
 import { parseLocation } from "../../lib/locations.js";
 import { logger } from "../../lib/logger.js";
 import { validate } from "../validation.js";
+import { resolveSupportedWarehouses } from "./erp-supported-warehouses.js";
 
 const ScanSchema = z.object({
   code: z.string().min(1).max(50),
+  warehouse: z.number().int().positive().optional(),
 });
 
 interface ProductsCacheRow {
@@ -139,22 +141,38 @@ async function getProductLocations(productId: number): Promise<{ code: string }[
 
 export function registerScanRoutes(app: Application): void {
   // Existing scan endpoint (full MSSQL with stocks)
+  // Warehouse is now sent in body (Sprint 4 — global warehouses).
+  // Admin can omit warehouse (no filter); operators must send a supported warehouse ID.
   app.post("/api/scan", validate(ScanSchema), async (req: Request, res: Response) => {
-    const { code } = req.body;
+    const { code, warehouse } = req.body as { code: string; warehouse?: number };
 
     try {
-      if (req.user?.role !== "admin" && !req.user?.warehouseId) {
-        res.status(403).json({
-          error: "Operator nie ma przypisanego magazynu",
+      // Admin: warehouse optional (no filter / all warehouses)
+      if (req.user?.role !== "admin" && !warehouse) {
+        res.status(400).json({
+          error: "Brak magazynu w żądaniu (wymagane dla operatora)",
           found: false,
           barcode: code,
           products: [],
         });
         return;
       }
+      // Operator: validate that warehouse is in the supported list
+      if (warehouse) {
+        const { ids: allowed } = await resolveSupportedWarehouses();
+        if (allowed.length > 0 && !allowed.includes(warehouse)) {
+          res.status(400).json({
+            error: "Wybrany magazyn nie jest obsługiwany",
+            found: false,
+            barcode: code,
+            products: [],
+          });
+          return;
+        }
+      }
       const adapter = getAdapter();
-      const result = await adapter.scan(code.trim(), req.user?.warehouseId);
-      logger.info({ code: code.trim(), found: result.found }, "Scan completed");
+      const result = await adapter.scan(code.trim(), warehouse ?? null);
+      logger.info({ code: code.trim(), warehouse, found: result.found }, "Scan completed");
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "ERP error";

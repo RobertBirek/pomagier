@@ -47,12 +47,14 @@ Placeholdery w `.env.example`:
 **Domyślny PIN `0000`**: Wszystkim użytkownikom setup nadaje PIN `0000` (seed.ts i wizard.ts). Świadoma decyzja dla szybkiego onboardingu w środowisku LAN. Po pierwszym logowaniu admin powinien zmienić PIN przez `PUT /api/users/:subiektId/pin`.
 
 **Kompromis**:
+
 - ✅ Szybki onboarding, brak chicken-and-egg
 - ✅ Lockout 5 prób / 5 min ogranicza brute-force
 - ⚠️ Publiczne endpointy wizarda akceptują konfigurację z dowolnego hosta w sieci
 - ⚠️ PIN `0000` dla 13 userów × 5 prób / 5 min = max 65 prób / 5 min na złamanie konta
 
 **Phase 2 hardening (planowane)**:
+
 - **Setup token**: wizard wymaga podania tokenu z ENV (`SETUP_TOKEN`) — generowany przy pierwszym uruchomieniu, wyświetlany w journalctl
 - **IP whitelist**: setup endpointy akceptują tylko requesty z localhost lub zdefiniowanych IP
 - **Setup lockout**: po 3 nieudanych próbach setup tokenu — cooldown 30 min
@@ -68,6 +70,15 @@ Placeholdery w `.env.example`:
 - TLS: Caddy (HTTPS) + MSSQL `encrypt: true`
 - Idempotencja: `X-Idempotency-Key` header dla assign/undo/transfer
 - Correlation ID: `withCorrelation` middleware propaguje ID do wszystkich logów
+
+### Magazyny (Sprint 4 — global warehouses)
+
+- **Brak per-user warehouse assignment**: usunięty `users.warehouse_id` + endpoint `PUT /api/users/:id/warehouse`. Prostszy model, mniejsza powierzchnia błędu.
+- **Globalna lista `config.supported_warehouses`**: admin w `/admin/erp` decyduje które magazyny są dostępne dla wszystkich operatorów.
+- **Auto-default isMain**: przy pustej liście automatycznie włączany jest magazyn z `mag_Glowny=1`. Zapobiega przypadkowemu zablokowaniu pracy.
+- **Walidacja w scan**: operator bez warehouse w body → 400; warehouse spoza listy supported → 400. Admin może pominąć warehouse (scan bez filtra).
+- **Magazyn per sesja**: frontend `auth.warehouse: {id, symbol}` — wybierany przy logowaniu, przechowywany w localStorage, wysyłany w body każdego skanu.
+- **Brak sekretów w liście**: lista warehouse IDs to tylko numery z `sl_Magazyn.mag_Id` — brak wrażliwych danych.
 
 ### Ochrona danych ERP
 
@@ -90,3 +101,4 @@ Placeholdery w `.env.example`:
 - [x] Szyfrowanie sekretów w bazie (AES-256-GCM, crypto-config.ts)
 - [x] Backup encryption (gpg AES-256, wykluczenie .env i sessions)
 - [x] SIGTERM graceful shutdown (pool.close + server.close)
+- [x] Global warehouses (Sprint 4): brak per-user assignment, lista supported, auto-default isMain

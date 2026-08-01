@@ -10,10 +10,12 @@
 | subiekt_uz_id | int UNIQUE   | klucz do `pd_Uzytkownik.uz_Id`              |
 | pin           | varchar(64)  | bcrypt hash (10 rounds)                     |
 | role          | varchar(20)  | admin / operator                            |
-| warehouse_id  | int nullable | `sl_Magazyn.mag_Id`; wymagane dla operatora |
 | active        | boolean      |                                             |
 | created_at    | timestamp    |                                             |
 | updated_at    | timestamp    |                                             |
+
+> **Sprint 4**: kolumna `warehouse_id` usunięta (migracja `0005_drop_user_warehouse.sql`).
+> Magazyn wybierany jest per sesja przez operatora z listy `config.supported_warehouses`.
 
 ### sessions
 
@@ -52,8 +54,8 @@ Trwały cache odpowiedzi dla powtarzanych mutacji.
 
 | Kolumna    | Typ            | Opis                                  |
 | ---------- | -------------- | ------------------------------------- |
-| key        | varchar(50) PK | np. `fieldmap_location`, `mssql_host` |
-| value      | text           |                                       |
+| key        | varchar(50) PK | np. `fieldmap_location`, `mssql_host`, `supported_warehouses` |
+| value      | text           | (dla `supported_warehouses`: JSON array `[1,3,4]`) |
 | updated_at | timestamp      |                                       |
 
 ### locations

@@ -2,11 +2,38 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { KpiCard, SectionTitle, LoadingRow, StatusBadge } from "@/components/pomagier/primitives";
 import { useErpConfig, AVAILABLE_FIELDS } from "@/hooks/use-erp-config";
 import { useCallback, useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ErpConnectionForm } from "@/components/admin/ErpConnectionForm";
 import { ErpTestButton } from "@/components/admin/ErpTestButton";
 import { ErpStatusBadge } from "@/components/admin/ErpStatusBadge";
 import { Clock, Package, Users, MapPin, ArrowRightLeft, Save } from "lucide-react";
+
+interface AllWarehouse {
+  id: number;
+  symbol: string;
+  name: string;
+  isMain: boolean;
+}
+
+async function fetchSupportedWarehouses() {
+  const res = await fetch("/api/erp/supported-warehouses");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<{
+    all: AllWarehouse[];
+    supportedIds: number[];
+    configured: boolean;
+  }>;
+}
+
+async function saveSupportedWarehouses(warehouseIds: number[]) {
+  const res = await fetch("/api/erp/supported-warehouses", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ warehouseIds }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || "Błąd");
+  return res.json();
+}
 
 export const Route = createFileRoute("/admin/erp")({ component: AdminErp });
 
@@ -17,6 +44,27 @@ function AdminErp() {
   const [indexStatus, setIndexStatus] = useState<{ name: string; present: boolean }[]>([]);
   const [indexBusy, setIndexBusy] = useState(false);
   const [indexMessage, setIndexMessage] = useState("");
+
+  // Supported warehouses (global toggle)
+  const { data: supportedData, isLoading: supportedLoading } = useQuery({
+    queryKey: ["erp-supported-warehouses"],
+    queryFn: fetchSupportedWarehouses,
+  });
+  const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (supportedData && Array.isArray(supportedData.supportedIds)) {
+      setSelectedWarehouseIds(supportedData.supportedIds);
+    }
+  }, [supportedData]);
+
+  const saveSupportedMut = useMutation({
+    mutationFn: saveSupportedWarehouses,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["erp-supported-warehouses"] });
+      qc.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+  });
 
   // Redirect to login on 401 (session expired) — happens across all queries in this page
   useEffect(() => {
@@ -197,6 +245,80 @@ function AdminErp() {
             {indexMessage && <span className="text-sm text-muted-foreground">{indexMessage}</span>}
           </div>
         </div>
+      </div>
+
+      {/* Obsługiwane magazyny (globalna lista, Sprint 4) */}
+      <div className="rounded-lg border bg-card p-4 max-w-2xl">
+        <SectionTitle
+          title="Obsługiwane magazyny"
+          description="Magazyny dostępne dla wszystkich operatorów. Operatorzy wybierają magazyn przy logowaniu (mobile) lub przed skanem (admin)."
+        />
+        {supportedLoading && <LoadingRow />}
+        {supportedData && (
+          <div className="mt-3 space-y-2 text-sm">
+            {!supportedData.configured && (
+              <div className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-900 text-xs">
+                ⚠️ Lista nie skonfigurowana — domyślnie włączony jest tylko magazyn główny (isMain).
+                Zaznacz dodatkowe magazyny i zapisz.
+              </div>
+            )}
+            {supportedData.all.map((w) => {
+              const checked = selectedWarehouseIds.includes(w.id);
+              return (
+                <label
+                  key={w.id}
+                  className="flex items-center justify-between rounded border px-3 py-2 cursor-pointer hover:bg-muted/30"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedWarehouseIds((prev) =>
+                            prev.includes(w.id) ? prev : [...prev, w.id],
+                          );
+                        } else {
+                          setSelectedWarehouseIds((prev) => prev.filter((id) => id !== w.id));
+                        }
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <span className="font-mono text-xs">{w.symbol}</span>
+                    <span className="text-muted-foreground">— {w.name}</span>
+                  </div>
+                  {w.isMain && <StatusBadge tone="info">Główny</StatusBadge>}
+                </label>
+              );
+            })}
+            {supportedData.all.length === 0 && (
+              <p className="text-muted-foreground">
+                Brak danych — połącz się z ERP (Status połączenia powyżej).
+              </p>
+            )}
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={() => saveSupportedMut.mutate(selectedWarehouseIds)}
+                disabled={saveSupportedMut.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {saveSupportedMut.isPending ? "Zapisuję…" : "Zapisz listę"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Wybrano: <b>{selectedWarehouseIds.length}</b> z {supportedData.all.length}
+              </span>
+              {saveSupportedMut.isSuccess && (
+                <span className="text-xs text-green-600">✓ Zapisano</span>
+              )}
+              {saveSupportedMut.error && (
+                <span className="text-xs text-red-600">
+                  Błąd: {(saveSupportedMut.error as Error).message}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <ErpConnectionForm

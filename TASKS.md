@@ -4,39 +4,65 @@
 
 # TASKS — Sprint 3: Login flow fix (2026-07-31)
 
-| Data       | Zadanie                                                                                          | Status |
-| ---------- | ------------------------------------------------------------------------------------------------ | ------ |
-| 2026-07-31 | Diagnoza: /api/users + /api/warehouses zwracają 401, wizard ma 5 endpointów z requireAdmin       | ✅     |
-| 2026-07-31 | Branch `fix/wizard-public-and-pin-default` z main                                                | ✅     |
-| 2026-07-31 | Zmiana: PUBLIC_PATHS (+6 endpointów) w `src/api/auth-middleware.ts`                              | ✅     |
-| 2026-07-31 | Refaktor: `wizard.ts` — skip param, default PIN 0000, return pins, zdejmij requireAdmin        | ✅     |
-| 2026-07-31 | Zmiana: `seed.ts` — `generatePin() { return "0000" }`                                            | ✅     |
-| 2026-07-31 | Nowy test: `tests/unit/auth-middleware.test.ts` (11 public + 3 protected + 2 path matching)     | ✅     |
-| 2026-07-31 | Nowy test: `tests/unit/routes/wizard-skip.test.ts` (5 scenariuszy skip + PIN)                    | ✅     |
-| 2026-07-31 | Weryfikacja: typecheck ✅ / lint 0/0 / test 132/132 (+22)                                        | ✅     |
-| 2026-07-31 | CHANGELOG, SECURITY (Phase 2 hardening plan), TASKS                                              | ✅     |
-| 2026-07-31 | `npm run build:api` + `sudo systemctl restart pomagier-api`                                      | ✅     |
-| 2026-07-31 | Wykonanie wizard: POST /api/wizard/import-all?skip=locations,productLocations (13 userów)         | ✅     |
-| 2026-07-31 | Weryfikacja Postgres users (SELECT 13 rows, PIN 0000 bcrypt)                                      | ✅     |
-| 2026-07-31 | Merge fast-forward do main + push origin                                                          | ✅     |
+| Data       | Zadanie                                                                                     | Status |
+| ---------- | ------------------------------------------------------------------------------------------- | ------ |
+| 2026-07-31 | Diagnoza: /api/users + /api/warehouses zwracają 401, wizard ma 5 endpointów z requireAdmin  | ✅     |
+| 2026-07-31 | Branch `fix/wizard-public-and-pin-default` z main                                           | ✅     |
+| 2026-07-31 | Zmiana: PUBLIC_PATHS (+6 endpointów) w `src/api/auth-middleware.ts`                         | ✅     |
+| 2026-07-31 | Refaktor: `wizard.ts` — skip param, default PIN 0000, return pins, zdejmij requireAdmin     | ✅     |
+| 2026-07-31 | Zmiana: `seed.ts` — `generatePin() { return "0000" }`                                       | ✅     |
+| 2026-07-31 | Nowy test: `tests/unit/auth-middleware.test.ts` (11 public + 3 protected + 2 path matching) | ✅     |
+| 2026-07-31 | Nowy test: `tests/unit/routes/wizard-skip.test.ts` (5 scenariuszy skip + PIN)               | ✅     |
+| 2026-07-31 | Weryfikacja: typecheck ✅ / lint 0/0 / test 132/132 (+22)                                   | ✅     |
+| 2026-07-31 | CHANGELOG, SECURITY (Phase 2 hardening plan), TASKS                                         | ✅     |
+| 2026-07-31 | `npm run build:api` + `sudo systemctl restart pomagier-api`                                 | ✅     |
+| 2026-07-31 | Wykonanie wizard: POST /api/wizard/import-all?skip=locations,productLocations (13 userów)   | ✅     |
+| 2026-07-31 | Weryfikacja Postgres users (SELECT 13 rows, PIN 0000 bcrypt)                                | ✅     |
+| 2026-07-31 | Merge fast-forward do main + push origin                                                    | ✅     |
 
 **Build**: ✅ | **Lint**: 0E/0W | **Tests**: 132/132 (+22 nowe) | **Branch**: `fix/wizard-public-and-pin-default` → merged to `main`
 
 ---
 
+# TASKS — Sprint 4: Global Warehouses (2026-08-01)
+
+| Data       | Zadanie                                                                                            | Status |
+| ---------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Branch `refactor/global-warehouses` z main                                                        | ✅     |
+| 2026-08-01 | Faza 1: Backup users table (13 rekordów) do `/tmp/pomagier-users-backup-*.json`                    | ✅     |
+| 2026-08-01 | Faza 2: Nowy endpoint `GET/PUT /api/erp/supported-warehouses` (admin, cache TTL 60s)              | ✅     |
+| 2026-08-01 | Faza 3: `/api/warehouses` filtrowanie wg `supported_warehouses` + auto-default isMain                | ✅     |
+| 2026-08-01 | Faza 4: Usunięcie `PUT /api/users/:subiektId/warehouse` (404)                                      | ✅     |
+| 2026-08-01 | Faza 5: `scan.ts` — warehouse w body + walidacja wg supported                                      | ✅     |
+| 2026-08-01 | Faza 6: Czyszczenie `warehouseId` z auth/users responses + `req.user.warehouseId`                  | ✅     |
+| 2026-08-01 | Faza 7: Migracja `0005_drop_user_warehouse.sql` + aktualizacja schema.ts + journal                  | ✅     |
+| 2026-08-01 | Faza 8: Frontend - nowa sekcja "Obsługiwane magazyny" w `admin.erp.tsx`                            | ✅     |
+| 2026-08-01 | Faza 9: Frontend - usunięcie kolumny "Magazyn" + mutacji z `admin.users.tsx`                        | ✅     |
+| 2026-08-01 | Faza 10: Frontend - `ScanHeader` + `useScanInput` + strony skanują - warehouse w body                | ✅     |
+| 2026-08-01 | Faza 11: Frontend - `lib/auth.tsx` — `AuthWarehouse {id, symbol}` + migracja localStorage            | ✅     |
+| 2026-08-01 | Faza 12: Testy - nowe `erp-supported-warehouses.test.ts` (6) + update `scan.test.ts` (4) + `users.test.ts` (3) | ✅ |
+| 2026-08-01 | Faza 13: Weryfikacja - typecheck ✅ / lint 0/0 / test 143/143 (+11)                                  | ✅     |
+| 2026-08-01 | Faza 14: Dokumentacja - CHANGELOG, DB_SCHEMA, API, SECURITY                                        | ✅     |
+| 2026-08-01 | Faza 15: build:api + restart + smoke test (login, /warehouses, /erp/supported, scan) + commit + merge + push | ✅ |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 143/143 (+11 nowe) | **Branch**: `refactor/global-warehouses` → merged to `main`
+
+---
+
 # TASKS — PomagierGT v1.6.0
+
 | ---------- | --------------------------------------------------------------------------------------------------- | ----------- |
-| 2026-07-30 | Kartoteka produktu — nowy endpoint code/:code + taby Stany/Lokalizacje/Ruchy + tools + paski stanów | ✅          |
-| 2026-07-30 | Kartoteka lokalizacji — nowy endpoint + taby Produkty/Ruchy + tools modal                           | ✅          |
-| 2026-07-30 | Koszyk skanów — przebudowa /mobile/scan z pojedynczego wyniku na listę                              | ✅          |
-| 2026-07-30 | Tabela products_cache w Postgres + migracja                                                         | ✅          |
-| 2026-07-30 | Endpoint POST /api/scan-basket — Postgres-first, MSSQL fallback                                     | ✅          |
-| 2026-07-30 | ScanBasketContext — stan koszyka w layoucie /mobile                                                 | ✅          |
-| 2026-07-30 | Back-buttony w kartotekach product.$code i location.$code                                           | ✅          |
-| 2026-07-30 | Ujednolicenie headera koszyka (BasketHeader component)                                              | ✅          |
-| 2026-07-30 | Widoczny przycisk usuwania w wierszach koszyka                                                      | ✅          |
-| 2026-07-30 | Testy: +15 (endpointy + context), 30 plików                                                         | ✅          |
-| 2026-07-30 | Build: ✅                                                                                           | Lint: 0E/0W | Tests: 101/102 (1 pre-existing) | ✅  |
+| 2026-07-30 | Kartoteka produktu — nowy endpoint code/:code + taby Stany/Lokalizacje/Ruchy + tools + paski stanów | ✅ |
+| 2026-07-30 | Kartoteka lokalizacji — nowy endpoint + taby Produkty/Ruchy + tools modal | ✅ |
+| 2026-07-30 | Koszyk skanów — przebudowa /mobile/scan z pojedynczego wyniku na listę | ✅ |
+| 2026-07-30 | Tabela products_cache w Postgres + migracja | ✅ |
+| 2026-07-30 | Endpoint POST /api/scan-basket — Postgres-first, MSSQL fallback | ✅ |
+| 2026-07-30 | ScanBasketContext — stan koszyka w layoucie /mobile | ✅ |
+| 2026-07-30 | Back-buttony w kartotekach product.$code i location.$code | ✅ |
+| 2026-07-30 | Ujednolicenie headera koszyka (BasketHeader component) | ✅ |
+| 2026-07-30 | Widoczny przycisk usuwania w wierszach koszyka | ✅ |
+| 2026-07-30 | Testy: +15 (endpointy + context), 30 plików | ✅ |
+| 2026-07-30 | Build: ✅ | Lint: 0E/0W | Tests: 101/102 (1 pre-existing) | ✅ |
 
 ---
 

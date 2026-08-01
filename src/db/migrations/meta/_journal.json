@@ -15,6 +15,13 @@
       "when": 1785395381461,
       "tag": "0001_flawless_ma_gnuci",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785645200000,
+      "tag": "0005_drop_user_warehouse",
+      "breakpoints": true
     }
   ]
 }

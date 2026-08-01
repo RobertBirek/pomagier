@@ -2,11 +2,11 @@ import type { ScanResult } from "../erp/types.js";
 
 const BASE = "/api";
 
-export async function scanCode(code: string): Promise<ScanResult> {
+export async function scanCode(code: string, warehouse: number): Promise<ScanResult> {
   const res = await fetch(`${BASE}/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, warehouse }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -42,7 +42,6 @@ export async function getUsers() {
       active: boolean;
       hasPin: boolean;
       role: string;
-      warehouseId: number | null;
     }[]
   >;
 }
@@ -64,7 +63,7 @@ export async function login(subiektUzId: number, pin: string) {
     throw new Error(err.error || "Błąd logowania");
   }
   return res.json() as Promise<{
-    user: { id: string; subiektUzId: number; role: string; warehouseId: number | null };
+    user: { id: string; subiektUzId: number; role: string };
   }>;
 }
 
