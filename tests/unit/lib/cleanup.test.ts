@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => {
-  const deleteFn = vi.fn();
+  const txDelete = vi.fn();
+  const txWhere = vi.fn();
   return {
-    delete: deleteFn,
-    where: vi.fn(),
+    transaction: vi.fn(),
+    txDelete,
+    txWhere,
   };
 });
 
 vi.mock("../../../src/db/index.js", () => ({
   getDb: () => ({
-    delete: dbMocks.delete,
+    transaction: dbMocks.transaction,
   }),
   schema: {
     auditLog: { createdAt: "created_at" },
@@ -26,32 +28,35 @@ vi.mock("drizzle-orm", () => ({
   lt: vi.fn((col: unknown, val: unknown) => ({ op: "lt", col, val })),
 }));
 
+function setupTxMocks() {
+  dbMocks.transaction.mockReset();
+  dbMocks.txDelete.mockReset();
+  dbMocks.txWhere.mockReset();
+  dbMocks.transaction.mockImplementation(async (cb: (tx: { delete: typeof dbMocks.txDelete }) => unknown) => {
+    return cb({ delete: dbMocks.txDelete });
+  });
+  dbMocks.txDelete.mockReturnValue({ where: dbMocks.txWhere });
+}
+
 describe("runCleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbMocks.delete.mockReset();
-    dbMocks.where.mockReset();
+    setupTxMocks();
   });
 
   it("deletes rows older than 30 days from both tables", async () => {
-    dbMocks.delete
-      .mockReturnValueOnce({ where: dbMocks.where })
-      .mockReturnValueOnce({ where: dbMocks.where });
-    dbMocks.where.mockResolvedValueOnce({ count: 5 }).mockResolvedValueOnce({ count: 5 });
+    dbMocks.txWhere.mockResolvedValueOnce({ count: 5 }).mockResolvedValueOnce({ count: 5 });
 
     const { runCleanup } = await import("../../../src/lib/cleanup.js");
     const result = await runCleanup();
 
-    expect(dbMocks.delete).toHaveBeenCalledTimes(2);
+    expect(dbMocks.txDelete).toHaveBeenCalledTimes(2);
     expect(result.auditDeleted).toBe(5);
     expect(result.movementsDeleted).toBe(5);
   });
 
   it("returns 0 when no rows match", async () => {
-    dbMocks.delete
-      .mockReturnValueOnce({ where: dbMocks.where })
-      .mockReturnValueOnce({ where: dbMocks.where });
-    dbMocks.where.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 0 });
+    dbMocks.txWhere.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 0 });
 
     const { runCleanup } = await import("../../../src/lib/cleanup.js");
     const result = await runCleanup();
@@ -61,16 +66,26 @@ describe("runCleanup", () => {
   });
 
   it("handles null count (defensive)", async () => {
-    dbMocks.delete
-      .mockReturnValueOnce({ where: dbMocks.where })
-      .mockReturnValueOnce({ where: dbMocks.where });
-    dbMocks.where.mockResolvedValueOnce({ count: null }).mockResolvedValueOnce({ count: null });
+    dbMocks.txWhere.mockResolvedValueOnce({ count: null }).mockResolvedValueOnce({ count: null });
 
     const { runCleanup } = await import("../../../src/lib/cleanup.js");
     const result = await runCleanup();
 
     expect(result.auditDeleted).toBe(0);
     expect(result.movementsDeleted).toBe(0);
+  });
+
+  it("wraps both deletes in a single transaction using the same tx (atomicity)", async () => {
+    dbMocks.txWhere.mockResolvedValueOnce({ count: 2 }).mockResolvedValueOnce({ count: 3 });
+
+    const { runCleanup } = await import("../../../src/lib/cleanup.js");
+    await runCleanup();
+
+    expect(dbMocks.transaction).toHaveBeenCalledTimes(1);
+    expect(dbMocks.txDelete).toHaveBeenCalledTimes(2);
+    expect(dbMocks.transaction.mock.invocationCallOrder[0]).toBeLessThan(
+      dbMocks.txDelete.mock.invocationCallOrder[0] ?? Infinity,
+    );
   });
 });
 

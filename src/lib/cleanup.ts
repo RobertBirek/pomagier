@@ -8,14 +8,20 @@ export async function runCleanup(): Promise<{ auditDeleted: number; movementsDel
   const db = getDb();
   const cutoff = new Date(Date.now() - CLEANUP_DAYS * 24 * 60 * 60 * 1000);
 
-  const auditResult = await db.delete(schema.auditLog).where(lt(schema.auditLog.createdAt, cutoff));
+  const { auditDeleted, movementsDeleted } = await db.transaction(async (tx) => {
+    const auditResult = await tx
+      .delete(schema.auditLog)
+      .where(lt(schema.auditLog.createdAt, cutoff));
 
-  const movementsResult = await db
-    .delete(schema.productMovements)
-    .where(lt(schema.productMovements.createdAt, cutoff));
+    const movementsResult = await tx
+      .delete(schema.productMovements)
+      .where(lt(schema.productMovements.createdAt, cutoff));
 
-  const auditDeleted = (auditResult as unknown as { count?: number | null }).count ?? 0;
-  const movementsDeleted = (movementsResult as unknown as { count?: number | null }).count ?? 0;
+    return {
+      auditDeleted: (auditResult as unknown as { count?: number | null }).count ?? 0,
+      movementsDeleted: (movementsResult as unknown as { count?: number | null }).count ?? 0,
+    };
+  });
 
   logger.info({ auditDeleted, movementsDeleted, cutoffDays: CLEANUP_DAYS }, "Cleanup completed");
 
