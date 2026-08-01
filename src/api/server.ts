@@ -22,9 +22,11 @@ import { registerErpSupportedWarehousesRoutes } from "./routes/erp-supported-war
 import { registerFieldMappingsRoutes } from "./routes/field-mappings.js";
 import { registerInventoryRoutes } from "./routes/inventory.js";
 import { registerActivityRoutes } from "./routes/activity.js";
+import { registerLogsRoutes } from "./routes/logs.js";
 import { registerTerminalsRoutes } from "./routes/terminals.js";
 import { registerCaRoutes } from "./routes/ca.js";
 import { registerWizardRoutes } from "./routes/wizard.js";
+import { startCleanupInterval, runCleanup } from "../lib/cleanup.js";
 import { errorHandler } from "./error-handler.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
@@ -110,6 +112,7 @@ registerInventoryRoutes(app);
 
 // --- Activity + Logs routes ---
 registerActivityRoutes(app);
+registerLogsRoutes(app);
 
 // --- Terminals routes ---
 registerTerminalsRoutes(app);
@@ -165,7 +168,10 @@ if (process.env.AUTO_MIGRATE === "true") {
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 const server = app.listen(port, () => {
   logger.info({ port }, "API server started");
+  startCleanupInterval();
+  logger.info("Cleanup interval started (30 days, runs daily)");
 });
+runCleanup().catch((err) => logger.error({ err }, "Initial cleanup failed"));
 
 // Graceful shutdown: close MSSQL pool and HTTP server
 async function shutdown(signal: string) {

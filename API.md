@@ -40,7 +40,10 @@
 | GET    | `/api/inventory/expected`          | inventory.ts                   | Oczekiwane stany                                  |
 | POST   | `/api/inventory/report`            | inventory.ts                   | Raport inwentaryzacji                             |
 | GET    | `/api/activity`              | activity.ts       | Ostatnie ruchy                        |
-| GET    | `/api/logs`                  | activity.ts       | Logi audytu                           |
+| GET    | `/api/logs`                  | logs.ts           | Logi audytu (filtry, paginacja)       |
+| GET    | `/api/logs/:id`              | logs.ts           | Szczegóły wpisu + related             |
+| GET    | `/api/logs/export.csv`       | logs.ts           | Eksport CSV                           |
+| GET    | `/api/logs/export.json`      | logs.ts           | Eksport JSON                          |
 | GET    | `/api/terminals`             | terminals.ts      | Aktywne sesje                         |
 | GET    | `/api/ca`                    | ca.ts             | Certyfikat CA                         |
 | GET    | `/ca`                        | ca.ts             | Strona pobierania certyfikatu         |

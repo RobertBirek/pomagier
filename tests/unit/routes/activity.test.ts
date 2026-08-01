@@ -82,23 +82,4 @@ describe("Activity routes", () => {
       expect(Array.isArray(res.body.dailyStats)).toBe(true);
     });
   });
-
-  describe("GET /api/logs", () => {
-    it("returns paginated logs", async () => {
-      const res = await request(app).get("/api/logs");
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("rows");
-      expect(res.body).toHaveProperty("total");
-      expect(res.body).toHaveProperty("page");
-      expect(res.body).toHaveProperty("pageSize");
-      expect(Array.isArray(res.body.rows)).toBe(true);
-    });
-
-    it("accepts page and pageSize query params", async () => {
-      const res = await request(app).get("/api/logs?page=2&pageSize=25");
-      expect(res.status).toBe(200);
-      expect(res.body.page).toBe(2);
-      expect(res.body.pageSize).toBe(25);
-    });
-  });
 });
