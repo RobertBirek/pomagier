@@ -104,4 +104,44 @@ describe("checkIdempotency — idempotency.reused event (Sprint 8 T3)", () => {
     expect(result).toBeNull();
     expect(logEventMock).not.toHaveBeenCalled();
   });
+
+  it("threads actorSubiektUzId into logEvent when caller provides it (Sprint 10 T1)", async () => {
+    const future = new Date(Date.now() + 60_000);
+    dbMocks.whereForSelect.mockResolvedValueOnce([
+      {
+        key: "KEY-WITH-ACTOR",
+        response: JSON.stringify({ ok: true }),
+        statusCode: 200,
+        expiresAt: future,
+      },
+    ]);
+
+    const { checkIdempotency } = await import("../../../src/api/idempotency.js");
+    const result = await checkIdempotency("KEY-WITH-ACTOR", 5);
+
+    expect(result).toEqual({ result: { ok: true }, statusCode: 200 });
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.actorSubiektUzId).toBe(5);
+  });
+
+  it("leaves actorSubiektUzId undefined when caller omits it (backward compat, Sprint 10 T1)", async () => {
+    const future = new Date(Date.now() + 60_000);
+    dbMocks.whereForSelect.mockResolvedValueOnce([
+      {
+        key: "KEY-NO-ACTOR",
+        response: JSON.stringify({ ok: true }),
+        statusCode: 200,
+        expiresAt: future,
+      },
+    ]);
+
+    const { checkIdempotency } = await import("../../../src/api/idempotency.js");
+    const result = await checkIdempotency("KEY-NO-ACTOR");
+
+    expect(result).toEqual({ result: { ok: true }, statusCode: 200 });
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.actorSubiektUzId).toBeUndefined();
+  });
 });

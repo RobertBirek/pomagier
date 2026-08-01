@@ -6,6 +6,7 @@ const IDEMPOTENCY_TTL = 5 * 60 * 1000;
 
 export async function checkIdempotency(
   key: string,
+  actorSubiektUzId?: number,
 ): Promise<{ result: unknown; statusCode: number } | null> {
   const db = getDb();
   const now = new Date();
@@ -21,6 +22,7 @@ export async function checkIdempotency(
       category: "queue",
       action: "idempotency.reused",
       method: "web",
+      actorSubiektUzId,
       target: { type: "idempotency", id: key },
       success: true,
       details: { reusedForResponse: result.result },
