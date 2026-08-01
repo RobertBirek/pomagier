@@ -40,6 +40,7 @@ export async function addScanToQueue(
   code: string,
   location?: string,
   warehouse?: number,
+  actorSubiektUzId?: number,
 ): Promise<void> {
   try {
     const db = await openDB();
@@ -58,6 +59,7 @@ export async function addScanToQueue(
       category: "queue",
       action: "queue.added",
       method: "mobile",
+      actorSubiektUzId,
       target: { type: "scan", id: code },
       details: { location, warehouse },
       success: true,
@@ -119,7 +121,10 @@ export async function removeSingleScan(id: number): Promise<void> {
   }
 }
 
-export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
+export async function replayQueue(
+  actorSubiektUzId?: number,
+  signal?: AbortSignal,
+): Promise<ReplayResult> {
   const scans = await getPendingScans();
   if (scans.length === 0) return { ok: 0, failed: 0, items: [] };
 
@@ -151,6 +156,7 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
           category: "queue",
           action: "queue.replayed_ok",
           method: "mobile",
+          actorSubiektUzId,
           target: { type: "scan", id: scan.code },
           success: true,
           durationMs: Date.now() - startedAt,
@@ -169,6 +175,7 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
             category: "queue",
             action: "queue.conflict",
             method: "mobile",
+            actorSubiektUzId,
             target: { type: "scan", id: scan.code },
             success: false,
             errorMessage: message,
@@ -180,6 +187,7 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
             category: "queue",
             action: "queue.replayed_failed",
             method: "mobile",
+            actorSubiektUzId,
             target: { type: "scan", id: scan.code },
             success: false,
             errorMessage: message,
@@ -201,6 +209,7 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
         category: "queue",
         action: "queue.replayed_failed",
         method: "mobile",
+        actorSubiektUzId,
         target: { type: "scan", id: scan.code },
         success: false,
         errorMessage: message,

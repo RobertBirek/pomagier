@@ -267,3 +267,63 @@ describe("replayQueue — queue.conflict on 409 (Sprint 9 T1)", () => {
     expect(event.action).not.toBe("queue.conflict");
   });
 });
+
+describe("actorSubiektUzId threading in queue events (Sprint 9 T2)", () => {
+  it("addScanToQueue passes actorSubiektUzId to queue.added", async () => {
+    const { addScanToQueue } = await import("../../../src/lib/offline-queue.js");
+    await addScanToQueue("ACTOR5", undefined, undefined, 5);
+
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.action).toBe("queue.added");
+    expect(event.actorSubiektUzId).toBe(5);
+  });
+
+  it("addScanToQueue omits actorSubiektUzId when not provided", async () => {
+    const { addScanToQueue } = await import("../../../src/lib/offline-queue.js");
+    await addScanToQueue("ACTOR_NONE");
+
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.action).toBe("queue.added");
+    expect(event.actorSubiektUzId).toBeUndefined();
+  });
+
+  it("replayQueue passes actorSubiektUzId to queue.replayed_ok", async () => {
+    const { addScanToQueue, replayQueue } = await import("../../../src/lib/offline-queue.js");
+    await addScanToQueue("REPLAY7");
+    logEventMock.mockClear();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    });
+
+    await replayQueue(7);
+
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.action).toBe("queue.replayed_ok");
+    expect(event.actorSubiektUzId).toBe(7);
+  });
+
+  it("replayQueue passes actorSubiektUzId to queue.conflict on 409", async () => {
+    const { addScanToQueue, replayQueue } = await import("../../../src/lib/offline-queue.js");
+    await addScanToQueue("CONFLICT7", "A1-B2");
+    logEventMock.mockClear();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Location already exists" }),
+    });
+
+    await replayQueue(7);
+
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.action).toBe("queue.conflict");
+    expect(event.actorSubiektUzId).toBe(7);
+  });
+});
