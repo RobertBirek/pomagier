@@ -2,10 +2,11 @@ import type { Application, Request, Response } from "express";
 import { getDb, schema } from "../../db/index.js";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 
 export function registerActivityRoutes(app: Application): void {
-  app.get("/api/activity", requireAdmin, async (_req: Request, res: Response) => {
+  app.get("/api/activity", requireAdmin, async (req: Request, res: Response) => {
     try {
       const db = getDb();
       const now = new Date();
@@ -36,8 +37,25 @@ export function registerActivityRoutes(app: Application): void {
       }
 
       res.json({ movements, scans: scans.slice(0, 10), dailyStats });
+      await logEvent({
+        category: "admin",
+        action: "activity.viewed",
+        method: "web",
+        actorUserId: req.user?.id,
+        target: { type: "activity", id: "dashboard" },
+        success: true,
+      });
     } catch (err) {
       logger.error({ err }, "Activity query failed");
+      await logEvent({
+        category: "admin",
+        action: "activity.viewed",
+        method: "web",
+        actorUserId: req.user?.id,
+        target: { type: "activity", id: "dashboard" },
+        success: false,
+        errorMessage: err instanceof Error ? err.message : String(err),
+      });
       res.json({ movements: [], scans: [], dailyStats: [] });
     }
   });
