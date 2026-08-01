@@ -52,6 +52,11 @@ export const auditLog = pgTable("audit_log", {
   action: varchar("action", { length: 50 }).notNull(),
   details: text("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  category: varchar("category", { length: 20 }),
+  method: varchar("method", { length: 20 }),
+  actorSubiektUzId: integer("actor_subiekt_uz_id"),
+  targetType: varchar("target_type", { length: 50 }),
+  targetId: varchar("target_id", { length: 100 }),
 });
 
 export const config = pgTable("config", {
@@ -102,6 +107,9 @@ export const productMovements = pgTable("product_movements", {
   operator: varchar("operator", { length: 100 }),
   correlationId: varchar("correlation_id", { length: 36 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  method: varchar("method", { length: 20 }),
+  actorSubiektUzId: integer("actor_subiekt_uz_id"),
+  correlationIdIdx: varchar("correlation_id_idx", { length: 36 }),
 });
 
 /** Szybki cache podstawowych danych produktów z Subiekta GT do użycia w koszyku skanów.
