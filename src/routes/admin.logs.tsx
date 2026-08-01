@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SectionTitle, LoadingRow, EmptyState } from "@/components/pomagier/primitives";
 import { ScrollText, Search, X, Download, Calendar } from "lucide-react";
@@ -50,8 +50,25 @@ function AdminLogs() {
     from: string;
     to: string;
     q: string;
-  }>({ category: [], method: [], user: "", from: "", to: "", q: "" });
+    correlation: string;
+  }>({
+    category: [],
+    method: [],
+    user: "",
+    from: "",
+    to: "",
+    q: "",
+    correlation: "",
+  });
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
+
+  const search = Route.useSearch() as { correlation?: string };
+  useEffect(() => {
+    const c = search.correlation;
+    if (typeof c === "string" && c.length > 0) {
+      setFilters((f) => (f.correlation === c ? f : { ...f, correlation: c, q: "" }));
+    }
+  }, [search.correlation]);
 
   const params = new URLSearchParams();
   if (filters.category.length > 0) params.set("category", filters.category.join(","));
@@ -60,6 +77,7 @@ function AdminLogs() {
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.q) params.set("q", filters.q);
+  if (filters.correlation) params.set("correlation", filters.correlation);
   params.set("page", String(page));
 
   const { data, isLoading } = useQuery({
@@ -179,6 +197,25 @@ function AdminLogs() {
               </option>
             ))}
           </select>
+          {filters.correlation && (
+            <span
+              data-testid="correlation-chip"
+              className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"
+            >
+              Correlation: {filters.correlation}
+              <button
+                type="button"
+                aria-label="Clear correlation filter"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, correlation: "" }));
+                  setPage(1);
+                }}
+                className="rounded-full p-0.5 hover:bg-primary-foreground/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
         </div>
 
         {/* KPI */}
