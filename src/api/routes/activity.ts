@@ -37,6 +37,7 @@ export function registerActivityRoutes(app: Application): void {
       }
 
       res.json({ movements, scans: scans.slice(0, 10), dailyStats });
+      // logEvent swallows errors internally (best-effort), so await is not strictly required
       await logEvent({
         category: "admin",
         action: "activity.viewed",
@@ -47,6 +48,7 @@ export function registerActivityRoutes(app: Application): void {
       });
     } catch (err) {
       logger.error({ err }, "Activity query failed");
+      // logEvent swallows errors internally (best-effort), so await is not strictly required
       await logEvent({
         category: "admin",
         action: "activity.viewed",

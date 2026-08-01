@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { SectionTitle, LoadingRow, EmptyState } from "@/components/pomagier/primitives";
+import { LoadingRow, EmptyState } from "@/components/pomagier/primitives";
 import { ScrollText, Search, X, Download, Calendar } from "lucide-react";
 import { getWarehouses } from "@/lib/api";
 
