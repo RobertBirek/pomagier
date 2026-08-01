@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { maskSensitive } from "../../../src/lib/app-logger.js";
+import { logger as pinoLogger } from "../../../src/lib/logger.js";
+
+const dbMocks = vi.hoisted(() => ({
+  values: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock("../../../src/db/index.js", () => ({
   getDb: () => ({
-    insert: () => ({
-      values: () => Promise.resolve(),
-    }),
+    insert: () => ({ values: dbMocks.values }),
   }),
   schema: {
     auditLog: { _name: "audit_log" },
@@ -52,6 +55,8 @@ describe("maskSensitive", () => {
 describe("logEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMocks.values.mockReset();
+    dbMocks.values.mockImplementation(() => Promise.resolve());
   });
 
   it("never throws even if DB fails", async () => {
@@ -59,5 +64,14 @@ describe("logEvent", () => {
     await expect(
       logEvent({ category: "auth", action: "test.event", details: { user: "x" } }),
     ).resolves.toBeUndefined();
+  });
+
+  it("does not throw and logs error when DB insert rejects", async () => {
+    dbMocks.values.mockRejectedValueOnce(new Error("DB unavailable"));
+    const { logEvent } = await import("../../../src/lib/app-logger.js");
+    await expect(
+      logEvent({ category: "auth", action: "test.db-failure" }),
+    ).resolves.toBeUndefined();
+    expect(pinoLogger.error).toHaveBeenCalledTimes(1);
   });
 });

@@ -38,18 +38,23 @@ export function maskSensitive<T extends Record<string, unknown>>(obj: T): Record
 
 export async function logEvent(event: LogEvent): Promise<void> {
   const correlationId = event.correlationId ?? getCorrelationId();
+  const maskedDetails = event.details ? maskSensitive(event.details) : undefined;
   pinoLogger.info(
-    { event: { ...event, correlationId }, category: event.category, action: event.action },
+    {
+      event: { ...event, details: maskedDetails, correlationId },
+      category: event.category,
+      action: event.action,
+    },
     `[${event.category}] ${event.action}`,
   );
   try {
     const db = getDb();
-    const maskedDetails = event.details ? JSON.stringify(maskSensitive(event.details)) : null;
+    const detailsJson = maskedDetails ? JSON.stringify(maskedDetails) : null;
     await db.insert(schema.auditLog).values({
       correlationId,
       userId: event.actorUserId ?? null,
       action: event.action,
-      details: maskedDetails,
+      details: detailsJson,
       category: event.category,
       method: event.method ?? null,
       actorSubiektUzId: event.actorSubiektUzId ?? null,
