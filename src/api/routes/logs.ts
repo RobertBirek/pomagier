@@ -15,6 +15,7 @@ const QuerySchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   q: z.string().optional(),
+  correlation: z.string().optional(),
   page: z.string().optional().default("1"),
   pageSize: z.string().optional().default("50"),
 });
@@ -68,6 +69,7 @@ function buildConditions(q: LogQuery) {
       ),
     );
   }
+  if (q.correlation) conds.push(eq(schema.auditLog.correlationId, q.correlation));
   return conds.length > 0 ? and(...conds) : undefined;
 }
 

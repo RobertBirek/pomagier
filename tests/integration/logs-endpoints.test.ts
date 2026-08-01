@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import express from "express";
 import request from "supertest";
+import { eq } from "drizzle-orm";
 import { registerLogsRoutes } from "../../../src/api/routes/logs.js";
 import { errorHandler } from "../../../src/api/error-handler.js";
 
@@ -285,6 +286,20 @@ describe("Logs endpoints", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.rows).toBeDefined();
+    });
+
+    it("filters by correlation id", async () => {
+      setupListMocks(3);
+
+      const res = await request(app).get("/api/logs?correlation=abc-123");
+
+      expect(res.status).toBe(200);
+      expect(res.body.rows).toBeDefined();
+      const eqMock = vi.mocked(eq);
+      const correlationCall = eqMock.mock.calls.find(
+        (call) => (call[0] as unknown) === "correlation_id" && call[1] === "abc-123",
+      );
+      expect(correlationCall).toBeDefined();
     });
 
     it("computes stats byCategory and byMethod from rows", async () => {
