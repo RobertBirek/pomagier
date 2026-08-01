@@ -2,6 +2,7 @@ import type express from "express";
 import { getDb, schema } from "../../db/index.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 
 interface ConfigEntry {
   key: string;
@@ -83,14 +84,23 @@ export function registerBackupRoutes(app: express.Express) {
   });
 
   // Run backup now
-  app.post("/api/backup/run", requireAdmin, async (_req, res) => {
+  app.post("/api/backup/run", requireAdmin, async (req, res) => {
     try {
       const { execSync } = await import("node:child_process");
       const output = execSync("bash /pomagier/scripts/backup.sh 2>&1", {
         timeout: 120000,
       }).toString();
       const match = output.match(/pomagier_backup_\d{4}-\d{2}-\d{2}_\d{4}\.tar\.gz(?:\.gpg)?/);
-      res.json({ ok: true, filename: match?.[0] || "unknown" });
+      const filename = match?.[0] || "unknown";
+      await logEvent({
+        category: "admin",
+        action: "backup.created",
+        method: "web",
+        actorUserId: req.user?.id,
+        target: { type: "backup", id: filename },
+        success: true,
+      });
+      res.json({ ok: true, filename });
     } catch (err) {
       const e = err as { message?: string; stderr?: { toString?: () => string } };
       res.status(500).json({ error: e.message || e.stderr?.toString?.() });
@@ -176,6 +186,15 @@ export function registerBackupRoutes(app: express.Express) {
       const localPath = `/backups/local/${name}`;
       const { unlinkSync, existsSync } = await import("node:fs");
       if (existsSync(localPath)) unlinkSync(localPath);
+      await logEvent({
+        category: "admin",
+        action: "backup.deleted",
+        method: "web",
+        actorUserId: req.user?.id,
+        target: { type: "backup", id: name },
+        success: true,
+        details: { source },
+      });
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
@@ -271,6 +290,14 @@ export function registerBackupRoutes(app: express.Express) {
       rmSync(restoreDir, { recursive: true, force: true });
 
       logger.warn({ filename }, "Database restored from backup");
+      await logEvent({
+        category: "admin",
+        action: "backup.restored",
+        method: "web",
+        actorUserId: req.user?.id,
+        target: { type: "backup", id: filename },
+        success: true,
+      });
       res.json({
         ok: true,
         message: "Baza przywrócona. Zrestartuj API aby załadować nową konfigurację.",
