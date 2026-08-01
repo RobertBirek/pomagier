@@ -27,6 +27,7 @@ import { registerTerminalsRoutes } from "./routes/terminals.js";
 import { registerCaRoutes } from "./routes/ca.js";
 import { registerWizardRoutes } from "./routes/wizard.js";
 import { startCleanupInterval, runCleanup } from "../lib/cleanup.js";
+import { startSystemMonitor } from "../lib/system-monitor.js";
 import { errorHandler } from "./error-handler.js";
 import { logEvent } from "../lib/app-logger.js";
 
@@ -171,6 +172,8 @@ const server = app.listen(port, async () => {
   logger.info({ port }, "API server started");
   startCleanupInterval();
   logger.info("Cleanup interval started (30 days, runs daily)");
+  startSystemMonitor();
+  logger.info("System monitor started (every 5 min)");
   await logEvent({
     category: "system",
     action: "startup",

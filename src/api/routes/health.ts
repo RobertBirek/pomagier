@@ -1,6 +1,7 @@
 import type { Application, Request, Response } from "express";
 import { getAdapter } from "../adapter-provider.js";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import type { CompanyRow } from "../types.js";
 
 export function registerHealthRoutes(app: Application): void {
@@ -10,7 +11,16 @@ export function registerHealthRoutes(app: Application): void {
       const erpHealth = await adapter.healthCheck();
       res.json({ status: "ok", timestamp: new Date().toISOString(), erp: erpHealth });
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown";
       logger.error({ err }, "Health check failed");
+      await logEvent({
+        category: "system",
+        action: "health.fail",
+        method: "system",
+        target: { type: "health", id: "api" },
+        success: false,
+        errorMessage: message,
+      });
       res.status(503).json({ status: "error", timestamp: new Date().toISOString() });
     }
   });
