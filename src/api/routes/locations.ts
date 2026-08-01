@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { getDb, schema } from "../../db/index.js";
 import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency, storeIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
@@ -616,6 +617,18 @@ export function registerLocationsRoutes(app: express.Express) {
           correlationId: crypto.randomUUID(),
         });
       }
+      const rawMethod = (req.body.method as string) ?? "mobile";
+      const method = rawMethod as "web" | "mobile" | "system" | "verification";
+      await logEvent({
+        category: "mobile",
+        action: "location.assigned",
+        method,
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        target: { type: "location", id: parsed.raw },
+        success: true,
+        details: { codes, count: codes.length, assigned: grouped.size },
+      });
       res.json({
         ok: true,
         assigned: grouped.size,
@@ -1119,6 +1132,23 @@ export function registerLocationsRoutes(app: express.Express) {
       }
 
       logger.info({ from: fromParsed.raw, to: toParsed.raw, moved }, "Transfer completed");
+      const rawMethod = (req.body.method as string) ?? "mobile";
+      const method = rawMethod as "web" | "mobile" | "system" | "verification";
+      await logEvent({
+        category: "mobile",
+        action: "location.transferred",
+        method,
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        target: { type: "location", id: toParsed.raw },
+        success: true,
+        details: {
+          fromLocation: fromParsed.raw,
+          toLocation: toParsed.raw,
+          moved,
+          codeCount: codes.length,
+        },
+      });
       res.json({ ok: true, moved, from: fromParsed.raw, to: toParsed.raw });
       if (idemKey)
         await storeIdempotency(idemKey, {
@@ -1821,6 +1851,18 @@ export function registerLocationsRoutes(app: express.Express) {
         }
       }
       logger.info({ location: parsed.raw, reset }, "Location reset");
+      const rawMethod = (req.body.method as string) ?? "mobile";
+      const method = rawMethod as "web" | "mobile" | "system" | "verification";
+      await logEvent({
+        category: "mobile",
+        action: "location.reset",
+        method,
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        target: { type: "location", id: parsed.raw },
+        success: true,
+        details: { codes, count: codes.length, reset },
+      });
       res.json({ ok: true, reset, location: parsed.raw });
     } catch (err) {
       logger.error({ err }, "Reset failed");
