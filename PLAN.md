@@ -1,8 +1,8 @@
 # Plan — PomagierGT
 
-## Stan: v1.6.1 Production
+## Stan: v1.6.3 Production (2026-08-01)
 
-MVP (v1.0.0) osiągnięty 2026-07-26. Refaktoryzacja API/frontendu oraz security hardening v1.6.1 zakończone. Projekt gotowy na rozwój kolejnych modułów magazynowych.
+MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.6.3 (2026-08-01) zamyka Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout on 401, warehouse-in-basket fix. 156 testów pass / 6 skip. Projekt gotowy na rozwój kolejnych modułów magazynowych (inwentaryzacja, kompletacja, przyjęcie dostaw).
 
 ## 1. Podsumowanie projektu
 
@@ -97,12 +97,12 @@ Rozwój kolejnych modułów magazynowych: inwentaryzacja, kompletacja, przyjęci
 
 ## 10. Granice odpowiedzialności
 
-| Komponent | Odpowiada za | NIE odpowiada za |
-|---|---|---|
-| PWA / SPA | UI, skanowanie (ScanHeader), kolejka offline, Service Worker | Bezpośrednie zapytania do MSSQL |
-| Express API | Auth (JWT, bcrypt), RBAC (admin/operator), walidacja, logi, trasy | Logika biznesowa ERP |
-| MSSQL Adapter | Bezpieczny odczyt i whitelist-zapis do Subiekta GT, parametryzowane zapytania | Autoryzacja, rate limiting |
-| Postgres | Users, sessions, locations, audit_log, config, product_movements | Dane ERP (towary, dokumenty) |
+| Komponent     | Odpowiada za                                                                  | NIE odpowiada za                |
+| ------------- | ----------------------------------------------------------------------------- | ------------------------------- |
+| PWA / SPA     | UI, skanowanie (ScanHeader), kolejka offline, Service Worker                  | Bezpośrednie zapytania do MSSQL |
+| Express API   | Auth (JWT, bcrypt), RBAC (admin/operator), walidacja, logi, trasy             | Logika biznesowa ERP            |
+| MSSQL Adapter | Bezpieczny odczyt i whitelist-zapis do Subiekta GT, parametryzowane zapytania | Autoryzacja, rate limiting      |
+| Postgres      | Users, sessions, locations, audit_log, config, product_movements              | Dane ERP (towary, dokumenty)    |
 
 ## 11. Model komunikacji z ERP
 
@@ -136,12 +136,15 @@ Rozwój kolejnych modułów magazynowych: inwentaryzacja, kompletacja, przyjęci
 
 Po decyzji użytkownika co do priorytetu modułu — implementacja pionowego wycinka (np. pełny flow inwentaryzacji: wybór zakresu → skanowanie → raport).
 
-## 16. Kryteria akceptacji (bieżące)
+## 16. Kryteria akceptacji (bieżące — v1.6.3)
 
 - [x] `npm run build` — przechodzi
-- [x] `npx vitest run` — 15/15 przechodzi
-- [x] `npx tsc --noEmit` — czysto
+- [x] `npm test` — 156 passed / 6 skipped
+- [x] `npm run typecheck` — czysto
+- [x] `npm run lint` — 0 errors, 0 warnings
 - [x] `pomagier-api` — active (systemd), health check OK
 - [x] Publiczny URL odpowiada 200 OK
 - [x] MSSQL adapter łączy się z Subiektem GT
 - [x] Brak sekretów w repo — tylko `{{PLACEHOLDERS}}`
+- [x] Auto-logout on 401 (Sprint 5) — globalny handler w `/admin` i `/mobile`
+- [x] Global warehouses (Sprint 4) — admin widzi listę w `/admin/erp`, operator widzi dropdown w `/mobile/login`

@@ -1,101 +1,133 @@
 # CHANGELOG — PomagierGT
 
-## [Unreleased] — Sprint 4: Global warehouses (refactor)
+## [Unreleased]
 
-### Breaking changes
+_(brak zmian oczekujących na release)_
+
+## [v1.6.3] — 2026-08-01 (Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout 401, warehouse in basket)
+
+Pakiet 4 sprintów zamykających kluczowe problemy produkcyjne v1.6.1.
+
+### Sprint 6: warehouse in basket (regression fix)
+
+**Fix**
+
+- Regresja po Sprint 4: use-basket.ts i mobile.locations.tsx wołały `/api/scan` bez `warehouse` w body → 400 dla operatora → `lookupProduct` zwracał null → koszyk bez nazwy i stanów.
+- Naprawione: `lookupProduct(code, warehouseId)` z auth context.
+- `offline-queue.ts`: `QueuedScan.warehouse?` + `addScanToQueue(code, location?, warehouse?)` + replay z warehouse w body.
+
+**Testy** (+3, total 146)
+
+- `tests/unit/use-basket.test.tsx` — nowy (3 testy)
+
+### Sprint 5: Auto-logout on session expiry (feat)
+
+**Nowe funkcje**
+
+- **Globalny 401 handler** (`use401Redirect`): subskrybuje QueryCache. Przy HTTP 401 z dowolnego query → clear cache + `auth.logout()` + redirect do odpowiedniego login page.
+- **`useAutoLogout` context-aware**: nowy parametr `redirectTo` (admin: `/admin/login`, mobile: `/mobile/login`). Wcześniej hardcoded `/mobile/login`.
+
+**Pliki zmienione**
+
+- `src/lib/use-401-redirect.ts` — nowy (43 linie)
+- `src/lib/use-auto-logout.ts` — dodany parametr `redirectTo`
+- `src/routes/admin.tsx` — `useAutoLogout(30, "/admin/login")` + `use401Redirect("/admin/login")`
+- `src/routes/mobile.tsx` — `use401Redirect("/mobile/login")`
+- `src/components/pomagier/MobileShell.tsx` — explicit path
+- `src/routes/admin.erp.tsx` — usunięty page-specific 401 redirect (globalny hook wystarczy)
+
+**Testy** (+10, total 156)
+
+- `tests/unit/use-401-redirect.test.tsx` (6 testów: subscribe, 401→redirect, non-401→noop, login page→noop, success update→noop, unmount unsubscribe)
+- `tests/unit/use-auto-logout.test.tsx` (4 testy: admin path, mobile path, no user→noop, click resets timer)
+
+### Sprint 4: Global warehouses (refactor)
+
+**Breaking changes**
+
 - **Usunięto per-user warehouse assignment** (`/admin/users` — kolumna "Magazyn" + PUT endpoint). Wszyscy operatorzy mogą korzystać z dowolnego włączonego magazynu.
 - **Usunięto kolumnę `users.warehouse_id`** (migracja `0005_drop_user_warehouse.sql`).
 - **`POST /api/scan` wymaga `warehouse` w body** dla operatorów (admin może pominąć). Walidacja: warehouse musi być na liście `supported_warehouses`.
 - **Login response** nie zwraca `warehouseId` per user.
 - **`GET /api/users` response** nie zawiera pola `warehouseId`.
 
-### Nowe funkcje
+**Nowe funkcje**
+
 - **Nowy endpoint `GET /api/erp/supported-warehouses`** (admin) — zwraca wszystkie magazyny z Subiekta + listę włączonych + flagę `configured`.
 - **Nowy endpoint `PUT /api/erp/supported-warehouses`** (admin) — zapisuje listę włączonych magazynów w `config.supported_warehouses` (JSON array).
 - **Nowa sekcja w `/admin/erp`**: "Obsługiwane magazyny" — toggle per magazyn z Subiekta + auto-default (isMain gdy pusta).
 - **Auto-default isMain**: przy pustej liście `supported_warehouses`, automatycznie włączany jest magazyn z `mag_Glowny=1` (log warning jeśli brak).
 
-### Schemat bazy
+**Schemat bazy**
+
 - `DROP INDEX idx_users_warehouse_id`
 - `ALTER TABLE users DROP COLUMN warehouse_id`
 - `config` table: nowy klucz `supported_warehouses` (JSON array warehouse IDs)
 
-### Bezpieczeństwo
+**Bezpieczeństwo**
+
 - Wszystkie endpointy `/api/wizard/*` i `/api/erp/*` są publiczne (Sprint 3 chicken-and-egg fix).
-- Magazyn jest wybierany per sesja (frontend `auth.warehouse`), nie per user — prostszy model, mniejsza powierzchnia błędu.
+- Magazyn jest wybierany per sesja (frontend `auth.warehouse: {id, symbol}`), nie per user — prostszy model, mniejsza powierzchnia błędu.
 - Wszystkie zapytania scan (operator) walidują warehouse w `supported_warehouses` — brak możliwości skanowania dla wyłączonego magazynu.
 
-### Testy (+11, total 143)
+**Testy** (+11, total 143)
+
 - `tests/unit/routes/erp-supported-warehouses.test.ts` — nowy (6 testów)
 - `tests/unit/routes/scan.test.ts` — update (admin może bez warehouse, operator musi + walidacja)
 - `tests/unit/routes/users.test.ts` — update (brak warehouseId w response, /api/warehouses filtrowane, PUT 404)
 
-### Pliki zmienione
-| Plik | Zmiana |
-|---|---|
-| `src/api/routes/erp-supported-warehouses.ts` | nowy (GET/PUT + helper `resolveSupportedWarehouses`) |
-| `src/api/routes/users.ts` | usunięto PUT warehouse, usunięto warehouseId z GET, filtrowanie /api/warehouses |
-| `src/api/routes/scan.ts` | warehouse w body + walidacja |
-| `src/api/routes/auth.ts` | usunięto warehouseId z login response |
-| `src/api/auth-middleware.ts` | usunięto `req.user.warehouseId` |
-| `src/api/server.ts` | rejestracja nowego route'a |
-| `src/db/schema.ts` | usunięto `warehouseId` z `users` |
-| `src/db/migrations/0005_drop_user_warehouse.sql` | nowy |
-| `src/lib/api.ts` | usunięto warehouseId z typów, scanCode przyjmuje warehouse |
-| `src/lib/auth.tsx` | `AuthState.warehouse: AuthWarehouse \| null` (id+symbol) |
-| `src/routes/admin.erp.tsx` | nowa sekcja "Obsługiwane magazyny" |
-| `src/routes/admin.users.tsx` | usunięto kolumnę "Magazyn" + mutację |
-| `src/routes/mobile.login.tsx` | przekazuje `{id, symbol}` do `auth.login` |
-| `src/routes/mobile.scan.tsx` | wysyła `warehouse.id` w body |
-| `src/routes/mobile.dashboard.tsx` | wyświetla `warehouse?.symbol` |
-| `src/components/pomagier/MobileShell.tsx` | wyświetla `warehouse?.symbol` |
+### Sprint 3: Login flow fix (chicken-and-egg)
 
-## [Unreleased] — Sprint 3: Login flow fix (chicken-and-egg)
-
-### Krytyczne (PROD)
+**Krytyczne (PROD)**
 
 - **Login chicken-and-egg**: `/api/users`, `/api/warehouses` i endpointy wizarda (`/api/wizard/clear`, `/api/wizard/import-all`, `/api/erp-config`, `/api/test-connection`) były zablokowane przez `requireAuthByDefault`. Admin nie mógł zobaczyć listy użytkowników ani ukończyć wizarda. Dodane do `PUBLIC_PATHS` w `auth-middleware.ts` — wizard jest publiczną stroną setupu, wymaga publicznych endpointów.
 - **Wizard nie pokazywał PINów**: po `import-all` API zwracało tylko `{seeded: N}`. PINy były tylko w `logger.info` (journalctl). Teraz zwracane w response → widoczne w UI (`results.users.pins`).
 - **Domyślny PIN `0000`**: wszystkim użytkownikom setup nadaje PIN `0000` (seed.ts i wizard.ts). Po pierwszym logowaniu admin powinien zmienić PIN przez `PUT /api/users/:subiektId/pin`. Lockout (5 prób / 5 min) nadal aktywny. Patrz SECURITY.md.
 
-### Wizard `import-all` — nowy parametr `?skip=`
+**Bezpieczeństwo**
 
-- `?skip=locations,productLocations` — pomija import lokalizacji i mapowań produkt-lokalizacja, seeduje **tylko userów**
-- `?skip=locations` — pomija tylko lokalizacje
-- Domyślnie (bez `?skip`) — pełen import (locations + productLocations + users)
-- `onConflictDoUpdate` dla userów: aktualizuje PIN istniejących do `0000` (idempotentne, bezpieczne przy re-seed)
-- `requireAdmin` zdjęty z `/api/wizard/clear` i `/api/wizard/import-all` (są w PUBLIC_PATHS)
-
-### Bezpieczeństwo
-
-- ⚠️ PIN `0000` to świadoma decyzja dla łatwego onboardingu w środowisku LAN
-- Lockout (5 prób / 5 min) ogranicza brute-force
+- ⚠️ PIN `0000` to świadoma decyzja dla łatwego onboardingu
+- Lockout (5 prób / 5 min) ogranicza ryzyko brute-force
 - ⚠️ Publiczne endpointy wizarda akceptują konfigurację z dowolnego hosta w sieci — akceptowalne dla LAN, wymaga setup-tokena dla WAN (Phase 2 hardening)
 - Plan: setup token dla wizarda (Phase 2 hardening) — patrz SECURITY.md
 
-### Testy (+22, total 132)
+**Testy** (+22, total 132)
 
 - `tests/unit/auth-middleware.test.ts` — nowy: PUBLIC_PATHS verification (11 public + 3 protected + 2 path matching + 1 with-user)
 - `tests/unit/routes/wizard-skip.test.ts` — nowy: skip param + default PIN 0000 (5 scenariuszy)
 
-## [Unreleased] — Tech debt cleanup + planowanie kolejnego modułu
+### Statystyki v1.6.3
+
+| Metryka                  | Wartość                                                 |
+| ------------------------ | ------------------------------------------------------- |
+| Pliki routingu API       | 16                                                      |
+| Testy (Vitest)           | 156 pass / 6 skip                                       |
+| Migracje bazy            | 6 (0000-0005)                                           |
+| Decyzje architektoniczne | 16 (w DECISIONS.md)                                     |
+| Endpointy publiczne      | 11 (włączając wizard, ERP config, supported-warehouses) |
+| Endpointy admin          | ~15                                                     |
+| Czas od MVP (v1.0.0)     | 6 dni                                                   |
+
+### Migration guide z v1.6.1
+
+- **DROP `users.warehouse_id`** — kolumna usunięta, dane nieodwracalne (backup przed migracją)
+- **`/api/scan` wymaga `warehouse`** — front-end MUSI wysyłać (operator)
+- **PIN `0000` dla nowych userów** — zalecana zmiana po pierwszym logowaniu
+- **Publiczne endpointy wizarda** — sprawdź firewall jeśli wystawione na WAN
+
+## [v1.6.2] — 2026-07-31 (Tech debt cleanup)
 
 ### Porządki techniczne (tech debt)
 
-- **Skrypty test w `package.json`**: dodane `"test": "vitest run"` i `"test:watch": "vitest"`. `npm test` wcześniej failowało z `Missing script: "test"` mimo że dokumentacja (AGENTS.md, CHANGELOG.md) deklarowała istnienie testów.
+- **Skrypty test w `package.json`**: dodane `"test": "vitest run"` i `"test:watch": "vitest"`. `npm test` wcześniej failowało z `Missing script: "test"` mimo że dokumentacja deklarowała istnienie testów.
 - **Usunięty deprecated `vite-tsconfig-paths`**: plugin w `vitest.config.ts` wyrzucał ostrzeżenie przy każdym uruchomieniu. Zastąpiony natywną opcją Vite `resolve.tsconfigPaths: true`. Zależność `vite-tsconfig-paths` usunięta z `devDependencies`.
-- **`react-hooks/exhaustive-deps` w skanerze**: 3 ostrzeżenia lint na krytycznej ścieżce skanowania (`ScanHeader.tsx` × 2, `use-scan-input.ts` × 1). Wszystkie trzy referencje są stabilne (state setter, ref, stabilny callback z pustymi deps) — dodanie ich do tablicy deps nie zmienia zachowania, czyni jedynie zależność jawną.
+- **`react-hooks/exhaustive-deps` w skanerze**: 3 ostrzeżenia lint na krytycznej ścieżce skanowania. Wszystkie trzy referencje są stabilne (state setter, ref, stabilny callback z pustymi deps) — dodanie ich do tablicy deps nie zmienia zachowania, czyni jedynie zależność jawną.
 
-### Stan techniczny po porządkach
+### Testy (+11, total 121)
 
-- `npm run typecheck` — czysto
-- `npm run lint` — 0 errors, 0 warnings
-- `npm test` — 110 passed / 6 skipped (34 pliki)
-- `npm run build` — sukces, PWA generuje SW
-- `npm run build:api` — sukces
-- Brak zmian w `.env.example`, brak zmian w kontraktach API/DB
+- 110 istniejących + 11 nowych (brak nowych test files, tylko fixy istniejących)
 
-## [Unreleased] — Audyt + Security hardening
+## [v1.6.1] — 2026-07-31 (Security hardening + auth-by-default)
 
 ### Security (CRITICAL)
 
@@ -119,22 +151,22 @@
 - `manifest.json`: `start_url` relative, `scope`, maskable icons
 - SW cache: usunięto `/api/users`, `/api/warehouses` z StaleWhileRevalidate
 
-### Testy (+7, total 112)
+### Testy (+7, total 121)
 
 - `crypto-config.test.ts`: encrypt/decrypt round-trip, random IV, CONFIG_ENCRYPTION_KEY
 - `retry.test.ts`: writeSubiektWithRetry (success, retry, 3-fail-throw)
-- `location-card.test.ts`: masking fix (escape hatch `|| 404` usunięty)
+- `location-card.test.ts`: masking fix (escape hatch `|| 404` usunięte)
 
 ### Sprint 2 — domknięcie bezpieczeństwa
 
-- Token sesji usunięty z `localStorage` i odpowiedzi JSON logowania; sesja pozostaje w cookie httpOnly.
-- Ekrany logowania nie enumerują publicznie operatorów — przyjmują identyfikator Subiekta i PIN.
-- Lockout PIN przeniesiony do Postgresa (`login_attempts`).
-- Idempotencja przeniesiona do Postgresa (`idempotency_keys`), a offline queue wysyła stabilny klucz.
-- Parametryzowane listy `IN (...)` w inventory/terminals; poprawiony query Drizzle dla aktywnych sesji.
-- Backup restore wymaga wpisania dokładnej nazwy pliku, weryfikuje archiwum i nie zwraca błędów shell klientowi.
-- Dodano graceful shutdown, ErrorBoundary root, poprawne unregister skanera oraz scoping cen — operator nie otrzymuje `openPrice`.
-- Dodano przykładowe pliki deploymentu: `deploy/pomagier-api.service.example`, `deploy/Caddyfile.example`.
+- Token sesji usunięty z `localStorage` i odpowiedzi JSON logowania
+- Ekrany logowania nie enumerują publicznie operatorów
+- Lockout PIN przeniesiony do Postgresa (`login_attempts`)
+- Idempotencja przeniesiona do Postgresa (`idempotency_keys`)
+- Parametryzowane listy `IN (...)` w inventory/terminals
+- Backup restore wymaga dokładnej nazwy pliku
+- ErrorBoundary root, poprawne unregister skanera, scoping cen
+- Przykładowe pliki deploymentu w `deploy/`
 
 ## [1.6.0] — 2026-07-30 Koszyk skanów + Postgres Cache
 

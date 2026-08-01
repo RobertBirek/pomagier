@@ -107,3 +107,46 @@ Każda ważna decyzja architektoniczna zawiera:
 - **Decyzja**: ograniczenie whitelist do `tw_Pole1..tw_Pole8` tylko. `tw_Opis` i `tw_Uwagi` usunięte
 - **Konsekwencje**: admin nie może nadpisać opisów towarów w Subiekcie przez konfigurację pola. Jeśli aktualnie używa `tw_Opis`, endpoint fallbackuje do `tw_Pole1` i zwraca ostrzeżenie w logu
 - **Wycofanie**: przywrócenie `tw_Opis`/`tw_Uwagi` z dodatkową potwierdzącą flagą w config
+
+### 13. Global warehouses — lista w `config.supported_warehouses` zamiast per-user (2026-08-01)
+
+- **Kontekst**: Po Sprint 3 (chicken-and-egg) okazało się, że model per-user warehouse jest nieintuicyjny (wymaga ręcznej konfiguracji per operator) i ograniczający (operator nie może przejść do innego magazynu). Dodatkowo `/api/scan` potrzebuje magazynu do filtrowania stanów.
+- **Rozważane opcje**: (a) keep per-user (status quo), (b) globalna lista admin w `/admin/erp` + operator wybiera per sesja, (c) hardcoded lista w kodzie
+- **Decyzja**: (b) — globalna lista `config.supported_warehouses` (JSON array warehouse IDs) zarządzana przez admina w `/admin/erp`. Operator wybiera magazyn per sesja przy logowaniu (mobile) lub ma w pamięci (admin). Magazyn przesyłany w body każdego skanu.
+- **Konsekwencje**: uproszczony model (mniej tabel, mniej kodu), operator może dynamicznie zmieniać magazyn, kolumna `users.warehouse_id` usunięta (migracja 0005). Wymaga aktywnego wyboru magazynu przez operatora (auto-default isMain jeśli brak konfiguracji).
+- **Wycofanie**: per-user override jeśli wymagane (np. dla permission matrix)
+
+### 14. Auto-default isMain dla `supported_warehouses` (2026-08-01)
+
+- **Kontekst**: Pusta lista `supported_warehouses` mogłaby zablokować wszystkim operatorom dostęp do magazynów (mobile login nie pokazuje dropdownu, scan zwraca 400). Ryzyko: błąd konfiguracji = production stop.
+- **Opcje**: (a) fail-closed (zwróć pustą listę → blokada), (b) auto-default na isMain, (c) auto-default na wszystkie magazyny
+- **Decyzja**: (b) — przy pustej liście automatycznie włącz magazyn z `mag_Glowny=1` (z Subiekta). Log warning jeśli brak isMain. Konfigurowalna przez admina.
+- **Konsekwencje**: graceful degradation — system działa po świeżej instalacji bez konfiguracji. Admin musi świadomie włączyć dodatkowe magazyny. Bezpieczne bo isMain to zawsze 1 magazyn (główny).
+- **Wycofanie**: tryb strict (fail-closed) jako opcja konfiguracyjna
+
+### 15. Auto-logout on server-side 401 — globalny QueryCache subscription (2026-08-01)
+
+- **Kontekst**: Po wdrożeniu Sprint 4 okazało się, że:
+  1. `useAutoLogout` ma hardcoded `/mobile/login` (admin po idle timeout lądował na mobile login)
+  2. Tylko `admin.erp.tsx` miał lokalną logikę przekierowania na 401 (page-specific)
+  3. Brak globalnej obsługi 401 z serwera — token wygasł, UI się psuło bez informacji
+- **Opcje**: (a) page-specific w każdym page (powtarzanie), (b) globalny hook w `__root.tsx` (nie ma AuthProvider), (c) globalny hook w `/admin` i `/mobile` layoutach
+- **Decyzja**: (c) — `use401Redirect(redirectTo)` subskrybuje QueryCache i przy HTTP 401 robi `qc.clear()` + `auth.logout()` + `nav()`. Osobna instancja dla `/admin` (→ `/admin/login`) i `/mobile` (→ `/mobile/login`). `useAutoLogout` dostaje parametr `redirectTo`.
+- **Konsekwencje**: każde query (fetch / react-query) z 401 automatycznie wylogowuje i przekierowuje. Brak konieczności dodawania kodu per page. Edge case: już na login page → nie redirect (zapobiega pętli). `useAutoLogout` ma teraz parametr explicit (backward compat: domyślnie `/mobile/login`).
+- **Wycofanie**: n/a — mechanizm jest standardowy
+
+### 16. Default PIN "0000" dla onboardingu (2026-07-31)
+
+- **Kontekst**: Po deployu v1.6.1 (security hardening) setup wizard generował losowe 6-cyfrowe PINy, ale nie pokazywał ich w UI. PINy trafiały tylko do journalctl. Admin nie mógł się zalogować, bo nie znał PINów.
+- **Opcje**: (a) pokaż PINy w UI wizarda (ale trzeba by zweryfikować wiele userów), (b) wygeneruj stały PIN i wyświetl w wizard, (c) pozwól adminowi ustawiać PIN per user
+- **Decyzja**: (b) — stały PIN `0000` dla wszystkich userów. Wizard wyświetla `pins: [{subiektUzId, pin: "0000"}, ...]` w response. Admin rotuje PIN po pierwszym logowaniu przez `PUT /api/users/:subiektId/pin`.
+- **Konsekwencje**: szybki onboarding, brak chicken-and-egg. Lockout 5/5min nadal chroni przed brute-force. Akceptowalne dla środowiska LAN (v1.6.3); dla WAN wymaga setup-tokena (Phase 2 hardening).
+- **Wycofanie**: przejście na setup token + losowe PINy per user w Phase 2
+
+### 17. Public wizard endpoints (chicken-and-egg fix) (2026-07-31)
+
+- **Kontekst**: Wizard `/wizard` jest publiczną stroną setupu, ale jego backend endpointy (`/api/wizard/clear`, `/api/wizard/import-all`, `/api/erp-config`, `/api/test-connection`, `/api/users`, `/api/warehouses`) wymagały `requireAuth` po Sprint 2 (auth-by-default). Admin nie mógł ukończyć wizarda, bo nie było jeszcze żadnego usera.
+- **Opcje**: (a) page-specific sprawdzanie w wizard UI, (b) setup token (losowy przy każdym deployu), (c) whitelist tych endpointów w PUBLIC_PATHS
+- **Decyzja**: (c) — `auth-middleware.ts` ma `PUBLIC_PATHS` Set. Dodane: `/api/users`, `/api/warehouses`, `/api/erp-config`, `/api/test-connection`, `/api/wizard/clear`, `/api/wizard/import-all`. Mechanizm prosty, bezpieczny dla LAN.
+- **Konsekwencje**: setup wizard działa out-of-the-box. Endpointy akceptują konfigurację z dowolnego hosta w sieci — akceptowalne dla LAN. Dla WAN wymaga setup-tokena.
+- **Wycofanie**: setup token (Phase 2 hardening) — wizard wymaga podania tokena z ENV, generowanego przy pierwszym uruchomieniu

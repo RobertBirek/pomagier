@@ -2,12 +2,12 @@
 
 ## Poziomy testów
 
-| Poziom | Odpowiedzialność | Narzędzia |
-|---|---|---|
-| Jednostkowe (API) | Logika endpointów, walidacja Zod, błędy | Vitest + supertest |
-| Jednostkowe (Frontend) | Komponenty React, hooki, renderowanie | Vitest + React Testing Library |
-| Integracyjne | Pełne ścieżki Express, mock adaptera ERP | Vitest + supertest |
-| E2E | Krytyczne flow (scan, mapa, ERP config) | Playwright |
+| Poziom                 | Odpowiedzialność                         | Narzędzia                      |
+| ---------------------- | ---------------------------------------- | ------------------------------ |
+| Jednostkowe (API)      | Logika endpointów, walidacja Zod, błędy  | Vitest + supertest             |
+| Jednostkowe (Frontend) | Komponenty React, hooki, renderowanie    | Vitest + React Testing Library |
+| Integracyjne           | Pełne ścieżki Express, mock adaptera ERP | Vitest + supertest             |
+| E2E                    | Krytyczne flow (scan, mapa, ERP config)  | Playwright                     |
 
 ## Scenariusze testowe dla każdego flow
 
@@ -60,10 +60,24 @@
 - [ ] Brak sekretów w repozytorium
 - [ ] Dokumentacja odpowiada rzeczywistemu stanowi
 
-## Stan
+## Stan (v1.6.3, 2026-08-01)
 
 - [x] Vitest skonfigurowany z coverage v8
-- [x] 85 testów: 65 API (18 plików) + 12 frontend (8 plików)
+- [x] **156 testów pass / 6 skip** (38 plików testowych)
 - [x] React Testing Library + jsdom
 - [x] Playwright E2E: 3 scenariusze (scan, map, erp)
-- [x] Lint: 0 błędów, 3 ostrzeżenia
+- [x] Lint: 0 błędów, 0 ostrzeżeń
+- [x] Typecheck: 0 błędów
+
+### Podział testów (po Sprintach 3-6)
+
+| Sprint   | Plik testowy                                         | Testy                                                    |
+| -------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| Sprint 3 | `tests/unit/auth-middleware.test.ts`                 | 17 (PUBLIC_PATHS verification)                           |
+| Sprint 3 | `tests/unit/routes/wizard-skip.test.ts`              | 5 (skip param + default PIN 0000)                        |
+| Sprint 4 | `tests/unit/routes/erp-supported-warehouses.test.ts` | 6 (GET/PUT/auto-default)                                 |
+| Sprint 4 | `tests/unit/routes/scan.test.ts` (update)            | 6 (admin bez warehouse, operator wymaga)                 |
+| Sprint 4 | `tests/unit/routes/users.test.ts` (update)           | 3 (brak warehouseId, filtrowane, PUT 404)                |
+| Sprint 5 | `tests/unit/use-401-redirect.test.tsx`               | 6 (subscribe, 401, no-401, login page, success, unmount) |
+| Sprint 5 | `tests/unit/use-auto-logout.test.tsx`                | 4 (admin, mobile, no user, click reset)                  |
+| Sprint 6 | `tests/unit/use-basket.test.tsx`                     | 3 (warehouse w body, fallback, dedupe)                   |

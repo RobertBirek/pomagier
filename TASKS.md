@@ -1,4 +1,6 @@
-# TASKS — PomagierGT v1.6.0
+# TASKS — PomagierGT v1.6.3 (2026-08-01)
+
+> **v1.6.3** = Sprint 3 (chicken-and-egg fix) + Sprint 4 (global warehouses) + Sprint 5 (auto-logout 401) + Sprint 6 (warehouse in basket). 156 testów pass / 6 skip.
 
 ---
 
@@ -26,26 +28,66 @@
 
 # TASKS — Sprint 4: Global Warehouses (2026-08-01)
 
-| Data       | Zadanie                                                                                            | Status |
-| ---------- | -------------------------------------------------------------------------------------------------- | ------ |
-| 2026-08-01 | Branch `refactor/global-warehouses` z main                                                        | ✅     |
-| 2026-08-01 | Faza 1: Backup users table (13 rekordów) do `/tmp/pomagier-users-backup-*.json`                    | ✅     |
-| 2026-08-01 | Faza 2: Nowy endpoint `GET/PUT /api/erp/supported-warehouses` (admin, cache TTL 60s)              | ✅     |
-| 2026-08-01 | Faza 3: `/api/warehouses` filtrowanie wg `supported_warehouses` + auto-default isMain                | ✅     |
-| 2026-08-01 | Faza 4: Usunięcie `PUT /api/users/:subiektId/warehouse` (404)                                      | ✅     |
-| 2026-08-01 | Faza 5: `scan.ts` — warehouse w body + walidacja wg supported                                      | ✅     |
-| 2026-08-01 | Faza 6: Czyszczenie `warehouseId` z auth/users responses + `req.user.warehouseId`                  | ✅     |
-| 2026-08-01 | Faza 7: Migracja `0005_drop_user_warehouse.sql` + aktualizacja schema.ts + journal                  | ✅     |
-| 2026-08-01 | Faza 8: Frontend - nowa sekcja "Obsługiwane magazyny" w `admin.erp.tsx`                            | ✅     |
-| 2026-08-01 | Faza 9: Frontend - usunięcie kolumny "Magazyn" + mutacji z `admin.users.tsx`                        | ✅     |
-| 2026-08-01 | Faza 10: Frontend - `ScanHeader` + `useScanInput` + strony skanują - warehouse w body                | ✅     |
-| 2026-08-01 | Faza 11: Frontend - `lib/auth.tsx` — `AuthWarehouse {id, symbol}` + migracja localStorage            | ✅     |
-| 2026-08-01 | Faza 12: Testy - nowe `erp-supported-warehouses.test.ts` (6) + update `scan.test.ts` (4) + `users.test.ts` (3) | ✅ |
-| 2026-08-01 | Faza 13: Weryfikacja - typecheck ✅ / lint 0/0 / test 143/143 (+11)                                  | ✅     |
-| 2026-08-01 | Faza 14: Dokumentacja - CHANGELOG, DB_SCHEMA, API, SECURITY                                        | ✅     |
-| 2026-08-01 | Faza 15: build:api + restart + smoke test (login, /warehouses, /erp/supported, scan) + commit + merge + push | ✅ |
+| Data       | Zadanie                                                                                                        | Status |
+| ---------- | -------------------------------------------------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Branch `refactor/global-warehouses` z main                                                                     | ✅     |
+| 2026-08-01 | Faza 1: Backup users table (13 rekordów) do `/tmp/pomagier-users-backup-*.json`                                | ✅     |
+| 2026-08-01 | Faza 2: Nowy endpoint `GET/PUT /api/erp/supported-warehouses` (admin, cache TTL 60s)                           | ✅     |
+| 2026-08-01 | Faza 3: `/api/warehouses` filtrowanie wg `supported_warehouses` + auto-default isMain                          | ✅     |
+| 2026-08-01 | Faza 4: Usunięcie `PUT /api/users/:subiektId/warehouse` (404)                                                  | ✅     |
+| 2026-08-01 | Faza 5: `scan.ts` — warehouse w body + walidacja wg supported                                                  | ✅     |
+| 2026-08-01 | Faza 6: Czyszczenie `warehouseId` z auth/users responses + `req.user.warehouseId`                              | ✅     |
+| 2026-08-01 | Faza 7: Migracja `0005_drop_user_warehouse.sql` + aktualizacja schema.ts + journal                             | ✅     |
+| 2026-08-01 | Faza 8: Frontend - nowa sekcja "Obsługiwane magazyny" w `admin.erp.tsx`                                        | ✅     |
+| 2026-08-01 | Faza 9: Frontend - usunięcie kolumny "Magazyn" + mutacji z `admin.users.tsx`                                   | ✅     |
+| 2026-08-01 | Faza 10: Frontend - `ScanHeader` + `useScanInput` + strony skanują - warehouse w body                          | ✅     |
+| 2026-08-01 | Faza 11: Frontend - `lib/auth.tsx` — `AuthWarehouse {id, symbol}` + migracja localStorage                      | ✅     |
+| 2026-08-01 | Faza 12: Testy - nowe `erp-supported-warehouses.test.ts` (6) + update `scan.test.ts` (4) + `users.test.ts` (3) | ✅     |
+| 2026-08-01 | Faza 13: Weryfikacja - typecheck ✅ / lint 0/0 / test 143/143 (+11)                                            | ✅     |
+| 2026-08-01 | Faza 14: Dokumentacja - CHANGELOG, DB_SCHEMA, API, SECURITY                                                    | ✅     |
+| 2026-08-01 | Faza 15: build:api + restart + smoke test (login, /warehouses, /erp/supported, scan) + commit + merge + push   | ✅     |
 
 **Build**: ✅ | **Lint**: 0E/0W | **Tests**: 143/143 (+11 nowe) | **Branch**: `refactor/global-warehouses` → merged to `main`
+
+---
+
+# TASKS — Sprint 6: warehouse in basket (regression fix) (2026-08-01)
+
+| Data       | Zadanie                                                                                           | Status |
+| ---------- | ------------------------------------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Diagnoza: koszyk w /mobile/locations bez nazwy i stanów (po Sprint 4)                             | ✅     |
+| 2026-08-01 | Branch `fix/warehouse-in-basket-calls` z main                                                     | ✅     |
+| 2026-08-01 | Fix 1: `src/hooks/use-basket.ts` — `lookupProduct(code, warehouseId)` z auth context              | ✅     |
+| 2026-08-01 | Fix 2: `src/routes/mobile.locations.tsx` — lookupProduct z `auth.warehouse?.id`                   | ✅     |
+| 2026-08-01 | Fix 3: `src/lib/offline-queue.ts` — `QueuedScan.warehouse?` + addScanToQueue + replay z warehouse | ✅     |
+| 2026-08-01 | Fix 4: `src/routes/mobile.scan.tsx` — addScanToQueue z warehouse?.id                              | ✅     |
+| 2026-08-01 | Nowy test: `tests/unit/use-basket.test.tsx` (3 testy: warehouse w body, fallback, dedupe)         | ✅     |
+| 2026-08-01 | Weryfikacja: typecheck ✅ / lint 0/0 / test 146/146 (+3)                                          | ✅     |
+| 2026-08-01 | Build:api + restart + smoke test (login, /warehouses, /erp/supported, scan)                       | ✅     |
+| 2026-08-01 | Commit + merge + push                                                                             | ✅     |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 146/146 (+3) | **Branch**: `fix/warehouse-in-basket-calls` → merged to `main`
+
+---
+
+# TASKS — Sprint 5: Auto-logout on session expiry (2026-08-01)
+
+| Data       | Zadanie                                                                                         | Status |
+| ---------- | ----------------------------------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Diagnoza: brak globalnej obsługi 401 (tylko page-specific w admin.erp.tsx)                      | ✅     |
+| 2026-08-01 | Branch `fix/auto-logout-on-401` z main                                                          | ✅     |
+| 2026-08-01 | Nowy: `src/lib/use-401-redirect.ts` — globalny 401 handler (subskrybuje QueryCache)             | ✅     |
+| 2026-08-01 | Refaktor: `src/lib/use-auto-logout.ts` — parametr `redirectTo` (admin vs mobile path)           | ✅     |
+| 2026-08-01 | `src/routes/admin.tsx` — `useAutoLogout(30, "/admin/login")` + `use401Redirect("/admin/login")` | ✅     |
+| 2026-08-01 | `src/routes/mobile.tsx` — `use401Redirect("/mobile/login")`                                     | ✅     |
+| 2026-08-01 | `src/components/pomagier/MobileShell.tsx` — explicit `useAutoLogout(15, "/mobile/login")`       | ✅     |
+| 2026-08-01 | `src/routes/admin.erp.tsx` — usunięty page-specific 401 redirect (globalny hook wystarczy)      | ✅     |
+| 2026-08-01 | Nowy test: `tests/unit/use-401-redirect.test.tsx` (6 testów)                                    | ✅     |
+| 2026-08-01 | Nowy test: `tests/unit/use-auto-logout.test.tsx` (4 testy)                                      | ✅     |
+| 2026-08-01 | Weryfikacja: typecheck ✅ / lint 0/0 / test 156/156 (+10)                                       | ✅     |
+| 2026-08-01 | Build + restart + commit + merge + push                                                         | ✅     |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 156/156 (+10) | **Branch**: `fix/auto-logout-on-401` → merged to `main`
 
 ---
 

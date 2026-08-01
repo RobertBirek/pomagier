@@ -1,6 +1,6 @@
 # Architecture Decision Record — PomagierGT
 
-## Architektura (aktualna — v1.6.1)
+## Architektura (aktualna — v1.6.3)
 
 ### Zasada naczelna
 
@@ -49,13 +49,13 @@ Modularny monolit, nie mikroserwisy. Podział na warstwy logiczne w ramach jedne
 
 ### Granice odpowiedzialności
 
-| Komponent | Odpowiada za | NIE odpowiada za |
-|---|---|---|
-| PWA | UI, skanowanie (ScanHeader), kolejka offline (IndexedDB), Service Worker | Bezpośrednie zapytania do MSSQL/Sfery |
-| Express API | Auth (JWT, bcrypt), RBAC, walidacja, kolejka, logi, routing | Logika biznesowa ERP |
-| MssqlErpAdapter | Parametryzowane zapytania MSSQL, mapowanie wyników na modele domenowe, health check | Autoryzacja użytkowników, rate limiting |
-| Postgres | Dane aplikacyjne (users, sessions, locations, audit, config) | Dane ERP (towary, dokumenty, kontrahenci) |
-| MSSQL Subiekta | Stan ERP — odczyt i whitelist-zapis | Bezpośredni dostęp z przeglądarki lub zewnętrznych serwisów |
+| Komponent       | Odpowiada za                                                                        | NIE odpowiada za                                            |
+| --------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| PWA             | UI, skanowanie (ScanHeader), kolejka offline (IndexedDB), Service Worker            | Bezpośrednie zapytania do MSSQL/Sfery                       |
+| Express API     | Auth (JWT, bcrypt), RBAC, walidacja, kolejka, logi, routing                         | Logika biznesowa ERP                                        |
+| MssqlErpAdapter | Parametryzowane zapytania MSSQL, mapowanie wyników na modele domenowe, health check | Autoryzacja użytkowników, rate limiting                     |
+| Postgres        | Dane aplikacyjne (users, sessions, locations, audit, config)                        | Dane ERP (towary, dokumenty, kontrahenci)                   |
+| MSSQL Subiekta  | Stan ERP — odczyt i whitelist-zapis                                                 | Bezpośredni dostęp z przeglądarki lub zewnętrznych serwisów |
 
 ### Topologia
 
@@ -78,16 +78,16 @@ Modularny monolit, nie mikroserwisy. Podział na warstwy logiczne w ramach jedne
 
 Wszystkie decyzje są rejestrowane w [DECISIONS.md](./DECISIONS.md).
 
-| # | Decyzja | Data |
-|---|---|---|
-| 1 | Modularny monolit zamiast mikroserwisów | 2026-07-24 |
-| 2 | Express 5 jako backend API | 2026-07-24 |
-| 3 | Postgres jako baza aplikacyjna | 2026-07-24 |
-| 4 | Bezpośredni MSSQL zamiast Sfery GT | 2026-07-24 |
-| 5 | JWT httpOnly cookie + bcrypt PIN | 2026-07-24 |
-| 6 | Lokalizacje w tw_Pole1 Subiekta GT (podwójny zapis) | 2026-07-25 |
-| 7 | Whitelist walidacja nazw pól MSSQL | 2026-07-27 |
-| 8 | PIN lockout in-memory (5 prób / 5 min) | 2026-07-27 |
+| #   | Decyzja                                             | Data       |
+| --- | --------------------------------------------------- | ---------- |
+| 1   | Modularny monolit zamiast mikroserwisów             | 2026-07-24 |
+| 2   | Express 5 jako backend API                          | 2026-07-24 |
+| 3   | Postgres jako baza aplikacyjna                      | 2026-07-24 |
+| 4   | Bezpośredni MSSQL zamiast Sfery GT                  | 2026-07-24 |
+| 5   | JWT httpOnly cookie + bcrypt PIN                    | 2026-07-24 |
+| 6   | Lokalizacje w tw_Pole1 Subiekta GT (podwójny zapis) | 2026-07-25 |
+| 7   | Whitelist walidacja nazw pól MSSQL                  | 2026-07-27 |
+| 8   | PIN lockout in-memory (5 prób / 5 min)              | 2026-07-27 |
 
 ## Decyzje otwarte
 

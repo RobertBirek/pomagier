@@ -102,3 +102,31 @@ Placeholdery w `.env.example`:
 - [x] Backup encryption (gpg AES-256, wykluczenie .env i sessions)
 - [x] SIGTERM graceful shutdown (pool.close + server.close)
 - [x] Global warehouses (Sprint 4): brak per-user assignment, lista supported, auto-default isMain
+- [x] Auto-logout on 401 (Sprint 5): globalny QueryCache subscription, context-aware useAutoLogout
+
+### Auto-logout on session expiry (Sprint 5)
+
+**Kontekst**: Po wdrożeniu Sprint 4 okazało się, że:
+
+1. `useAutoLogout` miał hardcoded `/mobile/login` — admin po idle timeout lądował na mobile login
+2. Tylko `admin.erp.tsx` miał lokalną logikę 401 (page-specific)
+3. Brak globalnej obsługi 401 z serwera — token wygasł, UI psuło się bez informacji
+
+**Decyzja**: `use401Redirect(redirectTo)` — globalny hook subskrybujący QueryCache. Przy HTTP 401 z dowolnego query: `qc.clear()` + `auth.logout()` + `nav({to: redirectTo})`. Osobna instancja dla `/admin` (→ `/admin/login`) i `/mobile` (→ `/mobile/login`).
+
+**Zapobieganie pętli**: Hook nie przekierowuje jeśli aktualna ścieżka === redirectTo (zapobiega pętli przy złych credentials na stronie logowania).
+
+**useAutoLogout context-aware**: Nowy parametr `redirectTo` (admin: `/admin/login`, mobile: `/mobile/login`). Backward compat: domyślnie `/mobile/login`.
+
+### Warehouse in scan walidacja (Sprint 6)
+
+**Kontekst**: Po Sprint 4, `/api/scan` zwracał 400 dla operatorów bez `warehouse` w body. Regresja w `use-basket.ts` i `mobile.locations.tsx` — wołały endpoint bez warehouse → `lookupProduct` zwracał null → koszyk bez nazwy i stanów.
+
+**Fix**:
+
+- `use-basket.ts`: `lookupProduct(code, warehouseId)` z auth context
+- `mobile.locations.tsx`: `lookupProduct(code, auth.warehouse?.id)`
+- `offline-queue.ts`: `QueuedScan.warehouse?` + `addScanToQueue(code, location?, warehouse?)` + replay z warehouse w body
+- `mobile.scan.tsx`: `addScanToQueue(code, undefined, warehouse?.id)`
+
+**Konsekwencja**: każde skanowanie (online i offline queue replay) musi mieć warehouse w body. Walidacja na serwerze sprawdza czy warehouse jest w `supported_warehouses`.
