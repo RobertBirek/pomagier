@@ -124,16 +124,15 @@ export function registerAuthRoutes(app: Application): void {
 
       if (!verifyPin(pin, user.pin)) {
         await recordPinFailure(subiektUzId);
-        try {
-          await db.insert(schema.auditLog).values({
-            correlationId: crypto.randomUUID(),
-            userId: user.id,
-            action: "login_failed",
-            details: JSON.stringify({ subiektUzId, reason: "wrong_pin" }),
-          });
-        } catch (auditErr) {
-          logger.warn({ auditErr }, "Failed to write audit log");
-        }
+        await logEvent({
+          category: "auth",
+          action: "login_failed",
+          method: "web",
+          actorSubiektUzId: user.subiektUzId,
+          actorUserId: user.id,
+          success: false,
+          details: { reason: "wrong_pin" },
+        });
         throw ApiError.unauthorized("Nieprawidłowy PIN");
       }
 
