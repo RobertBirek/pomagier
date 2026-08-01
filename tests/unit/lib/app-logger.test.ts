@@ -46,9 +46,18 @@ describe("maskSensitive", () => {
     expect(result.count).toBe(5);
   });
 
-  it("handles arrays (passes through)", () => {
-    const result = maskSensitive({ items: [{ id: 1 }, { id: 2 }] });
-    expect(result.items).toEqual([{ id: 1 }, { id: 2 }]);
+  it("recurses into arrays and masks sensitive keys in items", () => {
+    const result = maskSensitive({
+      items: [
+        { id: 1, pin: "1234" },
+        { id: 2, token: "abc" },
+      ],
+    });
+    const items = result.items as Array<Record<string, unknown>>;
+    expect(items[0].id).toBe(1);
+    expect(items[0].pin).toBe("***REDACTED***");
+    expect(items[1].id).toBe(2);
+    expect(items[1].token).toBe("***REDACTED***");
   });
 });
 

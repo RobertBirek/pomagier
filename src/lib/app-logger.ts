@@ -27,7 +27,13 @@ export function maskSensitive<T extends Record<string, unknown>>(obj: T): Record
   for (const [key, value] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.has(key.toLowerCase())) {
       masked[key] = "***REDACTED***";
-    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+    } else if (Array.isArray(value)) {
+      masked[key] = value.map((item) =>
+        item && typeof item === "object" && !Array.isArray(item)
+          ? maskSensitive(item as Record<string, unknown>)
+          : item,
+      );
+    } else if (value && typeof value === "object") {
       masked[key] = maskSensitive(value as Record<string, unknown>);
     } else {
       masked[key] = value;
