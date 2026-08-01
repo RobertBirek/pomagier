@@ -37,7 +37,7 @@ describe("runCleanup", () => {
     dbMocks.delete
       .mockReturnValueOnce({ where: dbMocks.where })
       .mockReturnValueOnce({ where: dbMocks.where });
-    dbMocks.where.mockResolvedValueOnce({ rowCount: 5 }).mockResolvedValueOnce({ rowCount: 5 });
+    dbMocks.where.mockResolvedValueOnce({ count: 5 }).mockResolvedValueOnce({ count: 5 });
 
     const { runCleanup } = await import("../../../src/lib/cleanup.js");
     const result = await runCleanup();
@@ -51,7 +51,7 @@ describe("runCleanup", () => {
     dbMocks.delete
       .mockReturnValueOnce({ where: dbMocks.where })
       .mockReturnValueOnce({ where: dbMocks.where });
-    dbMocks.where.mockResolvedValueOnce({ rowCount: 0 }).mockResolvedValueOnce({ rowCount: 0 });
+    dbMocks.where.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 0 });
 
     const { runCleanup } = await import("../../../src/lib/cleanup.js");
     const result = await runCleanup();
@@ -60,13 +60,11 @@ describe("runCleanup", () => {
     expect(result.movementsDeleted).toBe(0);
   });
 
-  it("handles null rowCount (defensive)", async () => {
+  it("handles null count (defensive)", async () => {
     dbMocks.delete
       .mockReturnValueOnce({ where: dbMocks.where })
       .mockReturnValueOnce({ where: dbMocks.where });
-    dbMocks.where
-      .mockResolvedValueOnce({ rowCount: null })
-      .mockResolvedValueOnce({ rowCount: null });
+    dbMocks.where.mockResolvedValueOnce({ count: null }).mockResolvedValueOnce({ count: null });
 
     const { runCleanup } = await import("../../../src/lib/cleanup.js");
     const result = await runCleanup();

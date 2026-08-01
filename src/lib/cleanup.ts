@@ -14,9 +14,9 @@ export async function runCleanup(): Promise<{ auditDeleted: number; movementsDel
     .delete(schema.productMovements)
     .where(lt(schema.productMovements.createdAt, cutoff));
 
-  const auditDeleted = (auditResult as unknown as { rowCount?: number | null }).rowCount ?? 0;
+  const auditDeleted = (auditResult as unknown as { count?: number | null }).count ?? 0;
   const movementsDeleted =
-    (movementsResult as unknown as { rowCount?: number | null }).rowCount ?? 0;
+    (movementsResult as unknown as { count?: number | null }).count ?? 0;
 
   logger.info({ auditDeleted, movementsDeleted, cutoffDays: CLEANUP_DAYS }, "Cleanup completed");
 
