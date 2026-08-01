@@ -1,8 +1,8 @@
 import type { Application, Request, Response } from "express";
-import crypto from "node:crypto";
 import { getDb, schema } from "../../db/index.js";
 import { eq, and, type SQL } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { getAdapter } from "../adapter-provider.js";
 
@@ -141,16 +141,16 @@ export function registerInventoryRoutes(app: Application): void {
         sc.delete(p.symbol);
       }
       for (const c of sc) extra.push({ code: c, qty: sm.get(c) || 0 });
-      try {
-        const db = getDb();
-        await db.insert(schema.auditLog).values({
-          correlationId: crypto.randomUUID(),
-          action: "inventory_report",
-          details: JSON.stringify({ scope, matched: matched.length, missing: missing.length }),
-        });
-      } catch {
-        /* non-critical audit log failure */
-      }
+      await logEvent({
+        category: "admin",
+        action: "inventory_report",
+        method: "web",
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        target: { type: "inventory", id: "report" },
+        success: true,
+        details: { count: scanned.length, totalExpected: ep.length },
+      });
       res.json({
         summary: {
           expected: ep.length,
