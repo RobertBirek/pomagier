@@ -129,15 +129,29 @@ function makeRelatedChain(related: AuditRow[]) {
   };
 }
 
-const { mockSelect, mockDb } = vi.hoisted(() => {
+function makeDistinctChain(rows: { actorSubiektUzId: number }[]) {
+  const chain: Record<string, ReturnType<typeof vi.fn>> = {
+    from: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+  };
+  chain.from.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.orderBy.mockResolvedValue(rows);
+  return chain;
+}
+
+const { mockSelect, mockSelectDistinct, mockDb } = vi.hoisted(() => {
   const mockSelect = vi.fn();
+  const mockSelectDistinct = vi.fn();
   const mockDb = {
     select: mockSelect,
+    selectDistinct: mockSelectDistinct,
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
   };
-  return { mockSelect, mockDb };
+  return { mockSelect, mockSelectDistinct, mockDb };
 });
 
 vi.mock("../../src/db/index.js", () => ({
@@ -187,6 +201,7 @@ describe("Logs endpoints", () => {
 
   beforeEach(() => {
     mockSelect.mockReset();
+    mockSelectDistinct.mockReset();
     app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
@@ -347,6 +362,32 @@ describe("Logs endpoints", () => {
       expect(res.status).toBe(200);
       expect(res.body.entry.id).toBe(entryNoCorr.id);
       expect(res.body.related).toEqual([]);
+    });
+  });
+
+  describe("GET /api/logs/users", () => {
+    it("returns distinct list of actor_subiekt_uz_id values from audit_log", async () => {
+      mockSelectDistinct.mockImplementation(() =>
+        makeDistinctChain([
+          { actorSubiektUzId: 1 },
+          { actorSubiektUzId: 3 },
+          { actorSubiektUzId: 7 },
+        ]),
+      );
+
+      const res = await request(app).get("/api/logs/users");
+
+      expect(res.status).toBe(200);
+      expect(res.body.users).toEqual([1, 3, 7]);
+    });
+
+    it("returns empty users array when no rows match", async () => {
+      mockSelectDistinct.mockImplementation(() => makeDistinctChain([]));
+
+      const res = await request(app).get("/api/logs/users");
+
+      expect(res.status).toBe(200);
+      expect(res.body.users).toEqual([]);
     });
   });
 

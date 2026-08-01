@@ -130,6 +130,22 @@ export function registerLogsRoutes(app: Application): void {
     }
   });
 
+  app.get("/api/logs/users", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const db = getDb();
+      const rows = await db
+        .selectDistinct({ actorSubiektUzId: schema.auditLog.actorSubiektUzId })
+        .from(schema.auditLog)
+        .where(sql`${schema.auditLog.actorSubiektUzId} IS NOT NULL`)
+        .orderBy(schema.auditLog.actorSubiektUzId);
+      const users = rows.map((r) => r.actorSubiektUzId);
+      res.json({ users });
+    } catch (err) {
+      logger.error({ err }, "Logs users list failed");
+      res.status(500).json({ error: "Internal error" });
+    }
+  });
+
   app.get("/api/logs/export.csv", requireAdmin, async (req: Request, res: Response) => {
     try {
       const db = getDb();
