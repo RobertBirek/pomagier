@@ -482,7 +482,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
-      const cached = await checkIdempotency(idemKey);
+      const cached = await checkIdempotency(idemKey, req.user?.subiektUzId);
       if (cached) {
         res.status(cached.statusCode).json(cached.result);
         return;
@@ -694,7 +694,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
-      const cached = await checkIdempotency(idemKey);
+      const cached = await checkIdempotency(idemKey, req.user?.subiektUzId);
       if (cached) {
         res.status(cached.statusCode).json(cached.result);
         return;
@@ -989,7 +989,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
     const idemKey = req.headers["x-idempotency-key"] as string;
     if (idemKey) {
-      const cached = await checkIdempotency(idemKey);
+      const cached = await checkIdempotency(idemKey, req.user?.subiektUzId);
       if (cached) {
         res.status(cached.statusCode).json(cached.result);
         return;
