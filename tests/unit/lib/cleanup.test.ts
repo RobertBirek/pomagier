@@ -32,9 +32,11 @@ function setupTxMocks() {
   dbMocks.transaction.mockReset();
   dbMocks.txDelete.mockReset();
   dbMocks.txWhere.mockReset();
-  dbMocks.transaction.mockImplementation(async (cb: (tx: { delete: typeof dbMocks.txDelete }) => unknown) => {
-    return cb({ delete: dbMocks.txDelete });
-  });
+  dbMocks.transaction.mockImplementation(
+    async (cb: (tx: { delete: typeof dbMocks.txDelete }) => unknown) => {
+      return cb({ delete: dbMocks.txDelete });
+    },
+  );
   dbMocks.txDelete.mockReturnValue({ where: dbMocks.txWhere });
 }
 

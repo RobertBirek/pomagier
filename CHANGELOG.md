@@ -12,8 +12,9 @@ Pełen coverage 6/6 kategorii eventów (auth, admin, mobile, erp, queue, system)
 
 - **`queue.added`** — skan dodany do IndexedDB (offline)
 - **`queue.replayed_ok` / `queue.replayed_failed`** — sync po powrocie online
-- **`queue.conflict`** — konflikt podczas replay
 - **`idempotency.reused`** — stary idempotency key ponownie użyty
+
+> ℹ️ `queue.conflict` (konflikt podczas replay) jest w spec, ale **nie zaimplementowany** w v1.8.0 — wymaga obsługi 409 z serwera. Do realizacji w Sprint 9+.
 
 ### Nowe eventy systemowe
 
@@ -72,7 +73,7 @@ Pełen audyt kto + co + jaką metodą zmienił w systemie. Dual-write logger (Pi
 - **admin**: user.pin_updated, user.role_updated, config.updated, field_mapping.updated, backup.created/restored/deleted, wizard.import_all/clear, user.warehouse_updated_legacy
 - **mobile**: scan.completed, scan.not_found, scan.offline_queued, scan.replay_ok/failed, basket.added/cleared, location.assigned/transferred/reset
 - **erp**: erp.query.slow (>500ms), erp.query.error, erp.cache.miss/hit, erp.retry, erp.compensation
-- **queue**: queue.added, queue.replayed_ok/failed, queue.conflict, idempotency.reused
+- **queue**: queue.added, queue.replayed_ok/failed, idempotency.reused (queue.conflict — patrz sekcja Sprint 8)
 - **system**: startup, shutdown, health.fail, memory/disk.warning
 
 ### Retencja

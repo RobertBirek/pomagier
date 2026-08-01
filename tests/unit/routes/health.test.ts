@@ -29,9 +29,8 @@ describe("Health routes", () => {
           healthCheck: async () => ({ ok: true, latencyMs: 1 }),
         }),
       }));
-      const { registerHealthRoutes: registerFresh } = await import(
-        "../../../src/api/routes/health.js"
-      );
+      const { registerHealthRoutes: registerFresh } =
+        await import("../../../src/api/routes/health.js");
       const freshApp = express();
       freshApp.use(express.json());
       registerFresh(freshApp);
@@ -58,9 +57,8 @@ describe("Health routes", () => {
       vi.doMock("../../../src/lib/app-logger.js", () => ({
         logEvent: vi.fn(() => Promise.resolve()),
       }));
-      const { registerHealthRoutes: registerFresh } = await import(
-        "../../../src/api/routes/health.js"
-      );
+      const { registerHealthRoutes: registerFresh } =
+        await import("../../../src/api/routes/health.js");
       const { logEvent: freshLogEvent } = await import("../../../src/lib/app-logger.js");
       const freshLogEventMock = vi.mocked(freshLogEvent);
 
@@ -90,9 +88,8 @@ describe("Health routes", () => {
       vi.doMock("../../../src/lib/app-logger.js", () => ({
         logEvent: vi.fn(() => Promise.resolve()),
       }));
-      const { registerHealthRoutes: registerFresh } = await import(
-        "../../../src/api/routes/health.js"
-      );
+      const { registerHealthRoutes: registerFresh } =
+        await import("../../../src/api/routes/health.js");
       const { logEvent: freshLogEvent } = await import("../../../src/lib/app-logger.js");
       const freshLogEventMock = vi.mocked(freshLogEvent);
 
