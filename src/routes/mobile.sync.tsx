@@ -9,6 +9,7 @@ import {
 } from "@/lib/offline-queue";
 import { StatusBadge, SectionTitle, EmptyState } from "@/components/pomagier/primitives";
 import { useMssqlStatus } from "@/lib/use-status";
+import { useAuth } from "@/lib/auth";
 import { RefreshCw, Wifi, WifiOff, Trash2, XCircle, CheckCircle2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ function formatTime(timestamp: number): string {
 
 function SyncPage() {
   const { online } = useMssqlStatus();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const { data: scans = [] } = useQuery({
     queryKey: ["offline-queue-scans"],
@@ -51,7 +53,7 @@ function SyncPage() {
     abortRef.current = ctrl;
 
     try {
-      const result = await replayQueue(ctrl.signal);
+      const result = await replayQueue(user?.subiektUzId, ctrl.signal);
       setResults(result.items);
       if (result.failed === 0) {
         toast.success(`Wszystkie ${result.ok} skany zsynchronizowane`);

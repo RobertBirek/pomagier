@@ -203,7 +203,7 @@ function LocationsPage() {
       beep(200, 400);
       toast.error(e instanceof Error ? e.message : "Błąd zapisu");
       for (const item of basket)
-        await addScanToQueue(item.code, pendingLocation, auth.warehouse?.id);
+        await addScanToQueue(item.code, pendingLocation, auth.warehouse?.id, auth.user?.subiektUzId);
       toast.warning("Offline — zapisano w kolejce");
     } finally {
       setSaving(false);

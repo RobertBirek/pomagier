@@ -13,7 +13,7 @@ export const Route = createFileRoute("/mobile/scan")({ component: ScanPage });
 function ScanPage() {
   const nav = useNavigate();
   const { items, addItem, removeItem, clearBasket } = useScanBasket();
-  const { warehouse } = useAuth();
+  const { warehouse, user } = useAuth();
 
   const handleSubmit = useCallback(
     async (code: string): Promise<boolean> => {
@@ -25,7 +25,7 @@ function ScanPage() {
         });
 
         if (!res.ok) {
-          await addScanToQueue(code, undefined, warehouse?.id);
+          await addScanToQueue(code, undefined, warehouse?.id, user?.subiektUzId);
           toast.warning("Offline — zapisano w kolejce", { description: code });
           return false;
         }
@@ -40,12 +40,12 @@ function ScanPage() {
         addItem(data as BasketItem);
         return true;
       } catch {
-        await addScanToQueue(code, undefined, warehouse?.id);
+        await addScanToQueue(code, undefined, warehouse?.id, user?.subiektUzId);
         toast.warning("Offline — zapisano w kolejce", { description: code });
         return false;
       }
     },
-    [addItem, warehouse?.id],
+    [addItem, warehouse?.id, user?.subiektUzId],
   );
 
   const handleOpenItem = (item: BasketItem) => {
