@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LoadingRow, EmptyState } from "@/components/pomagier/primitives";
 import { ScrollText, Search, X, Download, Calendar } from "lucide-react";
-import { getWarehouses } from "@/lib/api";
 
 interface LogEntry {
   id: string;
@@ -86,7 +85,6 @@ function AdminLogs() {
     refetchInterval: 10_000,
   });
 
-  const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: usersData } = useQuery({ queryKey: ["logs-users"], queryFn: fetchUsers });
 
   const toggleArray = (key: "category" | "method", value: string) => {
