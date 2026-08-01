@@ -30,6 +30,12 @@ async function fetchLogs(params: URLSearchParams) {
   }>;
 }
 
+async function fetchUsers() {
+  const r = await fetch("/api/logs/users");
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json() as Promise<{ users: number[] }>;
+}
+
 const CATEGORIES = ["auth", "admin", "mobile", "erp", "queue", "system"];
 const METHODS = ["web", "mobile", "system", "verification"];
 
@@ -63,6 +69,7 @@ function AdminLogs() {
   });
 
   const { data: warehouses = [] } = useQuery({ queryKey: ["warehouses"], queryFn: getWarehouses });
+  const { data: usersData } = useQuery({ queryKey: ["logs-users"], queryFn: fetchUsers });
 
   const toggleArray = (key: "category" | "method", value: string) => {
     setFilters((f) => ({
@@ -166,12 +173,11 @@ function AdminLogs() {
             className="ml-2 rounded border bg-background px-2 py-1 text-sm"
           >
             <option value="">Wszyscy użytkownicy</option>
-            {warehouses.length > 0 &&
-              Array.from(new Set([1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])).map((id) => (
-                <option key={id} value={id}>
-                  Operator {id}
-                </option>
-              ))}
+            {(usersData?.users ?? []).map((id) => (
+              <option key={id} value={id}>
+                Operator {id}
+              </option>
+            ))}
           </select>
         </div>
 
