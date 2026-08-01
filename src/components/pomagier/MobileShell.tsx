@@ -51,7 +51,7 @@ export function MobileShell() {
   const { operatorName, warehouse, logout } = useAuth();
   const { online } = useMssqlStatus();
   const [dark, toggleDark] = useDarkMode();
-  useAutoLogout(15);
+  useAutoLogout(15, "/mobile/login");
   const nav = useNavigate();
   const [queueCount, setQueueCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);

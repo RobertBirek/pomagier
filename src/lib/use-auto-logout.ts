@@ -2,7 +2,12 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "./auth";
 import { useNavigate } from "@tanstack/react-router";
 
-export function useAutoLogout(minutes = 15) {
+/**
+ * Auto-logout po `minutes` minutach nieaktywności.
+ * Po wygaśnięciu czyści sesję i przekierowuje na `redirectTo`.
+ * Aktywność użytkownika (click, touchstart, keydown, scroll) resetuje timer.
+ */
+export function useAutoLogout(minutes = 15, redirectTo = "/mobile/login") {
   const auth = useAuth();
   const nav = useNavigate();
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -13,7 +18,7 @@ export function useAutoLogout(minutes = 15) {
       timerRef.current = setTimeout(
         () => {
           auth.logout();
-          nav({ to: "/mobile/login" });
+          nav({ to: redirectTo });
         },
         minutes * 60 * 1000,
       );
@@ -29,5 +34,5 @@ export function useAutoLogout(minutes = 15) {
       events.forEach((e) => document.removeEventListener(e, resetTimer));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.user]);
+  }, [auth.user, redirectTo]);
 }
