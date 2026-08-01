@@ -111,15 +111,6 @@ export function registerAuthRoutes(app: Application): void {
 
       if (!user) {
         await recordPinFailure(subiektUzId);
-        try {
-          await db.insert(schema.auditLog).values({
-            correlationId: crypto.randomUUID(),
-            action: "login_failed",
-            details: JSON.stringify({ subiektUzId, reason: "no_user" }),
-          });
-        } catch (auditErr) {
-          logger.warn({ auditErr }, "Failed to write audit log");
-        }
         await logEvent({
           category: "auth",
           action: "login_failed",
@@ -156,13 +147,6 @@ export function registerAuthRoutes(app: Application): void {
         userId: user.id,
         token,
         expiresAt,
-      });
-
-      await db.insert(schema.auditLog).values({
-        correlationId: crypto.randomUUID(),
-        userId: user.id,
-        action: "login",
-        details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
       });
 
       await logEvent({

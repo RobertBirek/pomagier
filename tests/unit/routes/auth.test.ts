@@ -105,14 +105,14 @@ describe("Auth routes", () => {
       });
       mockDb.select.mockReturnValueOnce(chain([])).mockReturnValueOnce(chain([user]));
       await request(app).post("/api/login").send({ subiektUzId: 1, pin: "1234" });
-      // 3 inserts expected on success: sessions, manual auditLog, logEvent auditLog
-      expect(mockDb.insert).toHaveBeenCalledTimes(3);
+      // 2 inserts expected on success: sessions + logEvent auditLog
+      expect(mockDb.insert).toHaveBeenCalledTimes(2);
     });
 
     it("writes a login_failed event via logEvent when user not found", async () => {
       await request(app).post("/api/login").send({ subiektUzId: 1, pin: "1234" });
-      // 3 inserts expected: loginAttempts (recordPinFailure) + manual auditLog + logEvent
-      expect(mockDb.insert).toHaveBeenCalledTimes(3);
+      // 2 inserts expected: loginAttempts (recordPinFailure) + logEvent
+      expect(mockDb.insert).toHaveBeenCalledTimes(2);
     });
   });
 
