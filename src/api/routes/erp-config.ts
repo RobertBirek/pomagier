@@ -4,6 +4,7 @@ import { getAdapter } from "../adapter-provider.js";
 import { getDb, schema } from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { validate } from "../validation.js";
 import { encryptConfig, decryptConfig } from "../../lib/crypto-config.js";
@@ -95,6 +96,15 @@ export function registerErpConfigRoutes(app: Application): void {
         });
 
         logger.info("ERP config saved and reconnected");
+        await logEvent({
+          category: "admin",
+          action: "config.updated",
+          method: "web",
+          actorUserId: req.user?.id,
+          target: { type: "config", id: "mssql" },
+          success: true,
+          details: { updatedKeys: entries.map((e) => e.key) },
+        });
         res.json({ ok: true });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
@@ -111,6 +121,7 @@ export function registerErpConfigRoutes(app: Application): void {
     async (req: Request, res: Response) => {
       const { host, port, database, user, password } = req.body;
       let testAdapter: import("../../erp/mssql.adapter.js").MssqlErpAdapter | undefined;
+      let result: { ok: boolean; error?: string } = { ok: false };
       try {
         const { MssqlErpAdapter } = await import("../../erp/mssql.adapter.js");
         testAdapter = new MssqlErpAdapter();
@@ -122,12 +133,22 @@ export function registerErpConfigRoutes(app: Application): void {
           password,
         });
         const health = await testAdapter.healthCheck();
+        result = health as { ok: boolean; error?: string };
         res.json(health);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
-        res.json({ ok: false, error: message });
+        result = { ok: false, error: message };
+        res.json(result);
       } finally {
         await testAdapter?.close?.();
+        await logEvent({
+          category: "erp",
+          action: "test_connection",
+          method: "web",
+          actorUserId: req.user?.id,
+          success: result.ok,
+          errorMessage: result.error,
+        });
       }
     },
   );
