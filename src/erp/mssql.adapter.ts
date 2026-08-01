@@ -2,6 +2,7 @@ import sql from "mssql";
 import type { ErpAdapter } from "./adapter";
 import type { ProductInfo, ScanResult } from "./types";
 import { logger } from "../lib/logger.js";
+import { logEvent } from "../lib/app-logger.js";
 
 interface ProductRow {
   productId: number;
@@ -119,10 +120,13 @@ export class MssqlErpAdapter implements ErpAdapter {
   async scan(code: string, warehouseId?: number | null): Promise<ScanResult> {
     const pool = await this.getPool();
 
-    const result = await pool
-      .request()
-      .input("code", sql.VarChar(50), code)
-      .input("magId", sql.Int, warehouseId ?? null).query(`
+    const start = Date.now();
+    let result: sql.IResult<unknown>;
+    try {
+      result = await pool
+        .request()
+        .input("code", sql.VarChar(50), code)
+        .input("magId", sql.Int, warehouseId ?? null).query(`
         SELECT
           t.tw_Id AS productId,
           t.tw_Symbol AS symbol,
@@ -150,6 +154,30 @@ export class MssqlErpAdapter implements ErpAdapter {
            AND (@magId IS NULL OR s.st_MagId = @magId)
         ORDER BY m.mag_Symbol
       `);
+    } catch (err) {
+      await logEvent({
+        category: "erp",
+        action: "erp.query.error",
+        method: "system",
+        success: false,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        details: { method: "scan", code },
+      });
+      throw err;
+    }
+
+    const durationMs = Date.now() - start;
+    const productCount = result.recordset.length;
+    if (durationMs > 500) {
+      await logEvent({
+        category: "erp",
+        action: "erp.query.slow",
+        method: "system",
+        durationMs,
+        success: true,
+        details: { method: "scan", code, recordset: productCount },
+      });
+    }
 
     const products = result.recordset.reduce<ProductInfo[]>((acc, rawRow) => {
       const row = rawRow as ProductRow;
