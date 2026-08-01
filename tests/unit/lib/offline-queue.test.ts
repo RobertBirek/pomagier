@@ -219,3 +219,51 @@ describe("replayQueue — queue.replayed_ok / queue.replayed_failed events (Spri
     expect((event.errorMessage as string).length).toBeGreaterThan(0);
   });
 });
+
+describe("replayQueue — queue.conflict on 409 (Sprint 9 T1)", () => {
+  it("emits queue.conflict (NOT queue.replayed_failed) on HTTP 409", async () => {
+    const { addScanToQueue, replayQueue } = await import("../../../src/lib/offline-queue.js");
+    await addScanToQueue("DUP409", "A1-B2");
+    logEventMock.mockClear();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Location already exists" }),
+    });
+
+    const result = await replayQueue();
+
+    expect(result.failed).toBe(1);
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.category).toBe("queue");
+    expect(event.action).toBe("queue.conflict");
+    expect(event.method).toBe("mobile");
+    expect(event.target).toEqual({ type: "scan", id: "DUP409" });
+    expect(event.success).toBe(false);
+    expect(event.errorMessage).toBe("Location already exists");
+    expect(event.details).toEqual(expect.objectContaining({ httpStatus: 409, location: "A1-B2" }));
+    expect(typeof event.durationMs).toBe("number");
+  });
+
+  it("emits queue.replayed_failed (NOT queue.conflict) on HTTP 500", async () => {
+    const { addScanToQueue, replayQueue } = await import("../../../src/lib/offline-queue.js");
+    await addScanToQueue("SRV500");
+    logEventMock.mockClear();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    });
+
+    const result = await replayQueue();
+
+    expect(result.failed).toBe(1);
+    expect(logEventMock).toHaveBeenCalledTimes(1);
+    const event = logEventMock.mock.calls[0][0];
+    expect(event.action).toBe("queue.replayed_failed");
+    expect(event.action).not.toBe("queue.conflict");
+  });
+});

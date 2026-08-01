@@ -163,16 +163,31 @@ export async function replayQueue(signal?: AbortSignal): Promise<ReplayResult> {
         } catch {
           /* non-JSON response */
         }
+
+        if (res.status === 409) {
+          await logEvent({
+            category: "queue",
+            action: "queue.conflict",
+            method: "mobile",
+            target: { type: "scan", id: scan.code },
+            success: false,
+            errorMessage: message,
+            durationMs: Date.now() - startedAt,
+            details: { location: scan.location, httpStatus: 409 },
+          });
+        } else {
+          await logEvent({
+            category: "queue",
+            action: "queue.replayed_failed",
+            method: "mobile",
+            target: { type: "scan", id: scan.code },
+            success: false,
+            errorMessage: message,
+            durationMs: Date.now() - startedAt,
+          });
+        }
+
         items.push({ code: scan.code, ok: false, error: message });
-        await logEvent({
-          category: "queue",
-          action: "queue.replayed_failed",
-          method: "mobile",
-          target: { type: "scan", id: scan.code },
-          success: false,
-          errorMessage: message,
-          durationMs: Date.now() - startedAt,
-        });
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") break;
