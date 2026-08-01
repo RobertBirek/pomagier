@@ -4,7 +4,8 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { getDb, schema } from "../../db/index.js";
 import { eq, and } from "drizzle-orm";
-import { logger } from "../../lib/logger.js";
+import { logger, getCorrelationId } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import { ApiError } from "../error-handler.js";
 import { validate } from "../validation.js";
 import { requireAdmin, requireAuth } from "../auth-middleware.js";
@@ -70,7 +71,17 @@ async function recordPinFailure(subiektUzId: number): Promise<void> {
       target: schema.loginAttempts.subiektUzId,
       set: { failures, lockedUntil, updatedAt: new Date() },
     });
-  if (lockedUntil) logger.warn({ subiektUzId, attempts: failures }, "PIN lockout activated");
+  if (lockedUntil) {
+    logger.warn({ subiektUzId, attempts: failures }, "PIN lockout activated");
+    await logEvent({
+      category: "auth",
+      action: "lockout_activated",
+      method: "web",
+      actorSubiektUzId: subiektUzId,
+      success: false,
+      details: { attempts: failures },
+    });
+  }
 }
 
 async function clearPinAttempts(subiektUzId: number): Promise<void> {
@@ -109,6 +120,14 @@ export function registerAuthRoutes(app: Application): void {
         } catch (auditErr) {
           logger.warn({ auditErr }, "Failed to write audit log");
         }
+        await logEvent({
+          category: "auth",
+          action: "login_failed",
+          method: "web",
+          actorSubiektUzId: subiektUzId,
+          success: false,
+          details: { reason: "no_user" },
+        });
         throw ApiError.unauthorized("Użytkownik nie skonfigurowany w PomagierGT");
       }
 
@@ -144,6 +163,16 @@ export function registerAuthRoutes(app: Application): void {
         userId: user.id,
         action: "login",
         details: JSON.stringify({ subiektUzId, timestamp: new Date().toISOString() }),
+      });
+
+      await logEvent({
+        category: "auth",
+        action: "login",
+        method: "web",
+        actorSubiektUzId: user.subiektUzId,
+        actorUserId: user.id,
+        correlationId: getCorrelationId(),
+        success: true,
       });
 
       res.cookie("token", token, {
@@ -184,6 +213,14 @@ export function registerAuthRoutes(app: Application): void {
         path: "/",
       });
       logger.info({ userId: req.user?.id }, "User logged out");
+      await logEvent({
+        category: "auth",
+        action: "logout",
+        method: "web",
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        success: true,
+      });
       res.json({ ok: true });
     } catch (err) {
       logger.error({ err }, "Logout failed");
@@ -212,6 +249,15 @@ export function registerAuthRoutes(app: Application): void {
           .onConflictDoUpdate({ target: schema.users.subiektUzId, set: { pin: hashPin(pin) } });
 
         logger.info({ subiektUzId }, "PIN updated");
+        await logEvent({
+          category: "admin",
+          action: "user.pin_updated",
+          method: "web",
+          actorUserId: req.user?.id,
+          actorSubiektUzId: req.user?.subiektUzId,
+          target: { type: "user", id: String(subiektUzId) },
+          success: true,
+        });
         res.json({ ok: true });
       } catch (err) {
         logger.error({ err }, "PIN update failed");
@@ -254,6 +300,16 @@ export function registerAuthRoutes(app: Application): void {
           .where(eq(schema.users.subiektUzId, subiektUzId));
 
         logger.info({ subiektUzId, role }, "User role updated");
+        await logEvent({
+          category: "admin",
+          action: "user.role_updated",
+          method: "web",
+          actorUserId: req.user?.id,
+          actorSubiektUzId: req.user?.subiektUzId,
+          target: { type: "user", id: String(subiektUzId) },
+          details: { newRole: role },
+          success: true,
+        });
         res.json({ ok: true, role });
       } catch (err) {
         if (err instanceof ApiError) throw err;

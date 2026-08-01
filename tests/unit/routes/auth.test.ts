@@ -91,6 +91,29 @@ describe("Auth routes", () => {
       const res = await request(app).post("/api/login").send({ subiektUzId: 1, pin: "1234" });
       expect(res.status).toBe(401);
     });
+
+    it("writes a login event via logEvent on successful login", async () => {
+      const user = {
+        id: "user-1",
+        subiektUzId: 1,
+        pin: bcrypt.hashSync("1234", 4),
+        role: "admin",
+        active: true,
+      };
+      const chain = (rows: unknown[]) => ({
+        from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(rows) }),
+      });
+      mockDb.select.mockReturnValueOnce(chain([])).mockReturnValueOnce(chain([user]));
+      await request(app).post("/api/login").send({ subiektUzId: 1, pin: "1234" });
+      // 3 inserts expected on success: sessions, manual auditLog, logEvent auditLog
+      expect(mockDb.insert).toHaveBeenCalledTimes(3);
+    });
+
+    it("writes a login_failed event via logEvent when user not found", async () => {
+      await request(app).post("/api/login").send({ subiektUzId: 1, pin: "1234" });
+      // 3 inserts expected: loginAttempts (recordPinFailure) + manual auditLog + logEvent
+      expect(mockDb.insert).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe("PUT /api/users/:subiektId/pin", () => {
