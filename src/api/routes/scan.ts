@@ -5,6 +5,7 @@ import { getAdapter } from "../adapter-provider.js";
 import { getDb, schema } from "../../db/index.js";
 import { parseLocation } from "../../lib/locations.js";
 import { logger } from "../../lib/logger.js";
+import { logEvent } from "../../lib/app-logger.js";
 import { validate } from "../validation.js";
 import { resolveSupportedWarehouses } from "./erp-supported-warehouses.js";
 
@@ -171,8 +172,26 @@ export function registerScanRoutes(app: Application): void {
         }
       }
       const adapter = getAdapter();
+      const start = Date.now();
       const result = await adapter.scan(code.trim(), warehouse ?? null);
-      logger.info({ code: code.trim(), warehouse, found: result.found }, "Scan completed");
+      const durationMs = Date.now() - start;
+      const found = result.found;
+      const productCount = result.products.length;
+      logger.info({ code: code.trim(), warehouse, found }, "Scan completed");
+      await logEvent({
+        category: "mobile",
+        action: found ? "scan.completed" : "scan.not_found",
+        method: "mobile",
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        target:
+          found && productCount > 0
+            ? { type: "product", id: String(result.products[0].productId) }
+            : undefined,
+        durationMs,
+        success: true,
+        details: { code: code.trim(), warehouse, productCount },
+      });
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "ERP error";
@@ -184,6 +203,7 @@ export function registerScanRoutes(app: Application): void {
   // Fast scan-basket endpoint (Postgres-first, MSSQL fallback, no stock joins)
   app.post("/api/scan-basket", validate(ScanSchema), async (req: Request, res: Response) => {
     const code = req.body.code.trim();
+    const start = Date.now();
 
     try {
       // 1. Location check (regex-based, fast)
@@ -206,6 +226,17 @@ export function registerScanRoutes(app: Application): void {
         }
 
         logger.info({ code, type: "location", productCount }, "Scan-basket location");
+        await logEvent({
+          category: "mobile",
+          action: "scan.completed",
+          method: "mobile",
+          actorUserId: req.user?.id,
+          actorSubiektUzId: req.user?.subiektUzId,
+          target: { type: "location", id: parsed.raw },
+          durationMs: Date.now() - start,
+          success: true,
+          details: { code, type: "location", productCount },
+        });
         res.json({
           type: "location",
           code: parsed.raw,
@@ -228,6 +259,22 @@ export function registerScanRoutes(app: Application): void {
       if (cached) {
         const locations = await getProductLocations(cached.id);
         logger.info({ code, type: "product", symbol: cached.symbol }, "Scan-basket product");
+        await logEvent({
+          category: "mobile",
+          action: "scan.completed",
+          method: "mobile",
+          actorUserId: req.user?.id,
+          actorSubiektUzId: req.user?.subiektUzId,
+          target: { type: "product", id: String(cached.id) },
+          durationMs: Date.now() - start,
+          success: true,
+          details: {
+            code,
+            type: "product",
+            symbol: cached.symbol,
+            locationCount: locations.length,
+          },
+        });
         res.json({
           type: "product",
           code,
@@ -243,6 +290,16 @@ export function registerScanRoutes(app: Application): void {
 
       // 4. Not found
       logger.info({ code, type: "not_found" }, "Scan-basket not found");
+      await logEvent({
+        category: "mobile",
+        action: "scan.not_found",
+        method: "mobile",
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        durationMs: Date.now() - start,
+        success: true,
+        details: { code, type: "not_found" },
+      });
       res.json({ type: "not_found", code });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Scan-basket error";
