@@ -4,6 +4,50 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.7.0] — 2026-08-01 (Comprehensive Logging)
+
+Pełen audyt kto + co + jaką metodą zmienił w systemie. Dual-write logger (Pino file + Postgres `audit_log`), 6 kategorii eventów, dedykowany UI w `/admin/logs` z filtrami i eksportem, 30-day auto-cleanup.
+
+### Nowe funkcje
+
+- **Rozszerzony event log**: schema `audit_log` (+category, +method, +actor_subiekt_uz_id, +target_type, +target_id) i `product_movements` (+method, +actor_subiekt_uz_id, +correlation_id_idx).
+- **Nowy moduł `app-logger.ts`**: dual-write logger (Pino file + Postgres), helper `logEvent({category, action, method, target, details})`, automatyczne maskowanie sensitive keys (PIN, password, token).
+- **Nowy endpoint `GET /api/logs`**: filtry (category, method, user, target, date range), full-text search, paginacja, stats per category/method.
+- **Nowy endpoint `GET /api/logs/:id`**: szczegóły + related events by correlationId.
+- **Nowy endpoint `GET /api/logs/export.csv` i `/export.json`**: eksport przefiltrowanych logów.
+- **`/admin/logs` redesign**: search bar, date range picker, multi-select filtry (category, method, user), modal szczegółów, przyciski eksportu.
+
+### Pokrycie logowania
+
+- **auth**: login, logout, login_failed, lockout_activated, session_expired, idle_logout, 401_redirect
+- **admin**: user.pin_updated, user.role_updated, config.updated, field_mapping.updated, backup.created/restored/deleted, wizard.import_all/clear, user.warehouse_updated_legacy
+- **mobile**: scan.completed, scan.not_found, scan.offline_queued, scan.replay_ok/failed, basket.added/cleared, location.assigned/transferred/reset
+- **erp**: erp.query.slow (>500ms), erp.query.error, erp.cache.miss/hit, erp.retry, erp.compensation
+- **queue**: queue.added, queue.replayed_ok/failed, queue.conflict, idempotency.reused
+- **system**: startup, shutdown, health.fail, memory/disk.warning
+
+### Retencja
+
+- **30 dni** auto-cleanup (uruchamiany co 24h przy starcie serwera + on demand)
+
+### Performance
+
+- Każde skan = 1 INSERT (~2ms)
+- ERP queries logowane tylko przy >500ms lub error (nie każde zapytanie)
+
+### Cleanup (T12 chore)
+
+- Usunięte duplikujące się ręczne `db.insert(schema.auditLog)` w `auth.ts` dla `no_user` i `login` (T5 dodał `logEvent` obok istniejącego manual insert → podwójne wpisy). `wrong_pin` zachowany (brak logEvent obok — follow-up Sprint 8).
+
+### Testy (+31, total 187)
+
+- `tests/unit/lib/app-logger.test.ts` — 6 testów (maskSensitive + never throws + Pino masking)
+- `tests/unit/lib/cleanup.test.ts` — 4 testy (30d window)
+- `tests/integration/logs-endpoints.test.ts` — 3 testy (filtry, export.csv, export.json)
+- `tests/unit/routes/activity.test.ts` — pokrycie logEvent dla activity dashboard
+- `tests/unit/routes/auth.test.ts` — update 3→2 inserts (po usunięciu duplikatów)
+- + pozostałe testy dla T5-T11 (scan, locations, backup, config, server, erp, ui)
+
 ## [v1.6.3] — 2026-08-01 (Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout 401, warehouse in basket)
 
 Pakiet 4 sprintów zamykających kluczowe problemy produkcyjne v1.6.1.

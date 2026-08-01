@@ -1,3 +1,27 @@
+# TASKS — Sprint 7: Comprehensive Logging (2026-08-01)
+
+| Data       | Zadanie                                                                                          | Status |
+| ---------- | ------------------------------------------------------------------------------------------------ | ------ |
+| 2026-08-01 | Design spec: docs/superpowers/specs/2026-08-01-comprehensive-logging-design.md                  | ✅     |
+| 2026-08-01 | Branch `feat/comprehensive-logging` z main                                                        | ✅     |
+| 2026-08-01 | Task 1: Schema migration 0006 + Drizzle update                                                   | ✅     |
+| 2026-08-01 | Task 2: app-logger.ts (dual-write + maskSensitive)                                                | ✅     |
+| 2026-08-01 | Task 3: cleanup.ts (30-day)                                                                      | ✅     |
+| 2026-08-01 | Task 4: /api/logs (list, detail, export)                                                         | ✅     |
+| 2026-08-01 | Task 5: auth.ts uses logEvent                                                                    | ✅     |
+| 2026-08-01 | Task 6: scan.ts + locations.ts use logEvent                                                       | ✅     |
+| 2026-08-01 | Task 7: erp-config.ts + backup.ts + users.ts use logEvent                                          | ✅     |
+| 2026-08-01 | Task 8: mssql.adapter.ts logs slow/error                                                         | ✅     |
+| 2026-08-01 | Task 9: server.ts register logs + cleanup interval                                              | ✅     |
+| 2026-08-01 | Task 10: /admin/logs UI redesign                                                                 | ✅     |
+| 2026-08-01 | Task 11: activity.ts uses logEvent                                                               | ✅     |
+| 2026-08-01 | Task 12 chore: remove duplicate manual audit_log inserts (T5 leftover)                           | ✅     |
+| 2026-08-01 | Task 12: Docs sync + tag v1.7.0                                                                  | ✅     |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 187/187 (+31) | **Branch**: `feat/comprehensive-logging` → merged to `main`
+
+---
+
 # TASKS — PomagierGT v1.6.3 (2026-08-01)
 
 > **v1.6.3** = Sprint 3 (chicken-and-egg fix) + Sprint 4 (global warehouses) + Sprint 5 (auto-logout 401) + Sprint 6 (warehouse in basket). 156 testów pass / 6 skip.

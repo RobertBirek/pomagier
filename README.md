@@ -37,4 +37,5 @@ System składa się z dwóch części:
 - [x] v1.6.1 — Security hardening, auth-by-default, backup encryption, logout, retry/compensation, 112 testów
 - [x] v1.6.2 — Tech debt cleanup (test scripts, vite-tsconfig-paths, exhaustive-deps), 121 testów
 - [x] v1.6.3 — Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout on 401, warehouse in basket fix, **156 testów**
+- [x] v1.7.0 — Comprehensive Logging: 6 kategorii eventów, full-text search, date range, export CSV/JSON, auto-cleanup 30 dni, **187 testów**
 - Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy + Playwright

@@ -103,6 +103,7 @@ Placeholdery w `.env.example`:
 - [x] SIGTERM graceful shutdown (pool.close + server.close)
 - [x] Global warehouses (Sprint 4): brak per-user assignment, lista supported, auto-default isMain
 - [x] Auto-logout on 401 (Sprint 5): globalny QueryCache subscription, context-aware useAutoLogout
+- [x] Comprehensive Logging (Sprint 7): 6 kategorii eventów, maskSensitive, /api/logs + UI, 30-day cleanup
 
 ### Auto-logout on session expiry (Sprint 5)
 
@@ -130,3 +131,13 @@ Placeholdery w `.env.example`:
 - `mobile.scan.tsx`: `addScanToQueue(code, undefined, warehouse?.id)`
 
 **Konsekwencja**: każde skanowanie (online i offline queue replay) musi mieć warehouse w body. Walidacja na serwerze sprawdza czy warehouse jest w `supported_warehouses`.
+
+### Comprehensive Logging (Sprint 7)
+
+**Kontekst**: Po wdrożeniu Sprint 6 okazało się, że brakuje pełnego audytu kto + co + jaką metodą zmienił w systemie. Utrudnia audyty i diagnostykę.
+
+**Decyzja**: dual-write logger (Pino file + Postgres `audit_log`) z helper `logEvent()`. Schema `audit_log` rozszerzone o `category`, `method`, `actor_subiekt_uz_id`, `target_type`, `target_id`. Nowy endpoint `GET /api/logs` z filtrami. 30-day auto-cleanup.
+
+**Sensitive data**: helper `maskSensitive()` automatycznie maskuje `pin`, `password`, `token`, `cookie`, `authorization` w `details` (recursive, case-insensitive). PINy nigdy nie trafiają do DB w plaintext.
+
+**Coverage**: 6 kategorii (auth, admin, mobile, erp, queue, system). Pełen opis w `docs/superpowers/specs/2026-08-01-comprehensive-logging-design.md`.
