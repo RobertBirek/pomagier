@@ -40,4 +40,5 @@ System składa się z dwóch części:
 - [x] v1.7.0 — Comprehensive Logging: 6 kategorii eventów, full-text search, date range, export CSV/JSON, auto-cleanup 30 dni, **187 testów**
 - [x] v1.8.0 — Queue + System eventy (queue.added/replayed, idempotency.reused, startup/shutdown, memory/disk), /api/logs/users, 214 testów
 - [x] v1.9.0 — queue.conflict (409 detection) + actor traceability w queue events, 220 testów
+- [x] v1.9.1 — actor w idempotency.reused + cleanup backlog (dead code, idiomatic catch), 222 testów
 - Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy + Playwright

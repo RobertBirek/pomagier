@@ -150,12 +150,17 @@ Placeholdery w `.env.example`:
 - **Correlation search**: `?correlation=xxx` URL param w /admin/logs auto-filluje filtr z modala.
 - **Defensive**: CSV injection fix (tab prefix), transactional cleanup, clearInterval on shutdown.
 
-### queue.conflict + Actor traceability for queue events (Sprint 9)
+### queue.conflict + Actor traceability for queue events (Sprint 9 + v1.9.1)
 
 **Kontekst**: Po Sprint 8 brakowało (1) `queue.conflict` (rozróżnienie permanent 409 od transient failures) i (2) `actor_subiekt_uz_id` w queue events (brak wiedzy KTO zainicjował offline queue).
 
-**Decyzja**:
+**Decyzja (Sprint 9)**:
+
 - `queue.conflict` — emit przy HTTP 409 z serwera podczas replay (np. lokalizacja już istnieje). Osobny action niż `queue.replayed_failed` (transient).
 - `addScanToQueue` i `replayQueue` przyjmują `actorSubiektUzId` (4./2. parametr). Frontend callerzy (`mobile.scan.tsx`, `mobile.locations.tsx`, `mobile.sync.tsx`) przekazują `auth.user?.subiektUzId`. Wszystkie logEvent calls w queue events mają teraz actor.
 
-**Pozostałe**: idempotency.reused nadal bez actor (Sprint 10+).
+**Rozszerzenie (v1.9.1, Sprint 10)**:
+
+- `checkIdempotency(key, actorSubiektUzId?)` — callerzy w `locations.ts` (3 handlery: assign, transfer, reset) przekazują `req.user?.subiektUzId`. Kto użył tego samego X-Idempotency-Key jest teraz widoczne w /admin/logs.
+
+**Pozostałe**: brak — pełen coverage actor dla queue + idempotency.

@@ -4,6 +4,21 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.9.1] — 2026-08-01 (Sprint 10: comprehensive logging backlog)
+
+### Fixes
+
+- **`actor` w `idempotency.reused`**: `checkIdempotency(key, actorSubiektUzId?)` — callerzy w `locations.ts` (3 handlery) przekazują `req.user?.subiektUzId`. Kto użył tego samego X-Idempotency-Key jest teraz widoczne w /admin/logs.
+
+### Cleanup
+
+- **Dead `warehouses` query w `admin.logs.tsx`**: usunięty (zastąpiony przez `/api/logs/users` w Sprint 8 T6).
+- **`void err` idiom w `system-monitor.ts`**: `} catch { /* ignore */ }` (optional catch binding) + `void tick()` zamiast `tick().catch(() => {})`.
+
+### Testy (+2, total 222)
+
+- `idempotency.reused` z actor (2 testy: set + undefined)
+
 ## [v1.9.0] — 2026-08-01 (Sprint 9: queue.conflict + actor)
 
 ### Nowe eventy

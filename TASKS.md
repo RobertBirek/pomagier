@@ -1,3 +1,17 @@
+# TASKS — Sprint 10: comprehensive logging backlog (2026-08-01)
+
+| Data       | Zadanie                                                                    | Status |
+| ---------- | -------------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Branch `fix/sprint-10-backlog` z main                                      | ✅     |
+| 2026-08-01 | T1+T2: idempotency.ts — actorSubiektUzId + 3 callerów w locations.ts (TDD) | ✅     |
+| 2026-08-01 | T3: admin.logs.tsx — usunięcie dead `warehouses` query                     | ✅     |
+| 2026-08-01 | T4: system-monitor.ts — `void err` → idiomatic catch                       | ✅     |
+| 2026-08-01 | T5: Docs + tag v1.9.1                                                      | ✅     |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 222/222 (+2) | **Branch**: `fix/sprint-10-backlog` → merged to `main`
+
+---
+
 # TASKS — Sprint 9: queue.conflict + actor (2026-08-01)
 
 | Data       | Zadanie                                                               | Status |
