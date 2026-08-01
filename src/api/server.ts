@@ -28,6 +28,7 @@ import { registerCaRoutes } from "./routes/ca.js";
 import { registerWizardRoutes } from "./routes/wizard.js";
 import { startCleanupInterval, runCleanup } from "../lib/cleanup.js";
 import { errorHandler } from "./error-handler.js";
+import { logEvent } from "../lib/app-logger.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {
@@ -166,10 +167,18 @@ if (process.env.AUTO_MIGRATE === "true") {
 }
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
   logger.info({ port }, "API server started");
   startCleanupInterval();
   logger.info("Cleanup interval started (30 days, runs daily)");
+  await logEvent({
+    category: "system",
+    action: "startup",
+    method: "system",
+    target: { type: "system", id: "api" },
+    success: true,
+    details: { port, nodeVersion: process.version, pid: process.pid },
+  });
 });
 runCleanup().catch((err) => logger.error({ err }, "Initial cleanup failed"));
 
@@ -185,6 +194,14 @@ async function shutdown(signal: string) {
   } catch {
     /* pool already closed */
   }
+  await logEvent({
+    category: "system",
+    action: "shutdown",
+    method: "system",
+    target: { type: "system", id: "api" },
+    success: true,
+    details: { signal },
+  });
   process.exit(0);
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
