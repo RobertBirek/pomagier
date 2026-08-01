@@ -12,6 +12,11 @@ const fakeServer = vi.hoisted(() => ({
   }),
 }));
 
+const fakeCleanupHandle = vi.hoisted(() => ({ _kind: "interval" as const }));
+const fakeSystemMonitorHandle = vi.hoisted(() => ({ _kind: "interval" as const }));
+
+const clearIntervalSpy = vi.hoisted(() => vi.fn());
+
 const fakeApp = vi.hoisted(() => {
   const app = {
     use: vi.fn().mockReturnThis(),
@@ -45,8 +50,12 @@ vi.mock("../../../src/db/index.js", () => ({
 }));
 
 vi.mock("../../../src/lib/cleanup.js", () => ({
-  startCleanupInterval: vi.fn(),
+  startCleanupInterval: vi.fn(() => fakeCleanupHandle),
   runCleanup: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("../../../src/lib/system-monitor.js", () => ({
+  startSystemMonitor: vi.fn(() => fakeSystemMonitorHandle),
 }));
 
 vi.mock("../../../src/api/adapter-provider.js", () => ({
@@ -54,10 +63,13 @@ vi.mock("../../../src/api/adapter-provider.js", () => ({
 }));
 
 const originalExit = process.exit;
+const originalClearInterval = global.clearInterval;
 const exitMock = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearIntervalSpy.mockReset();
+  global.clearInterval = clearIntervalSpy as unknown as typeof clearInterval;
   listenCallbacks.length = 0;
   logEventMock.mockReset();
   logEventMock.mockImplementation(() => Promise.resolve());
@@ -70,6 +82,7 @@ beforeEach(() => {
 
 afterEach(() => {
   process.exit = originalExit;
+  global.clearInterval = originalClearInterval;
   process.removeAllListeners("SIGTERM");
   process.removeAllListeners("SIGINT");
 });
@@ -138,5 +151,16 @@ describe("server lifecycle logEvent (Sprint 8 T4)", () => {
 
     await expect(listenCallbacks[0]()).rejects.toThrow("audit log down");
     expect(logEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls clearInterval on the cleanup handle when SIGTERM fires", async () => {
+    await importServer();
+    await listenCallbacks[0]();
+    clearIntervalSpy.mockClear();
+
+    process.emit("SIGTERM");
+    await waitFor(() => exitMock.mock.calls.length > 0);
+
+    expect(clearIntervalSpy).toHaveBeenCalledWith(fakeCleanupHandle);
   });
 });

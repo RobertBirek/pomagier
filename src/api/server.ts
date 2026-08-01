@@ -168,11 +168,13 @@ if (process.env.AUTO_MIGRATE === "true") {
 }
 
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
+let cleanupHandle: NodeJS.Timeout | null = null;
+let systemMonitorHandle: NodeJS.Timeout | null = null;
 const server = app.listen(port, async () => {
   logger.info({ port }, "API server started");
-  startCleanupInterval();
+  cleanupHandle = startCleanupInterval();
   logger.info("Cleanup interval started (30 days, runs daily)");
-  startSystemMonitor();
+  systemMonitorHandle = startSystemMonitor();
   logger.info("System monitor started (every 5 min)");
   await logEvent({
     category: "system",
@@ -188,6 +190,14 @@ runCleanup().catch((err) => logger.error({ err }, "Initial cleanup failed"));
 // Graceful shutdown: close MSSQL pool and HTTP server
 async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down...");
+  if (cleanupHandle) {
+    clearInterval(cleanupHandle);
+    cleanupHandle = null;
+  }
+  if (systemMonitorHandle) {
+    clearInterval(systemMonitorHandle);
+    systemMonitorHandle = null;
+  }
   server.close(() => logger.info("HTTP server closed"));
   try {
     const { getAdapter } = await import("./adapter-provider.js");
