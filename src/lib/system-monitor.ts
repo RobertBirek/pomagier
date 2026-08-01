@@ -57,15 +57,13 @@ async function tick(): Promise<void> {
   try {
     await checkMemory();
     await checkDisk();
-  } catch (err) {
-    void err;
+  } catch {
+    /* ignore */
   }
 }
 
 export function startSystemMonitor(intervalMs = 300_000): NodeJS.Timeout {
   return setInterval(() => {
-    tick().catch(() => {
-      // already swallowed inside tick
-    });
+    void tick();
   }, intervalMs);
 }
