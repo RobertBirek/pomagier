@@ -1,5 +1,6 @@
 import { eq, lt } from "drizzle-orm";
 import { getDb, schema } from "../db/index.js";
+import { logEvent } from "../lib/app-logger.js";
 
 const IDEMPOTENCY_TTL = 5 * 60 * 1000;
 
@@ -15,7 +16,16 @@ export async function checkIdempotency(
     .where(eq(schema.idempotencyKeys.key, key));
   if (!entry || entry.expiresAt <= now) return null;
   try {
-    return { result: JSON.parse(entry.response) as unknown, statusCode: entry.statusCode };
+    const result = { result: JSON.parse(entry.response) as unknown, statusCode: entry.statusCode };
+    await logEvent({
+      category: "queue",
+      action: "idempotency.reused",
+      method: "web",
+      target: { type: "idempotency", id: key },
+      success: true,
+      details: { reusedForResponse: result.result },
+    });
+    return result;
   } catch {
     return null;
   }
