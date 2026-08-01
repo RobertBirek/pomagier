@@ -1,3 +1,17 @@
+# TASKS — Sprint 9: queue.conflict + actor (2026-08-01)
+
+| Data       | Zadanie                                                               | Status |
+| ---------- | --------------------------------------------------------------------- | ------ |
+| 2026-08-01 | Branch `feat/sprint-9-queue-conflict-actor` z main                    | ✅     |
+| 2026-08-01 | T1+T2: offline-queue.ts — queue.conflict (409) + actorSubiektUzId     | ✅     |
+| 2026-08-01 | T3: Callerzy — mobile.scan.tsx, mobile.locations.tsx, mobile.sync.tsx | ✅     |
+| 2026-08-01 | T4: Testy (queue.conflict + actor) — 6 testów                         | ✅     |
+| 2026-08-01 | T5: Docs + tag v1.9.0                                                 | ✅     |
+
+**Build**: ✅ | **Lint**: 0E/0W | **Tests**: 220/220 (+6) | **Branch**: `feat/sprint-9-queue-conflict-actor` → merged to `main`
+
+---
+
 # TASKS — Sprint 8: queue + system + fixy (2026-08-01)
 
 | Data       | Zadanie                                                                          | Status |

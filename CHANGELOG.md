@@ -4,6 +4,27 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.9.0] — 2026-08-01 (Sprint 9: queue.conflict + actor)
+
+### Nowe eventy
+
+- **`queue.conflict`** — emit przy HTTP 409 z serwera podczas replay (np. lokalizacja już istnieje). Rozróżnia conflict (permanent) od queue.replayed_failed (transient).
+- **Actor w queue events** — `addScanToQueue` i `replayQueue` przyjmują `actorSubiektUzId` (nowy 4./2. parametr). Callerzy (mobile.scan.tsx, mobile.locations.tsx, mobile.sync.tsx) przekazują `auth.user?.subiektUzId`.
+
+### Breaking changes (niskie ryzyko)
+
+- `replayQueue(signal?, actorSubiektUzId?)` — kolejność parametrów (sygnał przesunięty na 2. miejsce, actor na 1.)
+- `addScanToQueue(code, location?, warehouse?, actorSubiektUzId?)` — nowy 4. parametr (opcjonalny, backward compat)
+
+### Testy (+6, total 220)
+
+- queue.conflict (2 testy: 409 → emit, 500 → NOT emit)
+- actor w queue events (4 testy: added, replayed_ok, replayed_failed, conflict)
+
+### Pozostałe gapy (Sprint 10+)
+
+- `actor w idempotency.reused` — wymaga signature change w 3 callerach (locations.ts)
+
 ## [v1.8.0] — 2026-08-01 (Sprint 8: queue + system + fixy)
 
 Pełen coverage 6/6 kategorii eventów (auth, admin, mobile, erp, queue, system). Nowe eventy queue + system, dynamiczny dropdown użytkowników, correlation search w UI, plus 4 drobne fixy (CSV injection, transactional cleanup, clearInterval, dead import).
@@ -13,8 +34,6 @@ Pełen coverage 6/6 kategorii eventów (auth, admin, mobile, erp, queue, system)
 - **`queue.added`** — skan dodany do IndexedDB (offline)
 - **`queue.replayed_ok` / `queue.replayed_failed`** — sync po powrocie online
 - **`idempotency.reused`** — stary idempotency key ponownie użyty
-
-> ℹ️ `queue.conflict` (konflikt podczas replay) jest w spec, ale **nie zaimplementowany** w v1.8.0 — wymaga obsługi 409 z serwera. Do realizacji w Sprint 9+.
 
 ### Nowe eventy systemowe
 

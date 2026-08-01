@@ -149,3 +149,11 @@ Placeholdery w `.env.example`:
 - **/api/logs/users**: nowy endpoint do dynamicznego dropdownu użytkowników (zastąpił hardcoded listę).
 - **Correlation search**: `?correlation=xxx` URL param w /admin/logs auto-filluje filtr z modala.
 - **Defensive**: CSV injection fix (tab prefix), transactional cleanup, clearInterval on shutdown.
+
+### Actor traceability for queue events (Sprint 9)
+
+**Kontekst**: Po Sprint 8 operator mógł widzieć zdarzenia queue w `/admin/logs`, ale `actor_subiekt_uz_id` było NULL — nie wiedzieliśmy KTO zainicjował offline queue.
+
+**Decyzja**: `addScanToQueue` i `replayQueue` przyjmują `actorSubiektUzId` (4./2. parametr). Frontend callerzy (`mobile.scan.tsx`, `mobile.locations.tsx`, `mobile.sync.tsx`) przekazują `auth.user?.subiektUzId`. Wszystkie logEvent calls w queue events mają teraz actor.
+
+**Pozostałe**: idempotency.reused nadal bez actor (Sprint 10+).
