@@ -145,15 +145,17 @@ Placeholdery w `.env.example`:
 
 ### Comprehensive Logging extension (Sprint 8)
 
-- **queue + system coverage**: 4 queue events (queue.added, queue.replayed_ok/failed, queue.conflict, idempotency.reused) + 5 system events (startup, shutdown, health.fail, memory.warning, disk.warning). Teraz 6/6 kategorii aktywnych.
+- **queue + system coverage**: 3 queue events (queue.added, queue.replayed_ok/failed, idempotency.reused) + 5 system events (startup, shutdown, health.fail, memory.warning, disk.warning). Teraz 6/6 kategorii aktywnych. `queue.conflict` dodany w Sprint 9 (patrz niżej).
 - **/api/logs/users**: nowy endpoint do dynamicznego dropdownu użytkowników (zastąpił hardcoded listę).
 - **Correlation search**: `?correlation=xxx` URL param w /admin/logs auto-filluje filtr z modala.
 - **Defensive**: CSV injection fix (tab prefix), transactional cleanup, clearInterval on shutdown.
 
-### Actor traceability for queue events (Sprint 9)
+### queue.conflict + Actor traceability for queue events (Sprint 9)
 
-**Kontekst**: Po Sprint 8 operator mógł widzieć zdarzenia queue w `/admin/logs`, ale `actor_subiekt_uz_id` było NULL — nie wiedzieliśmy KTO zainicjował offline queue.
+**Kontekst**: Po Sprint 8 brakowało (1) `queue.conflict` (rozróżnienie permanent 409 od transient failures) i (2) `actor_subiekt_uz_id` w queue events (brak wiedzy KTO zainicjował offline queue).
 
-**Decyzja**: `addScanToQueue` i `replayQueue` przyjmują `actorSubiektUzId` (4./2. parametr). Frontend callerzy (`mobile.scan.tsx`, `mobile.locations.tsx`, `mobile.sync.tsx`) przekazują `auth.user?.subiektUzId`. Wszystkie logEvent calls w queue events mają teraz actor.
+**Decyzja**:
+- `queue.conflict` — emit przy HTTP 409 z serwera podczas replay (np. lokalizacja już istnieje). Osobny action niż `queue.replayed_failed` (transient).
+- `addScanToQueue` i `replayQueue` przyjmują `actorSubiektUzId` (4./2. parametr). Frontend callerzy (`mobile.scan.tsx`, `mobile.locations.tsx`, `mobile.sync.tsx`) przekazują `auth.user?.subiektUzId`. Wszystkie logEvent calls w queue events mają teraz actor.
 
 **Pozostałe**: idempotency.reused nadal bez actor (Sprint 10+).
