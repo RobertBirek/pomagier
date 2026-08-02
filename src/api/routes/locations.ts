@@ -1675,49 +1675,80 @@ export function registerLocationsRoutes(app: express.Express) {
       let fixedPostgres = 0;
       let fixedSubiekt = 0;
 
-      for (const productId of productIds) {
-        // 1. Fix Postgres locations.code for this product
-        const plRows = await db
-          .select({ locId: schema.productLocations.locationId, code: schema.locations.code })
-          .from(schema.productLocations)
-          .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
-          .where(eq(schema.productLocations.productId, productId));
+      // E4: Postgres updates are atomic via db.transaction. Subiekt update is best-effort
+      // (eventual consistency — logged if it fails, request still returns 200).
+      await db.transaction(async (tx) => {
+        for (const productId of productIds) {
+          // 1. Fix Postgres locations.code for this product
+          const plRows = await tx
+            .select({ locId: schema.productLocations.locationId, code: schema.locations.code })
+            .from(schema.productLocations)
+            .innerJoin(
+              schema.locations,
+              eq(schema.productLocations.locationId, schema.locations.id),
+            )
+            .where(eq(schema.productLocations.productId, productId));
 
-        for (const row of plRows) {
-          const parsed = parseLocation(row.code);
-          if (parsed && parsed.raw !== row.code) {
-            await db
-              .update(schema.locations)
-              .set({ code: parsed.raw })
-              .where(eq(schema.locations.id, row.locId));
-            fixedPostgres++;
+          for (const row of plRows) {
+            const parsed = parseLocation(row.code);
+            if (parsed && parsed.raw !== row.code) {
+              await tx
+                .update(schema.locations)
+                .set({ code: parsed.raw })
+                .where(eq(schema.locations.id, row.locId));
+              fixedPostgres++;
+            }
           }
-        }
 
-        // 2. Fix Subiekt tw_Pole1
-        const subiektRow = await pool
-          .request()
-          .input("id", productId)
-          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const val = (subiektRow.recordset[0] as SubiektFieldRow | undefined)?.val || "";
-        const codes = val
-          .split(/[,;]/)
-          .map((s: string) => s.trim())
-          .filter(Boolean);
-        const normalized = codes.map((c) => {
-          const p = parseLocation(c);
-          return p ? p.raw : c;
-        });
-        const newVal = normalized.join(",");
-        if (newVal !== val) {
-          await pool
+          // 2. Compute normalized Subiekt value (E3: dedup via Set)
+          const subiektRow = await pool
             .request()
             .input("id", productId)
-            .input("val", newVal)
-            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
-          fixedSubiekt++;
+            .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+          const val = (subiektRow.recordset[0] as SubiektFieldRow | undefined)?.val || "";
+          const codes = val
+            .split(/[,;]/)
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+          const normalized = Array.from(
+            new Set(
+              codes.map((c) => {
+                const p = parseLocation(c);
+                return p ? p.raw : c;
+              }),
+            ),
+          );
+          const newVal = normalized.join(",");
+          if (newVal !== val) {
+            // Best-effort Subiekt update — log warning on failure, return success
+            try {
+              await writeSubiektWithRetry(async () => {
+                await pool
+                  .request()
+                  .input("id", productId)
+                  .input("val", newVal)
+                  .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+              }, `normalize-${productId}`);
+              fixedSubiekt++;
+            } catch (subiektErr) {
+              logger.warn(
+                { err: subiektErr, productId, newVal },
+                "Normalize: Subiekt update failed, manual re-verify needed (eventual consistency)",
+              );
+              await logEvent({
+                category: "system",
+                action: "normalize.subiekt_skipped",
+                method: "system",
+                actorUserId: req.user?.id,
+                actorSubiektUzId: req.user?.subiektUzId,
+                target: { type: "product", id: String(productId) },
+                success: false,
+                details: { reason: (subiektErr as Error).message, newVal },
+              });
+            }
+          }
         }
-      }
+      });
 
       logger.info(
         { productCount: productIds.length, fixedPostgres, fixedSubiekt },
