@@ -51,8 +51,7 @@ function makeDb() {
   const select = vi.fn().mockImplementation(() => {
     const chain = freshChain();
     chain.where = vi.fn().mockImplementation(() => {
-      const handler =
-        whereQueue.length > 0 ? whereQueue.shift()! : () => Promise.resolve([]);
+      const handler = whereQueue.length > 0 ? whereQueue.shift()! : () => Promise.resolve([]);
       const p = handler();
       const thenable: Record<string, unknown> = {};
       thenable.then = (resolve: (v: unknown) => void) => p.then(resolve);
@@ -134,7 +133,10 @@ describe("verify-sync-detail enhanced with subiektModifiedAt (T4.3)", () => {
     const modifiedAt = new Date("2026-08-01T12:00:00Z");
     mockGetPool.mockResolvedValue(
       poolWith([
-        { match: /tw_CzasM AS modifiedAt/, result: { recordset: [{ id: 1, val: "A 1-2-3-4", modifiedAt }] } },
+        {
+          match: /tw_CzasM AS modifiedAt/,
+          result: { recordset: [{ id: 1, val: "A 1-2-3-4", modifiedAt }] },
+        },
         { match: /FROM tw__Towar WHERE tw_Id IN/, result: { recordset: [] } },
       ]),
     );

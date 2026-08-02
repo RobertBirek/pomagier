@@ -42,7 +42,16 @@ function buildDbMock(): MockDb {
           onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
           onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
           returning: vi.fn().mockResolvedValue([
-            { id: "loc-id", code: "A 1-2-3-4", area: "A", aisle: 1, rack: 2, shelf: 3, spot: 4, label: "x" },
+            {
+              id: "loc-id",
+              code: "A 1-2-3-4",
+              area: "A",
+              aisle: 1,
+              rack: 2,
+              shelf: 3,
+              spot: 4,
+              label: "x",
+            },
           ]),
         })),
       };
@@ -91,9 +100,40 @@ let activeDbMock: MockDb;
 
 vi.mock("../../../src/db/index.js", () => {
   const schema = {
-    locations: { id: "id", code: "code", area: "area", aisle: "aisle", rack: "rack", shelf: "shelf", spot: "spot", label: "label", createdAt: "createdAt" },
-    productLocations: { id: "id", productId: "productId", locationId: "locationId", quantity: "quantity", createdAt: "createdAt" },
-    productMovements: { id: "id", productId: "productId", symbol: "symbol", name: "name", fromLocationId: "fromLocationId", toLocationId: "toLocationId", fromCode: "fromCode", toCode: "toCode", quantity: "quantity", operator: "operator", correlationId: "correlationId", createdAt: "createdAt", method: "method", actorSubiektUzId: "actorSubiektUzId" },
+    locations: {
+      id: "id",
+      code: "code",
+      area: "area",
+      aisle: "aisle",
+      rack: "rack",
+      shelf: "shelf",
+      spot: "spot",
+      label: "label",
+      createdAt: "createdAt",
+    },
+    productLocations: {
+      id: "id",
+      productId: "productId",
+      locationId: "locationId",
+      quantity: "quantity",
+      createdAt: "createdAt",
+    },
+    productMovements: {
+      id: "id",
+      productId: "productId",
+      symbol: "symbol",
+      name: "name",
+      fromLocationId: "fromLocationId",
+      toLocationId: "toLocationId",
+      fromCode: "fromCode",
+      toCode: "toCode",
+      quantity: "quantity",
+      operator: "operator",
+      correlationId: "correlationId",
+      createdAt: "createdAt",
+      method: "method",
+      actorSubiektUzId: "actorSubiektUzId",
+    },
     productsCache: { id: "id" },
     config: { key: "key", value: "value", updatedAt: "updatedAt" },
   };
@@ -134,7 +174,9 @@ function poolWith(subiektThrow: boolean) {
         if (subiektThrow && /UPDATE tw__Towar/.test(sqlText)) {
           throw new Error("MSSQL down");
         }
-        if (/SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar/.test(sqlText)) {
+        if (
+          /SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar/.test(sqlText)
+        ) {
           return { recordset: [{ id: 1, symbol: "TEST", name: "Test" }] };
         }
         if (/SELECT tw_Id AS id FROM tw__Towar/.test(sqlText)) {
@@ -175,7 +217,9 @@ describe("Locations dual-write compensation (B2)", () => {
       .post("/api/locations/transfer")
       .send({ codes: ["123"], fromLocation: "A 1-1-1-1", toLocation: "B 2-2-2-2" });
     expect(res.status).toBe(500);
-    const inserts = activeDbMock.ops.filter((o) => o.kind === "insert" && o.table === "product_locations");
+    const inserts = activeDbMock.ops.filter(
+      (o) => o.kind === "insert" && o.table === "product_locations",
+    );
     expect(inserts.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -185,9 +229,13 @@ describe("Locations dual-write compensation (B2)", () => {
       .post("/api/locations/reset")
       .send({ codes: ["123"], location: "A 1-1-1-1" });
     expect(res.status).toBe(500);
-    const inserts = activeDbMock.ops.filter((o) => o.kind === "insert" && o.table === "product_locations");
+    const inserts = activeDbMock.ops.filter(
+      (o) => o.kind === "insert" && o.table === "product_locations",
+    );
     expect(inserts.length).toBeGreaterThanOrEqual(1);
-    const deletes = activeDbMock.ops.filter((o) => o.kind === "delete" && o.table === "product_locations");
+    const deletes = activeDbMock.ops.filter(
+      (o) => o.kind === "delete" && o.table === "product_locations",
+    );
     expect(deletes.length).toBeGreaterThanOrEqual(1);
   });
 

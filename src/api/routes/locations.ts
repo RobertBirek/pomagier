@@ -1466,9 +1466,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .select()
           .from(schema.config)
           .where(eq(schema.config.key, "subiekt_last_sync_at"));
-        since =
-          lastSyncRow?.value ||
-          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        since = lastSyncRow?.value || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       }
 
       const result = await pool
@@ -1507,9 +1505,7 @@ export function registerLocationsRoutes(app: express.Express) {
       });
 
       const newSince =
-        products.length > 0
-          ? new Date(products[0]!.subiektModifiedAt).toISOString()
-          : since;
+        products.length > 0 ? new Date(products[0]!.subiektModifiedAt).toISOString() : since;
 
       res.json({ since, newSince, count: products.length, products });
     } catch (err) {

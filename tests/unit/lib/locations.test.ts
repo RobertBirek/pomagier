@@ -128,12 +128,7 @@ describe("sortLocations", () => {
   it("sorts by area then aisle then rack then shelf", () => {
     const parsed = parsedAll(["B 2-1-1-1", "A 1-1-1-1", "A 2-1-1-1", "A 1-2-1-1"]);
     const sorted = sortLocations(parsed);
-    expect(sorted.map((p) => p.raw)).toEqual([
-      "A 1-1-1-1",
-      "A 1-2-1-1",
-      "A 2-1-1-1",
-      "B 2-1-1-1",
-    ]);
+    expect(sorted.map((p) => p.raw)).toEqual(["A 1-1-1-1", "A 1-2-1-1", "A 2-1-1-1", "B 2-1-1-1"]);
   });
 
   it("does not mutate input", () => {

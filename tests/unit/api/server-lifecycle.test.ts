@@ -173,9 +173,7 @@ describe("server lifecycle logEvent (Sprint 8 T4)", () => {
   it("starts subiekt sync monitor at startup (T4.4)", async () => {
     await importServer();
     await listenCallbacks[0]();
-    const { startSubiektSyncMonitor } = await import(
-      "../../../src/lib/subiekt-sync-monitor.js"
-    );
+    const { startSubiektSyncMonitor } = await import("../../../src/lib/subiekt-sync-monitor.js");
     expect(startSubiektSyncMonitor).toHaveBeenCalledTimes(1);
   });
 

@@ -62,8 +62,24 @@ let activeDbMock: ReturnType<typeof makeDb>;
 
 vi.mock("../../../src/db/index.js", () => {
   const schema = {
-    locations: { id: "id", code: "code", area: "area", aisle: "aisle", rack: "rack", shelf: "shelf", spot: "spot", label: "label", createdAt: "createdAt" },
-    productLocations: { id: "id", productId: "productId", locationId: "locationId", quantity: "quantity", createdAt: "createdAt" },
+    locations: {
+      id: "id",
+      code: "code",
+      area: "area",
+      aisle: "aisle",
+      rack: "rack",
+      shelf: "shelf",
+      spot: "spot",
+      label: "label",
+      createdAt: "createdAt",
+    },
+    productLocations: {
+      id: "id",
+      productId: "productId",
+      locationId: "locationId",
+      quantity: "quantity",
+      createdAt: "createdAt",
+    },
     productMovements: { id: "id" },
     productsCache: { id: "id", symbol: "symbol", name: "name", barcode: "barcode", unit: "unit" },
     config: { key: "key", value: "value", updatedAt: "updatedAt" },
@@ -127,9 +143,7 @@ describe("verify-sync endpoints (T3.3)", () => {
     mockGetPool.mockResolvedValue(
       poolWith([{ match: /SELECT tw_Id AS id/, result: { recordset: [] } }]),
     );
-    const res = await request(app).get(
-      "/api/locations/verify-sync-detail?page=2&pageSize=10",
-    );
+    const res = await request(app).get("/api/locations/verify-sync-detail?page=2&pageSize=10");
     expect(res.status).toBe(200);
     expect(res.body.page).toBe(2);
     expect(res.body.pageSize).toBe(10);

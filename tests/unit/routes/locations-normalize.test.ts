@@ -87,8 +87,24 @@ let activeDbMock: MockDb;
 
 vi.mock("../../../src/db/index.js", () => {
   const schema = {
-    locations: { id: "id", code: "code", area: "area", aisle: "aisle", rack: "rack", shelf: "shelf", spot: "spot", label: "label", createdAt: "createdAt" },
-    productLocations: { id: "id", productId: "productId", locationId: "locationId", quantity: "quantity", createdAt: "createdAt" },
+    locations: {
+      id: "id",
+      code: "code",
+      area: "area",
+      aisle: "aisle",
+      rack: "rack",
+      shelf: "shelf",
+      spot: "spot",
+      label: "label",
+      createdAt: "createdAt",
+    },
+    productLocations: {
+      id: "id",
+      productId: "productId",
+      locationId: "locationId",
+      quantity: "quantity",
+      createdAt: "createdAt",
+    },
     productMovements: { id: "id" },
     productsCache: { id: "id" },
     config: { key: "key", value: "value", updatedAt: "updatedAt" },
@@ -164,9 +180,7 @@ describe("normalize (E3 dedup + E4 transactional)", () => {
   });
 
   it("returns 400 for missing productIds", async () => {
-    const res = await request(app)
-      .post("/api/locations/normalize")
-      .send({});
+    const res = await request(app).post("/api/locations/normalize").send({});
     expect(res.status).toBe(400);
   });
 

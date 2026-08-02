@@ -133,7 +133,9 @@ describe("tickSubiektSync (T4.2)", () => {
 
     expect(dbMocks.insert).toHaveBeenCalledTimes(1);
     expect(logEventMock).toHaveBeenCalledTimes(1);
-    const calls = logEventMock.mock.calls as unknown as Array<[{ action: string; success: boolean }]>;
+    const calls = logEventMock.mock.calls as unknown as Array<
+      [{ action: string; success: boolean }]
+    >;
     const call = calls[0]?.[0];
     expect(call?.action).toBe("subiekt.sync.bootstrap");
     expect(call?.success).toBe(true);
@@ -148,9 +150,9 @@ describe("tickSubiektSync (T4.2)", () => {
     await tickSubiektSync();
 
     expect(logEventMock).toHaveBeenCalledTimes(1);
-    const calls = logEventMock.mock.calls as unknown as Array<[
-      { action: string; details: Record<string, unknown> },
-    ]>;
+    const calls = logEventMock.mock.calls as unknown as Array<
+      [{ action: string; details: Record<string, unknown> }]
+    >;
     const call = calls[0]?.[0];
     expect(call?.action).toBe("subiekt.modified");
     expect(call?.details.count).toBe(5);
@@ -185,9 +187,9 @@ describe("tickSubiektSync (T4.2)", () => {
     await tickSubiektSync();
 
     expect(logEventMock).toHaveBeenCalledTimes(1);
-    const calls = logEventMock.mock.calls as unknown as Array<[
-      { action: string; success: boolean },
-    ]>;
+    const calls = logEventMock.mock.calls as unknown as Array<
+      [{ action: string; success: boolean }]
+    >;
     const call = calls[0]?.[0];
     expect(call?.action).toBe("subiekt.sync.error");
     expect(call?.success).toBe(false);
@@ -204,10 +206,7 @@ describe("tickSubiektSync (T4.2)", () => {
     await tickSubiektSync();
 
     // Only first call hits pool; others are throttled
-    const queryCount = adapterMocks.getPool.mock.results.reduce(
-      (acc) => acc + 1,
-      0,
-    );
+    const queryCount = adapterMocks.getPool.mock.results.reduce((acc) => acc + 1, 0);
     // We don't assert exact count because of dynamic import caching, but ensure throttling works
     // The bootstrap call is the only logEvent
     expect(logEventMock.mock.calls.length).toBeLessThanOrEqual(1);
@@ -217,9 +216,7 @@ describe("tickSubiektSync (T4.2)", () => {
 describe("startSubiektSyncMonitor (T4.2)", () => {
   it("returns a NodeJS.Timeout handle", async () => {
     adapterMocks.getPool.mockResolvedValue(null);
-    const { startSubiektSyncMonitor } = await import(
-      "../../../src/lib/subiekt-sync-monitor.js"
-    );
+    const { startSubiektSyncMonitor } = await import("../../../src/lib/subiekt-sync-monitor.js");
     const handle = startSubiektSyncMonitor(60_000);
     expect(typeof handle).toBe("object");
     clearInterval(handle);

@@ -55,9 +55,27 @@ describe("SyncStatusBadge", () => {
         newSince: "2026-08-02T00:00:00Z",
         count: 3,
         products: [
-          { productId: 1, symbol: "P1", name: "Prod 1", subiektCodes: ["A 1-2-3-4"], subiektModifiedAt: "2026-08-02T00:00:00Z" },
-          { productId: 2, symbol: "P2", name: "Prod 2", subiektCodes: ["B 1-2-3-4"], subiektModifiedAt: "2026-08-01T12:00:00Z" },
-          { productId: 3, symbol: "P3", name: "Prod 3", subiektCodes: ["C 1-2-3-4"], subiektModifiedAt: "2026-08-01T06:00:00Z" },
+          {
+            productId: 1,
+            symbol: "P1",
+            name: "Prod 1",
+            subiektCodes: ["A 1-2-3-4"],
+            subiektModifiedAt: "2026-08-02T00:00:00Z",
+          },
+          {
+            productId: 2,
+            symbol: "P2",
+            name: "Prod 2",
+            subiektCodes: ["B 1-2-3-4"],
+            subiektModifiedAt: "2026-08-01T12:00:00Z",
+          },
+          {
+            productId: 3,
+            symbol: "P3",
+            name: "Prod 3",
+            subiektCodes: ["C 1-2-3-4"],
+            subiektModifiedAt: "2026-08-01T06:00:00Z",
+          },
         ],
       }),
     });
@@ -77,8 +95,20 @@ describe("SyncStatusBadge", () => {
           newSince: "2026-08-02T00:00:00Z",
           count: 2,
           products: [
-            { productId: 10, symbol: "X", name: "X", subiektCodes: ["A 1-2-3-4"], subiektModifiedAt: "2026-08-02T00:00:00Z" },
-            { productId: 20, symbol: "Y", name: "Y", subiektCodes: ["B 1-2-3-4"], subiektModifiedAt: "2026-08-01T12:00:00Z" },
+            {
+              productId: 10,
+              symbol: "X",
+              name: "X",
+              subiektCodes: ["A 1-2-3-4"],
+              subiektModifiedAt: "2026-08-02T00:00:00Z",
+            },
+            {
+              productId: 20,
+              symbol: "Y",
+              name: "Y",
+              subiektCodes: ["B 1-2-3-4"],
+              subiektModifiedAt: "2026-08-01T12:00:00Z",
+            },
           ],
         }),
       })
@@ -91,9 +121,7 @@ describe("SyncStatusBadge", () => {
     const btn = await waitFor(() => screen.getByRole("button", { name: /Sync teraz/ }));
     btn.click();
     await waitFor(() => {
-      const postCall = fetchMock.mock.calls.find(
-        (c) => c[1] && c[1].method === "POST",
-      );
+      const postCall = fetchMock.mock.calls.find((c) => c[1] && c[1].method === "POST");
       expect(postCall).toBeDefined();
       const body = JSON.parse(postCall![1].body as string);
       expect(body.productIds).toEqual([10, 20]);

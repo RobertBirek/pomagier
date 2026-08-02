@@ -44,7 +44,16 @@ function buildDbMock(): MockDb {
           onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
           onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
           returning: vi.fn().mockResolvedValue([
-            { id: "new-loc-id", code: "A 1-2-3-4", area: "A", aisle: 1, rack: 2, shelf: 3, spot: 4, label: "x" },
+            {
+              id: "new-loc-id",
+              code: "A 1-2-3-4",
+              area: "A",
+              aisle: 1,
+              rack: 2,
+              shelf: 3,
+              spot: 4,
+              label: "x",
+            },
           ]),
         })),
       };
@@ -94,9 +103,40 @@ let activeDbMock: MockDb;
 
 vi.mock("../../../src/db/index.js", () => {
   const schema = {
-    locations: { id: "id", code: "code", area: "area", aisle: "aisle", rack: "rack", shelf: "shelf", spot: "spot", label: "label", createdAt: "createdAt" },
-    productLocations: { id: "id", productId: "productId", locationId: "locationId", quantity: "quantity", createdAt: "createdAt" },
-    productMovements: { id: "id", productId: "productId", symbol: "symbol", name: "name", fromLocationId: "fromLocationId", toLocationId: "toLocationId", fromCode: "fromCode", toCode: "toCode", quantity: "quantity", operator: "operator", correlationId: "correlationId", createdAt: "createdAt", method: "method", actorSubiektUzId: "actorSubiektUzId" },
+    locations: {
+      id: "id",
+      code: "code",
+      area: "area",
+      aisle: "aisle",
+      rack: "rack",
+      shelf: "shelf",
+      spot: "spot",
+      label: "label",
+      createdAt: "createdAt",
+    },
+    productLocations: {
+      id: "id",
+      productId: "productId",
+      locationId: "locationId",
+      quantity: "quantity",
+      createdAt: "createdAt",
+    },
+    productMovements: {
+      id: "id",
+      productId: "productId",
+      symbol: "symbol",
+      name: "name",
+      fromLocationId: "fromLocationId",
+      toLocationId: "toLocationId",
+      fromCode: "fromCode",
+      toCode: "toCode",
+      quantity: "quantity",
+      operator: "operator",
+      correlationId: "correlationId",
+      createdAt: "createdAt",
+      method: "method",
+      actorSubiektUzId: "actorSubiektUzId",
+    },
     productsCache: { id: "id" },
     config: { key: "key", value: "value", updatedAt: "updatedAt" },
   };
@@ -166,7 +206,9 @@ describe("fix-sync-batch subiekt-to-postgres (B3 diff-based merge)", () => {
     // for ALL productIds unconditionally. The new code only deletes product_locations
     // whose code is no longer in Subiekt. Since Subiekt returns "" (no codes), no deletes
     // should happen at all.
-    const deletes = activeDbMock.ops.filter((o) => o.kind === "delete" && o.table === "product_locations");
+    const deletes = activeDbMock.ops.filter(
+      (o) => o.kind === "delete" && o.table === "product_locations",
+    );
     expect(deletes).toHaveLength(0);
   });
 

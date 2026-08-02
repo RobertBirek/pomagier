@@ -125,9 +125,7 @@ describe("GET /api/locations/subiekt-changes (T4.1)", () => {
   });
 
   it("returns 200 with empty products when no changes since timestamp", async () => {
-    mockGetPool.mockResolvedValue(
-      poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]),
-    );
+    mockGetPool.mockResolvedValue(poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]));
     const res = await request(app).get("/api/locations/subiekt-changes");
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ count: 0, products: [] });
@@ -168,29 +166,25 @@ describe("GET /api/locations/subiekt-changes (T4.1)", () => {
   });
 
   it("accepts ?since=ISO query parameter", async () => {
-    mockGetPool.mockResolvedValue(
-      poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]),
-    );
+    mockGetPool.mockResolvedValue(poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]));
     const since = "2026-07-01T00:00:00.000Z";
-    const res = await request(app).get(`/api/locations/subiekt-changes?since=${encodeURIComponent(since)}`);
+    const res = await request(app).get(
+      `/api/locations/subiekt-changes?since=${encodeURIComponent(since)}`,
+    );
     expect(res.status).toBe(200);
     expect(res.body.since).toBe(since);
   });
 
   it("uses last_sync_at from config when ?since is missing", async () => {
     activeDbMock = makeDb({ lastSyncRow: { value: "2026-06-15T10:00:00.000Z" } });
-    mockGetPool.mockResolvedValue(
-      poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]),
-    );
+    mockGetPool.mockResolvedValue(poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]));
     const res = await request(app).get("/api/locations/subiekt-changes");
     expect(res.status).toBe(200);
     expect(res.body.since).toBe("2026-06-15T10:00:00.000Z");
   });
 
   it("filters out NULL/empty location values via NULLIF in SQL (returns 200 with empty when none match)", async () => {
-    mockGetPool.mockResolvedValue(
-      poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]),
-    );
+    mockGetPool.mockResolvedValue(poolWith([{ match: /tw_CzasM/, result: { recordset: [] } }]));
     const res = await request(app).get("/api/locations/subiekt-changes");
     expect(res.status).toBe(200);
     expect(res.body.products).toEqual([]);
