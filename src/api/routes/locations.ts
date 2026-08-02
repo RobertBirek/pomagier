@@ -1769,66 +1769,85 @@ export function registerLocationsRoutes(app: express.Express) {
         }
         res.json({ ok: true, fixed });
       } else if (direction === "subiekt-to-postgres") {
-        // Re-sync from Subiekt for selected products
+        // Re-sync from Subiekt for selected products (B3: diff-based merge, transactional)
         const { parseLocation } = await import("../../lib/locations.js");
         let imported = 0;
-        for (const id of productIds) {
-          const [current] = await db
-            .select()
-            .from(schema.productLocations)
-            .where(eq(schema.productLocations.productId, id));
-          const subiektRow = await pool
-            .request()
-            .input("id", id)
-            .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-          const codes = ((subiektRow.recordset[0] as SubiektFieldRow | undefined)?.val || "")
-            .split(/[,;]/)
-            .map((s: string) => s.trim())
-            .filter(Boolean);
-          if (current)
-            await db
-              .delete(schema.productLocations)
+        await db.transaction(async (tx) => {
+          for (const id of productIds) {
+            const subiektRow = await pool
+              .request()
+              .input("id", id)
+              .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+            const codes = ((subiektRow.recordset[0] as SubiektFieldRow | undefined)?.val || "")
+              .split(/[,;]/)
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+            // Read existing product_locations (with location.code) for diff
+            const existing = await tx
+              .select({
+                productLocationId: schema.productLocations.id,
+                locationId: schema.productLocations.locationId,
+                code: schema.locations.code,
+              })
+              .from(schema.productLocations)
+              .innerJoin(
+                schema.locations,
+                eq(schema.productLocations.locationId, schema.locations.id),
+              )
               .where(eq(schema.productLocations.productId, id));
-          for (const code of codes) {
-            let [loc] = await db
-              .select()
-              .from(schema.locations)
-              .where(eq(schema.locations.code, code));
-            // Auto-create missing location from Subiekt code
-            if (!loc) {
-              const parsed = parseLocation(code);
-              if (parsed) {
-                [loc] = await db
-                  .insert(schema.locations)
-                  .values({
-                    code: parsed.raw,
-                    area: parsed.area,
-                    aisle: parsed.aisle,
-                    rack: parsed.rack,
-                    shelf: parsed.shelf,
-                    spot: parsed.spot,
-                    label: parsed.label,
-                  })
-                  .onConflictDoNothing()
-                  .returning();
-                if (!loc) {
-                  // fallback: fetch if onConflictDoNothing prevented insert
-                  [loc] = await db
-                    .select()
-                    .from(schema.locations)
-                    .where(eq(schema.locations.code, parsed.raw));
-                }
+            const existingByCode = new Map(existing.map((e) => [e.code, e]));
+            const desiredCodes = new Set(codes);
+
+            // Delete product_locations that are no longer in Subiekt
+            for (const e of existing) {
+              if (!desiredCodes.has(e.code)) {
+                await tx
+                  .delete(schema.productLocations)
+                  .where(eq(schema.productLocations.id, e.productLocationId));
               }
             }
-            if (loc) {
-              await db
-                .insert(schema.productLocations)
-                .values({ productId: id, locationId: loc.id, quantity: 1 })
-                .onConflictDoNothing();
-              imported++;
+
+            // Ensure each desired code has a corresponding product_location
+            for (const code of codes) {
+              if (existingByCode.has(code)) continue; // already present
+              let [loc] = await tx
+                .select()
+                .from(schema.locations)
+                .where(eq(schema.locations.code, code));
+              if (!loc) {
+                const parsed = parseLocation(code);
+                if (parsed) {
+                  [loc] = await tx
+                    .insert(schema.locations)
+                    .values({
+                      code: parsed.raw,
+                      area: parsed.area,
+                      aisle: parsed.aisle,
+                      rack: parsed.rack,
+                      shelf: parsed.shelf,
+                      spot: parsed.spot,
+                      label: parsed.label,
+                    })
+                    .onConflictDoNothing()
+                    .returning();
+                  if (!loc) {
+                    [loc] = await tx
+                      .select()
+                      .from(schema.locations)
+                      .where(eq(schema.locations.code, parsed.raw));
+                  }
+                }
+              }
+              if (loc) {
+                await tx
+                  .insert(schema.productLocations)
+                  .values({ productId: id, locationId: loc.id, quantity: 1 })
+                  .onConflictDoNothing();
+                imported++;
+              }
             }
           }
-        }
+        });
         res.json({ ok: true, imported });
       } else if (direction === "clear") {
         for (const id of productIds) {
