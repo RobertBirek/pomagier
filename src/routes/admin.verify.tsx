@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, X, Search, ArrowRightLeft, RotateCcw } from "lucide-react";
+import { isMalformedCode } from "@/lib/locations";
 
 interface VerifyRow {
   productId: number;
@@ -103,7 +104,7 @@ function VerifyPage() {
   const [malformedOnly, setMalformedOnly] = useState(false);
   const pageSize = 50;
 
-  const isMalformed = (codes: string[]) => codes.some((c) => /^[A-Z]\d/.test(c.trim()));
+  const isMalformed = (codes: string[]) => codes.some(isMalformedCode);
 
   const params = useMemo(
     () => ({ page: String(page), pageSize: String(pageSize), area, status, q }),
