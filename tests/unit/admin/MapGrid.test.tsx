@@ -1,13 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MapGrid } from "../../../src/components/admin/MapGrid";
 import type { VerifyResult } from "../../../src/routes/admin.map";
 
 const mockUseMapData = vi.hoisted(() => vi.fn());
+const fetchMock = vi.fn();
 
 vi.mock("../../../src/hooks/use-map-data", () => ({
   useMapData: mockUseMapData,
@@ -16,6 +17,11 @@ vi.mock("../../../src/hooks/use-map-data", () => ({
     return "bg-green-100";
   },
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  global.fetch = fetchMock as unknown as typeof fetch;
+});
 
 function defaultData() {
   const setSelected = vi.fn();
@@ -91,5 +97,22 @@ describe("MapGrid", () => {
     mockUseMapData.mockReturnValue(d);
     renderWithClient(<MapGrid data={d} />);
     expect(screen.getByText("Ładowanie…")).toBeInTheDocument();
+  });
+
+  it("renders SyncStatusBadge (green when subiekt is in sync)", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        since: "2026-08-01T00:00:00Z",
+        newSince: "2026-08-02T00:00:00Z",
+        count: 0,
+        products: [],
+      }),
+    });
+    mockUseMapData.mockReturnValue(defaultData());
+    renderWithClient(<MapGrid data={defaultData()} />);
+    await waitFor(() => {
+      expect(screen.getByText(/Zsynchronizowane z Subiekt/)).toBeInTheDocument();
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { MapPin, Package, Layers } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { KpiCard, LoadingRow, ErrorState } from "@/components/pomagier/primitives";
 import { useMapData } from "@/hooks/use-map-data";
 import { MapControls } from "./MapControls";
@@ -6,6 +7,7 @@ import { MapRack } from "./MapRack";
 import { MapProductCard } from "./MapProductCard";
 import { VerifyModal } from "./VerifyModal";
 import { MapSidebar } from "./MapSidebar";
+import { SyncStatusBadge } from "./SyncStatusBadge";
 
 type MapData = ReturnType<typeof useMapData>;
 
@@ -14,6 +16,7 @@ interface MapGridProps {
 }
 
 export function MapGrid({ data }: MapGridProps) {
+  const qc = useQueryClient();
   const {
     emptyLocs,
     isLoading,
@@ -60,6 +63,13 @@ export function MapGrid({ data }: MapGridProps) {
         onAreaChange={setArea}
         onSearchChange={setSearch}
         onVerify={() => verifyMut.mutate()}
+      />
+
+      <SyncStatusBadge
+        onSyncComplete={() => {
+          qc.invalidateQueries({ queryKey: ["grid"] });
+          qc.invalidateQueries({ queryKey: ["empty-locs"] });
+        }}
       />
 
       {isLoading && <LoadingRow />}
