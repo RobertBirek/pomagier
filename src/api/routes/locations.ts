@@ -1435,6 +1435,76 @@ export function registerLocationsRoutes(app: express.Express) {
     }
   });
 
+  // --- Subiekt modifications since last sync (T4.1) ---
+  app.get("/api/locations/subiekt-changes", requireAdmin, async (req, res) => {
+    try {
+      const db = getDb();
+      const adapter = getAdapter();
+      const pool = await adapter.getPool?.();
+      if (!pool) return res.status(503).json({ error: "MSSQL niedostępny" });
+      const locationField = await getLocationField();
+
+      const sinceQuery = req.query.since as string | undefined;
+      let since: string;
+      if (sinceQuery) {
+        since = sinceQuery;
+      } else {
+        const [lastSyncRow] = await db
+          .select()
+          .from(schema.config)
+          .where(eq(schema.config.key, "subiekt_last_sync_at"));
+        since =
+          lastSyncRow?.value ||
+          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      const result = await pool
+        .request()
+        .input("since", new Date(since))
+        .query(
+          `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name,
+                  NULLIF(${locationField},'') AS val, tw_CzasM AS modifiedAt
+           FROM tw__Towar WITH (NOLOCK)
+           WHERE tw_CzasM > @since
+             AND ${locationField} IS NOT NULL
+             AND ${locationField} != ''
+           ORDER BY tw_CzasM DESC
+           OFFSET 0 ROWS FETCH NEXT 500 ROWS ONLY`,
+        );
+
+      const products = result.recordset.map((r) => {
+        const row = r as {
+          id: number;
+          symbol: string;
+          name: string;
+          val: string | null;
+          modifiedAt: Date;
+        };
+        const subiektCodes = ((row.val as string) || "")
+          .split(/[,;]/)
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+        return {
+          productId: row.id,
+          symbol: row.symbol,
+          name: row.name,
+          subiektCodes,
+          subiektModifiedAt: row.modifiedAt,
+        };
+      });
+
+      const newSince =
+        products.length > 0
+          ? new Date(products[0]!.subiektModifiedAt).toISOString()
+          : since;
+
+      res.json({ since, newSince, count: products.length, products });
+    } catch (err) {
+      logger.error({ err }, "Subiekt changes query failed");
+      res.status(500).json({ error: "Błąd zapytania" });
+    }
+  });
+
   // --- Siatka magazynu (grid data) ---
   app.get("/api/locations/grid", async (_req, res) => {
     try {
