@@ -1079,6 +1079,17 @@ export function registerLocationsRoutes(app: express.Express) {
       for (const [productId, qty] of grouped) {
         const p = foundProducts.find((fp) => fp.id === productId)!;
 
+        // Capture old source row for compensation (DECISIONS.md #9)
+        const [oldSourceRow] = await db
+          .select()
+          .from(schema.productLocations)
+          .where(
+            and(
+              eq(schema.productLocations.productId, productId),
+              eq(schema.productLocations.locationId, fromLoc.id),
+            ),
+          );
+
         // Remove from source location
         await db
           .delete(schema.productLocations)
@@ -1099,29 +1110,69 @@ export function registerLocationsRoutes(app: express.Express) {
           });
 
         // Update Subiekt: remove from source, add to target
-        const currentSourceRes = await pool
-          .request()
-          .input("id", productId)
-          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
-        const currentSourceVal =
-          (currentSourceRes.recordset[0] as SubiektFieldRow | undefined)?.val || "";
-        const locations = currentSourceVal
-          .split(/[,;]/)
-          .map((s: string) => s.trim())
-          .filter(Boolean);
-        // Normalize comparison for old format codes (e.g. "A1-2-3-4" vs "A 1-2-3-4")
-        const updated = locations.filter(
-          (s: string) => (parseLocation(s)?.raw || s) !== fromParsed.raw,
-        );
-        const updatedNormalized = updated.map((s: string) => parseLocation(s)?.raw || s);
-        if (!updatedNormalized.includes(toParsed.raw)) updated.push(toParsed.raw);
-        await writeSubiektWithRetry(async () => {
-          await pool
+        try {
+          const currentSourceRes = await pool
             .request()
             .input("id", productId)
-            .input("val", safeSubiektValue(updated))
-            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
-        }, `transfer-${productId}`);
+            .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+          const currentSourceVal =
+            (currentSourceRes.recordset[0] as SubiektFieldRow | undefined)?.val || "";
+          const locations = currentSourceVal
+            .split(/[,;]/)
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+          // Normalize comparison for old format codes (e.g. "A1-2-3-4" vs "A 1-2-3-4")
+          const updated = locations.filter(
+            (s: string) => (parseLocation(s)?.raw || s) !== fromParsed.raw,
+          );
+          const updatedNormalized = updated.map((s: string) => parseLocation(s)?.raw || s);
+          if (!updatedNormalized.includes(toParsed.raw)) updated.push(toParsed.raw);
+          await writeSubiektWithRetry(async () => {
+            await pool
+              .request()
+              .input("id", productId)
+              .input("val", safeSubiektValue(updated))
+              .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+          }, `transfer-${productId}`);
+        } catch (subiektErr) {
+          // Compensate (DECISIONS.md #9): restore source row, reverse target insert
+          if (oldSourceRow) {
+            await db
+              .insert(schema.productLocations)
+              .values({
+                productId,
+                locationId: fromLoc.id,
+                quantity: oldSourceRow.quantity ?? qty,
+              })
+              .onConflictDoUpdate({
+                target: [schema.productLocations.productId, schema.productLocations.locationId],
+                set: { quantity: oldSourceRow.quantity ?? qty },
+              });
+          }
+          const [targetRow] = await db
+            .select()
+            .from(schema.productLocations)
+            .where(
+              and(
+                eq(schema.productLocations.productId, productId),
+                eq(schema.productLocations.locationId, toLoc.id),
+              ),
+            );
+          if (targetRow) {
+            const newQty = (targetRow.quantity ?? 0) - qty;
+            if (newQty <= 0) {
+              await db
+                .delete(schema.productLocations)
+                .where(eq(schema.productLocations.id, targetRow.id));
+            } else {
+              await db
+                .update(schema.productLocations)
+                .set({ quantity: newQty })
+                .where(eq(schema.productLocations.id, targetRow.id));
+            }
+          }
+          throw subiektErr;
+        }
 
         // Log movement
         await db.insert(schema.productMovements).values({
@@ -1843,17 +1894,53 @@ export function registerLocationsRoutes(app: express.Express) {
           );
         for (const row of r.recordset) {
           const productId = (row as SubiektProductRow).id;
+
+          // Capture cleared product_locations for compensation (DECISIONS.md #9)
+          const oldRows = await db
+            .select()
+            .from(schema.productLocations)
+            .where(eq(schema.productLocations.productId, productId));
+
           await db
             .delete(schema.productLocations)
             .where(eq(schema.productLocations.productId, productId));
           await db
             .insert(schema.productLocations)
             .values({ productId, locationId: loc.id, quantity: 1 });
-          await pool
-            .request()
-            .input("id", productId)
-            .input("val", parsed.raw)
-            .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+
+          try {
+            await writeSubiektWithRetry(async () => {
+              await pool
+                .request()
+                .input("id", productId)
+                .input("val", parsed.raw)
+                .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+            }, `reset-${productId}`);
+          } catch (subiektErr) {
+            // Compensate (DECISIONS.md #9): re-insert the cleared product_locations,
+            // remove the new one we just inserted
+            await db
+              .delete(schema.productLocations)
+              .where(
+                and(
+                  eq(schema.productLocations.productId, productId),
+                  eq(schema.productLocations.locationId, loc.id),
+                ),
+              );
+            if (oldRows.length > 0) {
+              await db
+                .insert(schema.productLocations)
+                .values(
+                  oldRows.map((r) => ({
+                    productId: r.productId,
+                    locationId: r.locationId,
+                    quantity: r.quantity ?? 1,
+                  })),
+                )
+                .onConflictDoNothing();
+            }
+            throw subiektErr;
+          }
           await db.insert(schema.productMovements).values({
             productId,
             symbol: (row as SubiektProductRow).symbol,
