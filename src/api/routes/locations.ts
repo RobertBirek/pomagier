@@ -4,6 +4,7 @@ import { getDb, schema } from "../../db/index.js";
 import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { logEvent } from "../../lib/app-logger.js";
+import { parseLocation, safeSubiektValue } from "../../lib/locations.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency, storeIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
@@ -379,7 +380,7 @@ export function registerLocationsRoutes(app: express.Express) {
 
       // Dodaj nową lokalizację (oddziel średnikiem)
       locations.push(parsed.raw);
-      const newValue = locations.join(",");
+      const newValue = safeSubiektValue(locations);
 
       await pool
         .request()
@@ -393,6 +394,10 @@ export function registerLocationsRoutes(app: express.Express) {
       );
       res.json({ ok: true, location: parsed.raw, field: locationField, value: newValue });
     } catch (err) {
+      if ((err as { code?: string })?.code === "SUBIEKT_FIELD_OVERFLOW") {
+        res.status(400).json({ error: (err as Error).message });
+        return;
+      }
       logger.error({ err, productId, location }, "Failed to update product location");
       res.status(500).json({ error: "Błąd zapisu do Subiekt GT" });
     }
@@ -579,7 +584,7 @@ export function registerLocationsRoutes(app: express.Express) {
               await pool
                 .request()
                 .input("id", productId)
-                .input("val", existing.join(","))
+                .input("val", safeSubiektValue(existing))
                 .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
             }, `assign-${productId}`);
           }
@@ -650,6 +655,10 @@ export function registerLocationsRoutes(app: express.Express) {
         });
       }
     } catch (err) {
+      if ((err as { code?: string })?.code === "SUBIEKT_FIELD_OVERFLOW") {
+        res.status(400).json({ error: (err as Error).message });
+        return;
+      }
       logger.error({ err }, "Assign failed");
       res.status(500).json({ error: "Błąd zapisu" });
     }
@@ -1110,7 +1119,7 @@ export function registerLocationsRoutes(app: express.Express) {
           await pool
             .request()
             .input("id", productId)
-            .input("val", updated.join(","))
+            .input("val", safeSubiektValue(updated))
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
         }, `transfer-${productId}`);
 
@@ -1158,6 +1167,10 @@ export function registerLocationsRoutes(app: express.Express) {
           to: toParsed.raw,
         });
     } catch (err) {
+      if ((err as { code?: string })?.code === "SUBIEKT_FIELD_OVERFLOW") {
+        res.status(400).json({ error: (err as Error).message });
+        return;
+      }
       logger.error({ err }, "Transfer failed");
       res.status(500).json({ error: "Transfer nie powiódł się" });
     }
@@ -1557,13 +1570,17 @@ export function registerLocationsRoutes(app: express.Express) {
           await pool
             .request()
             .input("id", productId)
-            .input("val", codes.join(","))
+            .input("val", safeSubiektValue(codes))
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
           fixed++;
         }
       }
       res.json({ ok: true, fixed });
     } catch (err) {
+      if ((err as { code?: string })?.code === "SUBIEKT_FIELD_OVERFLOW") {
+        res.status(400).json({ error: (err as Error).message });
+        return;
+      }
       logger.error({ err }, "Fix sync failed");
       res.status(500).json({ error: "Naprawa nie powiodła się" });
     }
@@ -1695,7 +1712,7 @@ export function registerLocationsRoutes(app: express.Express) {
           await pool
             .request()
             .input("id", id)
-            .input("val", codes.join(","))
+            .input("val", safeSubiektValue(codes))
             .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
           fixed++;
         }
@@ -1865,6 +1882,10 @@ export function registerLocationsRoutes(app: express.Express) {
       });
       res.json({ ok: true, reset, location: parsed.raw });
     } catch (err) {
+      if ((err as { code?: string })?.code === "SUBIEKT_FIELD_OVERFLOW") {
+        res.status(400).json({ error: (err as Error).message });
+        return;
+      }
       logger.error({ err }, "Reset failed");
       res.status(500).json({ error: "Reset nie powiodl sie" });
     }
