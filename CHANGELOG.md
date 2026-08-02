@@ -4,6 +4,69 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.0] — 2026-08-02 (Sprint 11: location sync hardening)
+
+### New features
+
+- **Timestamp-based Subiekt change detection** (`tw_CzasM` pre-filter):
+  - `GET /api/locations/subiekt-changes?since=ISO` — returns Subiekt products modified since timestamp
+  - `subiekt-sync-monitor` (cron co 5 min) — logEvent `system.subiekt.modified` with count
+  - `config.subiekt_last_sync_at` — cursor (ISO timestamp) for change detection
+  - Bootstrap: first tick sets cursor to `MAX(tw_CzasM)` (clock-skew safety)
+- **SyncStatusBadge** w /admin/verify — poll co 30s, shows "X produktów zmienionych w Subiekcie" + "Sync teraz" button
+- **New skill `location-sync`** — documents location code management, pitfalls, dual-write compensation, timestamp-based change detection
+
+### Bug fixes (B1-B4 — real data corruption)
+
+- **B1 Subiekt varchar(50) overflow** — `safeSubiektValue()` w `lib/locations.ts` rejects writes > 50 chars with clear error (was silent truncate / 500)
+- **B2 transfer/reset dual-write compensation** — same rollback pattern as assign (was missing)
+- **B3 fix-sync-batch subiekt-to-postgres safe delete** — diff-based merge (was destructive delete + re-insert)
+- **B4 reset uses writeSubiektWithRetry** — consistent retry behavior
+
+### Cleanup
+
+- **E3 normalize de-dup** — uses Set, no more duplicate codes
+- **E4 normalize transactional** — Postgres w `db.transaction`, Subiekt best-effort with logEvent
+- **C3 + E8 centralize isMalformedCode** — single regex from `lib/locations.ts` shared by backend + frontend
+- **E7 CHECK constraint on `product_locations.quantity > 0`** — migration 0007, pre-flight fix any quantity<=0
+
+### Migration: 0007_product_locations_quantity_check.sql
+
+```sql
+UPDATE product_locations SET quantity = 1 WHERE quantity <= 0;
+ALTER TABLE product_locations ADD CONSTRAINT chk_quantity_positive CHECK (quantity > 0);
+```
+
+### Testy (+74, total 296)
+
+- T1: parseLocation unit tests (8 tests)
+- T2: assign/transfer/reset/undo tests (7 tests, with rollback)
+- T3.3: verify-sync endpoint tests (8 tests)
+- T3.4: getLocationField whitelist test (4 tests, security)
+- T4: subiekt-sync-monitor tests (8 tests)
+- T4.3: verify-sync-detail timestamp tests (3 tests)
+- T4.4: server-lifecycle tests (2 tests, subiekt sync monitor wiring)
+- T5.1: SyncStatusBadge tests (4 tests)
+- Inne drobne testy (29)
+
+### Files modified
+
+- `src/lib/locations.ts` — safeSubiektValue, isMalformedCode, parseLocation case-insensitive
+- `src/api/routes/locations.ts` — overflow guards, compensation, transactional normalize, diff merge, subiekt-changes endpoint, subiektModifiedAt per row
+- `src/lib/subiekt-sync-monitor.ts` — NEW (180 lines)
+- `src/components/admin/SyncStatusBadge.tsx` — NEW (75 lines)
+- `src/db/schema.ts` — CHECK constraint import
+- `src/db/migrations/0007_product_locations_quantity_check.sql` — NEW
+- `src/api/server.ts` — startSubiektSyncMonitor() wired
+- `src/routes/admin.verify.tsx` — SyncStatusBadge integrated
+- `.opencode/skills/location-sync/SKILL.md` — NEW
+
+### Out of scope (deferred to backlog)
+
+- /admin/map SyncStatusBadge (T5.3) — nice-to-have
+- Auto-sync (admin-configurable) — manual sync button preferred for v1.10.0
+- Per-product modification timestamp tracking — not provided by Subiekt schema
+
 ## [v1.9.1] — 2026-08-01 (Sprint 10: comprehensive logging backlog)
 
 ### Fixes

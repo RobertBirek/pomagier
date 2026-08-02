@@ -1,6 +1,6 @@
 # AGENTS.md — PomagierGT
 
-## Stan projektu: v1.9.1 Production (2026-08-01)
+## Stan projektu: v1.10.0 Production (2026-08-02)
 
 | Warstwa          | Technologia                                                       | Stan          |
 | ---------------- | ----------------------------------------------------------------- | ------------- |
@@ -10,7 +10,7 @@
 | ERP              | Insert Subiekt GT (MSSQL read+write, whitelist-validated fields)  | ✓ Produkcyjny |
 | Reverse proxy    | Caddy (HTTPS, port 443)                                           | ✓ Produkcyjny |
 | mDNS             | avahi-daemon (pomagier.local)                                     | ✓ Produkcyjny |
-| Testy            | Vitest (222 pass / 6 skip), Playwright E2E, RTL render tests      | ✓ Aktywne     |
+| Testy            | Vitest (296 pass / 6 skip), Playwright E2E, RTL render tests      | ✓ Aktywne     |
 | Deployment       | systemd (pomagier-api), Caddy static files (frontend)             | ✓ Produkcyjny |
 
 ## Workflow projektu
@@ -19,7 +19,7 @@
 2. **Plan v0** — po odpowiedziach, przed kodem
 3. **Iteracje** — małe pionowe wycinki: implementacja → testy → demonstracja
 4. **Git** — branch `feat/*` lub `fix/*` lub `chore/*` lub `docs/*`, małe commity, PR przed mergem, zakaz force push, zakaz merge do `main` bez zgody
-5. **Dokumentacja** — po każdej skończonej iteracji aktualizuj (użyj skilla `sprint-doc-sync`): CHANGELOG.md, TASKS.md, DECISIONS.md (jeśli decyzja arch.), SECURITY.md (jeśli zmiana security), DB_SCHEMA.md (jeśli zmiana schema), API.md (jeśli zmiana API), AGENTS.md (jeśli zmiana stacku/skills)
+5. **Dokumentacja** — po każdej skończonej iteracji aktualizuj (użyj skilla `sprint-doc-sync`): CHANGELOG.md, TASKS.md, DECISIONS.md (jeśli decyzja arch.), SECURITY.md (jeśli zmiana security), DB_SCHEMA.md (jeśli zmiana schema), API.md (jeśli zmiana API), AGENTS.md (jeśli zmiana stacku/skills). Dla lokalizacji towarów (Postgres ↔ Subiekt `tw_Pole1`) korzystaj ze skilla `location-sync` — dokumentuje format kodów, dual-write compensation, timestamp-based change detection i B1-B4 pitfalls.
 6. **Tagi** — po dużym release (np. koniec sprintu) `git tag -a vX.Y.Z` + `git push origin vX.Y.Z`
 
 ## Agenci projektu
@@ -34,11 +34,12 @@
 
 ## Skille projektu
 
-| Skill             | Plik                                        | Stan                                                                               |
-| ----------------- | ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `subiekt-gt`      | `.opencode/skills/subiekt-gt/SKILL.md`      | Aktywny — MSSQL read-only, tw__Towar, vwFeniksFirmaSync, pd_Uzytkownik, sl_Magazyn |
-| `pwa-warehouse`   | `.opencode/skills/pwa-warehouse/SKILL.md`   | Aktywny — PWA, kamera, offline queue, BasketPanel, ScanHeader, AuthWarehouse       |
-| `sprint-doc-sync` | `.opencode/skills/sprint-doc-sync/SKILL.md` | Aktywny — po każdym sprincie synchronizuj CHANGELOG/TASKS/DECISIONS/AGENTS itd.    |
+| Skill             | Plik                                        | Stan                                                                                                              |
+| ----------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `subiekt-gt`      | `.opencode/skills/subiekt-gt/SKILL.md`      | Aktywny — MSSQL read-only, tw__Towar, vwFeniksFirmaSync, pd_Uzytkownik, sl_Magazyn                                |
+| `pwa-warehouse`   | `.opencode/skills/pwa-warehouse/SKILL.md`   | Aktywny — PWA, kamera, offline queue, BasketPanel, ScanHeader, AuthWarehouse                                      |
+| `location-sync`   | `.opencode/skills/location-sync/SKILL.md`   | Aktywny — Postgres ↔ Subiekt `tw_Pole1` sync, dual-write compensation, B1-B4 pitfalls, timestamp change detection |
+| `sprint-doc-sync` | `.opencode/skills/sprint-doc-sync/SKILL.md` | Aktywny — po każdym sprincie synchronizuj CHANGELOG/TASKS/DECISIONS/AGENTS itd.                                   |
 
 ## Pliki wiedzy
 

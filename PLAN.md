@@ -1,8 +1,8 @@
 # Plan — PomagierGT
 
-## Stan: v1.6.3 Production (2026-08-01)
+## Stan: v1.10.0 Production (2026-08-02)
 
-MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.6.3 (2026-08-01) zamyka Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout on 401, warehouse-in-basket fix. 156 testów pass / 6 skip. Projekt gotowy na rozwój kolejnych modułów magazynowych (inwentaryzacja, kompletacja, przyjęcie dostaw).
+MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.10.0 (2026-08-02) zamyka Sprint 11: location sync hardening (B1-B4 bug fixes, E3-E8 cleanup) + timestamp-based Subiekt change detection (`tw_CzasM` pre-filter) + SyncStatusBadge UI. 296 testów pass / 6 skip. Projekt gotowy na rozwój kolejnych modułów magazynowych (inwentaryzacja, kompletacja, przyjęcie dostaw).
 
 ## 1. Podsumowanie projektu
 
@@ -136,10 +136,10 @@ Rozwój kolejnych modułów magazynowych: inwentaryzacja, kompletacja, przyjęci
 
 Po decyzji użytkownika co do priorytetu modułu — implementacja pionowego wycinka (np. pełny flow inwentaryzacji: wybór zakresu → skanowanie → raport).
 
-## 16. Kryteria akceptacji (bieżące — v1.6.3)
+## 16. Kryteria akceptacji (bieżące — v1.10.0)
 
 - [x] `npm run build` — przechodzi
-- [x] `npm test` — 156 passed / 6 skipped
+- [x] `npm test` — 296 passed / 6 skipped
 - [x] `npm run typecheck` — czysto
 - [x] `npm run lint` — 0 errors, 0 warnings
 - [x] `pomagier-api` — active (systemd), health check OK
@@ -148,3 +148,5 @@ Po decyzji użytkownika co do priorytetu modułu — implementacja pionowego wyc
 - [x] Brak sekretów w repo — tylko `{{PLACEHOLDERS}}`
 - [x] Auto-logout on 401 (Sprint 5) — globalny handler w `/admin` i `/mobile`
 - [x] Global warehouses (Sprint 4) — admin widzi listę w `/admin/erp`, operator widzi dropdown w `/mobile/login`
+- [x] Location sync hardening (Sprint 11) — B1-B4 bug fixes + timestamp-based Subiekt change detection + SyncStatusBadge UI
+- [x] Skill `location-sync` — dokumentuje format kodów, dual-write compensation, B1-B4 pitfalls, timestamp detection

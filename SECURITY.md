@@ -164,3 +164,19 @@ Placeholdery w `.env.example`:
 - `checkIdempotency(key, actorSubiektUzId?)` — callerzy w `locations.ts` (3 handlery: assign, transfer, reset) przekazują `req.user?.subiektUzId`. Kto użył tego samego X-Idempotency-Key jest teraz widoczne w /admin/logs.
 
 **Pozostałe**: brak — pełen coverage actor dla queue + idempotency.
+
+### Location code sync hardening (Sprint 11)
+
+**Kontekst**: 4 real bugs (B1-B4) zagrażały integralności danych lokalizacji między Postgres a Subiekt. Brak timestamp-based change detection powodował, że ręczne zmiany w Subiekcie były niewidoczne.
+
+**Decyzja**:
+
+- **B1 Subiekt varchar(50) overflow guard** (`safeSubiektValue`) — 4+ kodów długości 12-13 znaków overflow Subiekt. Teraz rzuca error 400 zamiast silent truncate.
+- **B2 transfer/reset dual-write compensation** — mirrors assign pattern. Decyzja #9 (DECISIONS.md) teraz fully implemented.
+- **B3 fix-sync-batch subiekt-to-postgres diff merge** — diff-based zamiast destructive delete+insert. Dane nie giną przy malformed Subiekt value.
+- **B4 reset uses writeSubiektWithRetry** — consistent retry behavior.
+- **C3+E8 centralize isMalformedCode** — single regex from `lib/locations.ts`.
+- **E7 CHECK quantity > 0** — migration 0007.
+- **Timestamp-based change detection** (`tw_CzasM`): `subiekt-sync-monitor` cron co 5 min + `GET /api/locations/subiekt-changes` + `SyncStatusBadge` UI w /admin/verify.
+
+**Testy**: +74 (296 total) — pełen coverage dla location code logic.
