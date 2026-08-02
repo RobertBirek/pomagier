@@ -42,4 +42,5 @@ System składa się z dwóch części:
 - [x] v1.9.0 — queue.conflict (409 detection) + actor traceability w queue events, 220 testów
 - [x] v1.9.1 — actor w idempotency.reused + cleanup backlog (dead code, idiomatic catch), 222 testów
 - [x] v1.10.0 — location sync hardening (B1-B4 bug fixes, E3-E8 cleanup) + timestamp-based Subiekt change detection + SyncStatusBadge UI, 296 testów
+- [x] v1.10.1 — 49 pre-existing prettier errors fixed + SyncStatusBadge on /admin/map, 297 testów
 - Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy + Playwright

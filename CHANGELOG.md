@@ -4,6 +4,20 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.1] — 2026-08-02 (Sprint 12: cleanup + map badge)
+
+### Fixes
+
+- **49 pre-existing prettier errors** in test files (`tests/**/*.ts(x)`) and `src/api/routes/locations.ts` — auto-fixed with `prettier --fix`. 0 lint errors.
+
+### Features
+
+- **SyncStatusBadge on /admin/map** (T5.3 from Sprint 11 backlog) — admin widzi ostatnie zmiany w Subiekcie w kontekście mapy magazynowej. Klik "Sync teraz" synchronizuje Subiekt → Postgres dla zmienionych produktów i invaliduje `["grid"]` + `["empty-locs"]` queries dla automatycznego odświeżenia mapy.
+
+### Testy
+
+- 297 pass / 6 skip (+1 test dla MapGrid + SyncStatusBadge)
+
 ## [v1.10.0] — 2026-08-02 (Sprint 11: location sync hardening)
 
 ### New features
