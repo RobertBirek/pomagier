@@ -8,7 +8,9 @@ import {
   boolean,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -91,6 +93,7 @@ export const productLocations = pgTable(
   },
   (t) => ({
     uniqueProductLocation: uniqueIndex("unique_product_location").on(t.productId, t.locationId),
+    chkQuantityPositive: check("chk_quantity_positive", sql`${t.quantity} > 0`),
   }),
 );
 
