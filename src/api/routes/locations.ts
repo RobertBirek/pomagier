@@ -1326,19 +1326,20 @@ export function registerLocationsRoutes(app: express.Express) {
         postgresMap.set(r.productId, e);
       }
 
-      // 2. Get Subiekt data
+      // 2. Get Subiekt data (with tw_CzasM for T4.3)
       const subiektRows = await pool
         .request()
         .query(
-          `SELECT tw_Id AS id, NULLIF(${locationField},'') AS val FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
+          `SELECT tw_Id AS id, NULLIF(${locationField},'') AS val, tw_CzasM AS modifiedAt FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
         );
-      const subiektMap = new Map<number, Set<string>>();
+      const subiektMap = new Map<number, { codes: Set<string>; modifiedAt: Date | null }>();
       for (const r of subiektRows.recordset) {
-        const codes = ((r as SubiektFieldRow).val || "")
+        const row = r as SubiektIdRow & { val: string | null; modifiedAt: Date | null };
+        const codes = ((row.val as string) || "")
           .split(/[,;]/)
           .map((s: string) => s.trim())
           .filter(Boolean);
-        subiektMap.set((r as SubiektIdRow).id, new Set(codes));
+        subiektMap.set(row.id, { codes: new Set(codes), modifiedAt: row.modifiedAt ?? null });
       }
 
       // 3. Compare and build rows
@@ -1348,12 +1349,14 @@ export function registerLocationsRoutes(app: express.Express) {
         postgres: string[];
         subiekt: string[];
         areas: string[];
+        subiektModifiedAt: Date | null;
       }[] = [];
 
       for (const id of allIds) {
         const pg = postgresMap.get(id);
+        const sub = subiektMap.get(id);
         const pgCodes = [...(pg?.codes || new Set())].sort();
-        const subCodes = [...(subiektMap.get(id) || new Set())].sort();
+        const subCodes = [...(sub?.codes || new Set())].sort();
         const isMatch = pgCodes.join(",") === subCodes.join(",");
 
         if (status === "mismatch" && isMatch) continue;
@@ -1370,6 +1373,7 @@ export function registerLocationsRoutes(app: express.Express) {
           postgres: pgCodes,
           subiekt: subCodes,
           areas: pg ? [...pg.areas] : [],
+          subiektModifiedAt: sub?.modifiedAt ?? null,
         });
       }
 
@@ -1410,10 +1414,18 @@ export function registerLocationsRoutes(app: express.Express) {
         }
       }
 
+      // 5. Get last sync timestamp (T4.3)
+      const [lastSyncRow] = await db
+        .select()
+        .from(schema.config)
+        .where(eq(schema.config.key, "subiekt_last_sync_at"));
+      const lastSyncAt = lastSyncRow?.value ?? null;
+
       res.json({
         totalProducts: allIds.size,
         synced: totalSynced,
         mismatches: totalMismatch,
+        lastSyncAt,
         rows: pagedRows.map((r) => {
           const c = cacheMap.get(r.productId);
           return {
@@ -1423,6 +1435,7 @@ export function registerLocationsRoutes(app: express.Express) {
             barcode: c?.barcode ?? "",
             postgres: r.postgres,
             subiekt: r.subiekt,
+            subiektModifiedAt: r.subiektModifiedAt,
           };
         }),
         page,
