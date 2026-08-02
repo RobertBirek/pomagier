@@ -28,6 +28,7 @@ import { registerCaRoutes } from "./routes/ca.js";
 import { registerWizardRoutes } from "./routes/wizard.js";
 import { startCleanupInterval, runCleanup } from "../lib/cleanup.js";
 import { startSystemMonitor } from "../lib/system-monitor.js";
+import { startSubiektSyncMonitor, getSubiektSyncHandle } from "../lib/subiekt-sync-monitor.js";
 import { errorHandler } from "./error-handler.js";
 import { logEvent } from "../lib/app-logger.js";
 
@@ -170,12 +171,15 @@ if (process.env.AUTO_MIGRATE === "true") {
 const port = parseInt(process.env.API_PORT ?? "3001", 10);
 let cleanupHandle: NodeJS.Timeout | null = null;
 let systemMonitorHandle: NodeJS.Timeout | null = null;
+let subiektSyncHandle: NodeJS.Timeout | null = null;
 const server = app.listen(port, async () => {
   logger.info({ port }, "API server started");
   cleanupHandle = startCleanupInterval();
   logger.info("Cleanup interval started (30 days, runs daily)");
   systemMonitorHandle = startSystemMonitor();
   logger.info("System monitor started (every 5 min)");
+  subiektSyncHandle = startSubiektSyncMonitor();
+  logger.info("Subiekt sync monitor started (every 5 min)");
   await logEvent({
     category: "system",
     action: "startup",
@@ -197,6 +201,10 @@ async function shutdown(signal: string) {
   if (systemMonitorHandle) {
     clearInterval(systemMonitorHandle);
     systemMonitorHandle = null;
+  }
+  if (subiektSyncHandle) {
+    clearInterval(subiektSyncHandle);
+    subiektSyncHandle = null;
   }
   server.close(() => logger.info("HTTP server closed"));
   try {

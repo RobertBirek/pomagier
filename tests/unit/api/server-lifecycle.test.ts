@@ -14,6 +14,7 @@ const fakeServer = vi.hoisted(() => ({
 
 const fakeCleanupHandle = vi.hoisted(() => ({ _kind: "interval" as const }));
 const fakeSystemMonitorHandle = vi.hoisted(() => ({ _kind: "interval" as const }));
+const fakeSubiektSyncHandle = vi.hoisted(() => ({ _kind: "interval" as const }));
 
 const clearIntervalSpy = vi.hoisted(() => vi.fn());
 
@@ -56,6 +57,11 @@ vi.mock("../../../src/lib/cleanup.js", () => ({
 
 vi.mock("../../../src/lib/system-monitor.js", () => ({
   startSystemMonitor: vi.fn(() => fakeSystemMonitorHandle),
+}));
+
+vi.mock("../../../src/lib/subiekt-sync-monitor.js", () => ({
+  startSubiektSyncMonitor: vi.fn(() => fakeSubiektSyncHandle),
+  getSubiektSyncHandle: vi.fn(() => fakeSubiektSyncHandle),
 }));
 
 vi.mock("../../../src/api/adapter-provider.js", () => ({
@@ -162,5 +168,25 @@ describe("server lifecycle logEvent (Sprint 8 T4)", () => {
     await waitFor(() => exitMock.mock.calls.length > 0);
 
     expect(clearIntervalSpy).toHaveBeenCalledWith(fakeCleanupHandle);
+  });
+
+  it("starts subiekt sync monitor at startup (T4.4)", async () => {
+    await importServer();
+    await listenCallbacks[0]();
+    const { startSubiektSyncMonitor } = await import(
+      "../../../src/lib/subiekt-sync-monitor.js"
+    );
+    expect(startSubiektSyncMonitor).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls clearInterval on the subiekt sync handle when SIGTERM fires", async () => {
+    await importServer();
+    await listenCallbacks[0]();
+    clearIntervalSpy.mockClear();
+
+    process.emit("SIGTERM");
+    await waitFor(() => exitMock.mock.calls.length > 0);
+
+    expect(clearIntervalSpy).toHaveBeenCalledWith(fakeSubiektSyncHandle);
   });
 });
