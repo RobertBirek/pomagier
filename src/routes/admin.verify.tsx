@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, X, Search, ArrowRightLeft, RotateCcw } from "lucide-react";
 import { isMalformedCode } from "@/lib/locations";
+import { SyncStatusBadge } from "@/components/admin/SyncStatusBadge";
 
 interface VerifyRow {
   productId: number;
@@ -239,6 +240,13 @@ function VerifyPage() {
         <h1 className="text-xl font-bold">Weryfikacja spójności</h1>
         <p className="text-sm text-muted-foreground">Postgres vs Subiekt GT (tw_Pole1)</p>
       </div>
+
+      <SyncStatusBadge
+        onSyncComplete={() => {
+          qc.invalidateQueries({ queryKey: ["verify-detail"] });
+          setSelected(new Set());
+        }}
+      />
 
       {/* KPI cards */}
       {data && (
