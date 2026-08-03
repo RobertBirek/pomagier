@@ -1,3 +1,17 @@
+# TASKS — Sprint 14: Admin stats analytics (2026-08-03)
+
+| Data       | Zadanie | Status |
+| ---------- | ------- | ------ |
+| 2026-08-03 | `/admin/stats`: taby Operacje magazynowe / System i ERP | ✅ |
+| 2026-08-03 | Dynamiczny zakres: dzisiaj / 7 dni / 30 dni | ✅ |
+| 2026-08-03 | Auto-refresh + status MSSQL/ERP/synchronizacji | ✅ |
+| 2026-08-03 | Wykresy, KPI, ostatnie ruchy i szybkie akcje | ✅ |
+| 2026-08-03 | Typecheck, lint, testy, build | ✅ |
+
+**Testy:** 297 pass / 6 skip. **Tag:** v1.10.4.
+
+---
+
 # TASKS — Sprint 10: comprehensive logging backlog (2026-08-01)
 
 | Data       | Zadanie                                                                    | Status |

@@ -4,6 +4,15 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.4] — 2026-08-03 (Stats analytics refresh)
+
+- Przebudowany `/admin/stats` z tabami **Operacje magazynowe** oraz **System i ERP**.
+- Dynamiczny zakres statystyk: dzisiaj / 7 dni / 30 dni.
+- Auto-refresh co 30 sekund z możliwością wyłączenia.
+- Wykres ruchów lokalizacji, KPI, status MSSQL, logi, błędy i zmiany lokalizacji Subiekt.
+- Szybkie przejścia do weryfikacji, logów i konfiguracji ERP.
+- Testy: 297 pass / 6 skip.
+
 ## [v1.10.1] — 2026-08-02 (Sprint 12: cleanup + map badge)
 
 ### Fixes
