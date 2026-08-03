@@ -6,6 +6,7 @@ import { PinPad } from "@/components/pomagier/scan";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { User, Shield, ArrowLeft } from "lucide-react";
+import { APP_VERSION_LABEL } from "@/lib/version";
 
 export const Route = createFileRoute("/admin/login")({ component: AdminLogin });
 
@@ -93,6 +94,10 @@ function AdminLogin() {
             )}
           </>
         )}
+
+        <p className="text-center text-[11px] text-muted-foreground/60">
+          PomagierGT {APP_VERSION_LABEL}
+        </p>
 
         <Link
           to="/mobile/login"

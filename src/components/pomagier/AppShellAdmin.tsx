@@ -45,6 +45,7 @@ import { useDarkMode } from "@/lib/use-dark";
 import { LogOut } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { StatusBadge } from "./primitives";
+import { APP_VERSION_LABEL } from "@/lib/version";
 
 const navSections = [
   {
@@ -158,7 +159,7 @@ function AppSidebar({
                   <div className="truncate text-sm font-semibold leading-tight">
                     {operatorName || "Operator"}
                   </div>
-                  <div className="text-[10px] text-muted-foreground/50">v1.0.0</div>
+                  <div className="text-[10px] text-muted-foreground/50">{APP_VERSION_LABEL}</div>
                 </div>
               )}
             </div>

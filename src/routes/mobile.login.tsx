@@ -13,6 +13,7 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { User, Shield } from "lucide-react";
+import { APP_VERSION_LABEL } from "@/lib/version";
 
 export const Route = createFileRoute("/mobile/login")({
   component: Login,
@@ -134,6 +135,10 @@ function Login() {
           </DialogContent>
         </Dialog>
       )}
+
+      <p className="mt-3 text-center text-[11px] text-muted-foreground/60">
+        PomagierGT {APP_VERSION_LABEL}
+      </p>
 
       <Link
         to="/admin/login"

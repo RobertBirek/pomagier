@@ -1,3 +1,15 @@
+# TASKS — Sprint 15: Centralna wersja aplikacji (2026-08-03)
+
+| Data       | Zadanie | Status |
+| ---------- | ------- | ------ |
+| 2026-08-03 | Jedno źródło wersji: `package.json` + Vite define | ✅ |
+| 2026-08-03 | Wersja w `/admin`, `/mobile`, `/admin/login`, `/mobile/login` | ✅ |
+| 2026-08-03 | Testy, lint, typecheck i build | ✅ |
+
+**Wersja:** v1.10.5 w kodzie i release tag v1.10.5.
+
+---
+
 # TASKS — Sprint 14: Admin stats analytics (2026-08-03)
 
 | Data       | Zadanie | Status |

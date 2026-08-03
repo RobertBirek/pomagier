@@ -4,6 +4,12 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.5] — 2026-08-03 (centralna wersja aplikacji)
+
+- Wersja aplikacji jest pobierana z `package.json` podczas builda Vite.
+- Aktualna wersja `v1.10.5` jest widoczna w panelu admina, mobile oraz na ekranach logowania.
+- Usunięto rozjazdy starych wersji `v1.0.0` i `v1.2.0`.
+
 ## [v1.10.4] — 2026-08-03 (Stats analytics refresh)
 
 - Przebudowany `/admin/stats` z tabami **Operacje magazynowe** oraz **System i ERP**.

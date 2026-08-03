@@ -20,6 +20,7 @@ import { useMssqlStatus } from "@/lib/use-status";
 import { useDarkMode } from "@/lib/use-dark";
 import { useAutoLogout } from "@/lib/use-auto-logout";
 import { useScreenOrientation } from "@/hooks/use-screen-orientation";
+import { APP_VERSION_LABEL } from "@/lib/version";
 import { getQueueCount } from "@/lib/offline-queue";
 import { StatusBadge } from "./primitives";
 import { PortraitOverlay } from "./PortraitOverlay";
@@ -228,7 +229,9 @@ export function MobileShell() {
               <hr className="my-2" />
 
               {/* Version */}
-              <p className="text-center text-[11px] text-muted-foreground/60">PomagierGT v1.2.0</p>
+              <p className="text-center text-[11px] text-muted-foreground/60">
+                PomagierGT {APP_VERSION_LABEL}
+              </p>
             </div>
           </div>
         )}
