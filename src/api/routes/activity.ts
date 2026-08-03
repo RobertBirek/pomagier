@@ -9,6 +9,8 @@ export function registerActivityRoutes(app: Application): void {
   app.get("/api/activity", requireAdmin, async (req: Request, res: Response) => {
     try {
       const db = getDb();
+      const requestedDays = Number.parseInt(String(req.query.days ?? "7"), 10);
+      const days = Number.isFinite(requestedDays) ? Math.min(30, Math.max(1, requestedDays)) : 7;
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -21,7 +23,7 @@ export function registerActivityRoutes(app: Application): void {
       const scans = movements.slice(0, 10);
 
       const dailyStats: { date: string; count: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
+      for (let i = days - 1; i >= 0; i--) {
         const d = new Date(today.getTime() - i * 86400000);
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         const dayEnd = new Date(dayStart.getTime() + 86400000);
@@ -36,7 +38,7 @@ export function registerActivityRoutes(app: Application): void {
         dailyStats.push({ date: d.toISOString().slice(0, 10), count: result?.count || 0 });
       }
 
-      res.json({ movements, scans: scans.slice(0, 10), dailyStats });
+      res.json({ movements, scans: scans.slice(0, 10), dailyStats, rangeDays: days });
       // logEvent swallows errors internally (best-effort), so await is not strictly required
       await logEvent({
         category: "admin",
@@ -58,7 +60,7 @@ export function registerActivityRoutes(app: Application): void {
         success: false,
         errorMessage: err instanceof Error ? err.message : String(err),
       });
-      res.json({ movements: [], scans: [], dailyStats: [] });
+      res.json({ movements: [], scans: [], dailyStats: [], rangeDays: 7 });
     }
   });
 }

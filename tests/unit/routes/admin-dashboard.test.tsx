@@ -5,6 +5,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+vi.mock("@tanstack/react-router", async () => {
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-router")>("@tanstack/react-router");
+  return {
+    ...actual,
+    Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
+      <a href={to}>{children}</a>
+    ),
+  };
+});
+
 vi.mock("../../../src/lib/use-status", () => ({
   useMssqlStatus: vi.fn(() => ({ online: true, latencyMs: 0 })),
 }));
