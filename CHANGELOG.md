@@ -4,6 +4,12 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.7] — 2026-08-03 (location log noise reduction)
+
+- Odczyt kodu lokalizacji otrzymał osobną akcję `location.viewed` zamiast `scan.completed`.
+- Logi skanów zawierają źródło: IP, user-agent i opcjonalny `X-Terminal-ID`.
+- `scan.completed` pozostaje dla poprawnie rozpoznanych towarów, a zmiany lokalizacji nadal używają `location.assigned`, `location.transferred` i `location.reset`.
+
 ## [v1.10.6] — 2026-08-03 (sync monitor + memory warning fix)
 
 - Naprawiono `subiekt.sync.error`: używana jest rzeczywista tabela `tw_ZmianaTw.twz_CzasModyf`; `tw__Towar.tw_CzasM` nie istnieje w tej bazie.

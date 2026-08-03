@@ -30,6 +30,16 @@ interface MssqlQuickRow {
   tw_JednMiary: string;
 }
 
+function getScanSource(req: Request): { ip?: string; userAgent?: string; terminalId?: string } {
+  const userAgent = req.get("user-agent")?.slice(0, 200);
+  const terminalId = req.get("x-terminal-id")?.slice(0, 100);
+  return {
+    ip: req.ip || undefined,
+    userAgent,
+    terminalId,
+  };
+}
+
 async function lookupProductInCache(code: string): Promise<ProductsCacheRow | null> {
   try {
     const db = getDb();
@@ -190,7 +200,7 @@ export function registerScanRoutes(app: Application): void {
             : undefined,
         durationMs,
         success: true,
-        details: { code: code.trim(), warehouse, productCount },
+        details: { code: code.trim(), warehouse, productCount, source: getScanSource(req) },
       });
       res.json(result);
     } catch (err) {
@@ -228,14 +238,14 @@ export function registerScanRoutes(app: Application): void {
         logger.info({ code, type: "location", productCount }, "Scan-basket location");
         await logEvent({
           category: "mobile",
-          action: "scan.completed",
+          action: "location.viewed",
           method: "mobile",
           actorUserId: req.user?.id,
           actorSubiektUzId: req.user?.subiektUzId,
           target: { type: "location", id: parsed.raw },
           durationMs: Date.now() - start,
           success: true,
-          details: { code, type: "location", productCount },
+          details: { code, type: "location", productCount, source: getScanSource(req) },
         });
         res.json({
           type: "location",
@@ -273,6 +283,7 @@ export function registerScanRoutes(app: Application): void {
             type: "product",
             symbol: cached.symbol,
             locationCount: locations.length,
+            source: getScanSource(req),
           },
         });
         res.json({
@@ -298,7 +309,7 @@ export function registerScanRoutes(app: Application): void {
         actorSubiektUzId: req.user?.subiektUzId,
         durationMs: Date.now() - start,
         success: true,
-        details: { code, type: "not_found" },
+        details: { code, type: "not_found", source: getScanSource(req) },
       });
       res.json({ type: "not_found", code });
     } catch (err) {
