@@ -155,7 +155,7 @@ vi.mock("../../../src/api/idempotency.js", () => ({
   storeIdempotency: () => {},
 }));
 
-vi.mock("../../../src/lib/app-logger.js", () => ({
+vi.mock("../../../src/lib/app-logger-server.js", () => ({
   logEvent: () => Promise.resolve(),
 }));
 

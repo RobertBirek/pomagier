@@ -30,7 +30,7 @@ import { startCleanupInterval, runCleanup } from "../lib/cleanup.js";
 import { startSystemMonitor } from "../lib/system-monitor.js";
 import { startSubiektSyncMonitor, getSubiektSyncHandle } from "../lib/subiekt-sync-monitor.js";
 import { errorHandler } from "./error-handler.js";
-import { logEvent } from "../lib/app-logger.js";
+import { logEvent } from "../lib/app-logger-server.js";
 
 // Validate environment on startup (warn but don't crash — app can work with mock)
 try {

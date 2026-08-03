@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { getDb, schema } from "../../db/index.js";
 import { eq, and } from "drizzle-orm";
 import { logger, getCorrelationId } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import { ApiError } from "../error-handler.js";
 import { validate } from "../validation.js";
 import { requireAdmin, requireAuth } from "../auth-middleware.js";

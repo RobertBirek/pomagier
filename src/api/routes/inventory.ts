@@ -2,7 +2,7 @@ import type { Application, Request, Response } from "express";
 import { getDb, schema } from "../../db/index.js";
 import { eq, and, type SQL } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { getAdapter } from "../adapter-provider.js";
 

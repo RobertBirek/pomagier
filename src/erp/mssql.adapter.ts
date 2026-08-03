@@ -2,7 +2,7 @@ import sql from "mssql";
 import type { ErpAdapter } from "./adapter";
 import type { ProductInfo, ScanResult } from "./types";
 import { logger } from "../lib/logger.js";
-import { logEvent } from "../lib/app-logger.js";
+import { logEvent } from "../lib/app-logger-server.js";
 
 interface ProductRow {
   productId: number;

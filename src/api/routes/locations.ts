@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { getDb, schema } from "../../db/index.js";
 import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import { parseLocation, safeSubiektValue } from "../../lib/locations.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency, storeIdempotency } from "../idempotency.js";

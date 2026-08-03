@@ -4,7 +4,7 @@ import { getAdapter } from "../adapter-provider.js";
 import { getDb, schema } from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { validate } from "../validation.js";
 import { encryptConfig, decryptConfig } from "../../lib/crypto-config.js";

@@ -41,7 +41,7 @@ vi.mock("express", () => {
   return { default: expressFn };
 });
 
-vi.mock("../../../src/lib/app-logger.js", () => ({
+vi.mock("../../../src/lib/app-logger-server.js", () => ({
   logEvent: logEventMock,
 }));
 

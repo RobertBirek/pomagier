@@ -1,5 +1,5 @@
 import * as os from "node:os";
-import { logEvent } from "./app-logger.js";
+import { logEvent } from "./app-logger-server.js";
 
 const MEMORY_THRESHOLD = 0.8;
 const DISK_FREE_THRESHOLD = 0.1;

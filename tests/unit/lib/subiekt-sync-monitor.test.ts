@@ -46,7 +46,7 @@ vi.mock("../../../src/api/adapter-provider.js", () => ({
   getAdapter: () => adapterMocks,
 }));
 
-vi.mock("../../../src/lib/app-logger.js", () => ({
+vi.mock("../../../src/lib/app-logger-server.js", () => ({
   logEvent: logEventMock,
 }));
 

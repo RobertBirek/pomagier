@@ -1,7 +1,7 @@
 import { getDb, schema } from "../db/index.js";
 import { getAdapter } from "../api/adapter-provider.js";
 import { eq } from "drizzle-orm";
-import { logEvent } from "./app-logger.js";
+import { logEvent } from "./app-logger-server.js";
 import { logger } from "./logger.js";
 import { randomUUID } from "node:crypto";
 

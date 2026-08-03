@@ -2,7 +2,7 @@ import type { Application, Request, Response } from "express";
 import { getDb, schema } from "../../db/index.js";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import { requireAdmin } from "../auth-middleware.js";
 
 export function registerActivityRoutes(app: Application): void {

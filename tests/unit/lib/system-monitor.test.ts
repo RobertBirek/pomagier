@@ -6,11 +6,11 @@ const osMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("node:os", () => osMocks);
-vi.mock("../../../src/lib/app-logger.js", () => ({
+vi.mock("../../../src/lib/app-logger-server.js", () => ({
   logEvent: vi.fn(() => Promise.resolve()),
 }));
 
-import { logEvent } from "../../../src/lib/app-logger.js";
+import { logEvent } from "../../../src/lib/app-logger-server.js";
 
 const logEventMock = vi.mocked(logEvent);
 

@@ -1,7 +1,7 @@
 import type { Application, Request, Response } from "express";
 import { getAdapter } from "../adapter-provider.js";
 import { logger } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import type { CompanyRow } from "../types.js";
 
 export function registerHealthRoutes(app: Application): void {

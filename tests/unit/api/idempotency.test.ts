@@ -32,7 +32,7 @@ vi.mock("../../../src/db/index.js", () => ({
   },
 }));
 
-vi.mock("../../../src/lib/app-logger.js", () => ({
+vi.mock("../../../src/lib/app-logger-server.js", () => ({
   logEvent: logEventMock,
 }));
 

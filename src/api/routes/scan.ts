@@ -5,7 +5,7 @@ import { getAdapter } from "../adapter-provider.js";
 import { getDb, schema } from "../../db/index.js";
 import { parseLocation } from "../../lib/locations.js";
 import { logger } from "../../lib/logger.js";
-import { logEvent } from "../../lib/app-logger.js";
+import { logEvent } from "../../lib/app-logger-server.js";
 import { validate } from "../validation.js";
 import { resolveSupportedWarehouses } from "./erp-supported-warehouses.js";
 

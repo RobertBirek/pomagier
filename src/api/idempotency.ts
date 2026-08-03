@@ -1,6 +1,6 @@
 import { eq, lt } from "drizzle-orm";
 import { getDb, schema } from "../db/index.js";
-import { logEvent } from "../lib/app-logger.js";
+import { logEvent } from "../lib/app-logger-server.js";
 
 const IDEMPOTENCY_TTL = 5 * 60 * 1000;
 
