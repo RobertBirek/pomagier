@@ -1,24 +1,37 @@
 # TASKS — Sprint 15: Centralna wersja aplikacji (2026-08-03)
 
-| Data       | Zadanie | Status |
-| ---------- | ------- | ------ |
-| 2026-08-03 | Jedno źródło wersji: `package.json` + Vite define | ✅ |
-| 2026-08-03 | Wersja w `/admin`, `/mobile`, `/admin/login`, `/mobile/login` | ✅ |
-| 2026-08-03 | Testy, lint, typecheck i build | ✅ |
+| Data       | Zadanie                                                       | Status |
+| ---------- | ------------------------------------------------------------- | ------ |
+| 2026-08-03 | Jedno źródło wersji: `package.json` + Vite define             | ✅     |
+| 2026-08-03 | Wersja w `/admin`, `/mobile`, `/admin/login`, `/mobile/login` | ✅     |
+| 2026-08-03 | Testy, lint, typecheck i build                                | ✅     |
 
-**Wersja:** v1.10.5 w kodzie i release tag v1.10.5.
+**Wersja:** v1.10.6 w kodzie i release tag v1.10.6.
+
+---
+
+# TASKS — Sprint 16: Sync monitor correction (2026-08-03)
+
+| Data       | Zadanie                                                    | Status |
+| ---------- | ---------------------------------------------------------- | ------ |
+| 2026-08-03 | Weryfikacja schematu MSSQL `tw__Towar` przez MCP           | ✅     |
+| 2026-08-03 | Zamiana błędnego `tw_CzasM` na `tw_ZmianaTw.twz_CzasModyf` | ✅     |
+| 2026-08-03 | Poprawa progu `memory.warning` względem limitu V8 heap     | ✅     |
+| 2026-08-03 | Testy, build API, restart i health check ERP               | ✅     |
+
+**Wersja:** v1.10.6. **Testy:** 297 pass / 6 skip.
 
 ---
 
 # TASKS — Sprint 14: Admin stats analytics (2026-08-03)
 
-| Data       | Zadanie | Status |
-| ---------- | ------- | ------ |
-| 2026-08-03 | `/admin/stats`: taby Operacje magazynowe / System i ERP | ✅ |
-| 2026-08-03 | Dynamiczny zakres: dzisiaj / 7 dni / 30 dni | ✅ |
-| 2026-08-03 | Auto-refresh + status MSSQL/ERP/synchronizacji | ✅ |
-| 2026-08-03 | Wykresy, KPI, ostatnie ruchy i szybkie akcje | ✅ |
-| 2026-08-03 | Typecheck, lint, testy, build | ✅ |
+| Data       | Zadanie                                                 | Status |
+| ---------- | ------------------------------------------------------- | ------ |
+| 2026-08-03 | `/admin/stats`: taby Operacje magazynowe / System i ERP | ✅     |
+| 2026-08-03 | Dynamiczny zakres: dzisiaj / 7 dni / 30 dni             | ✅     |
+| 2026-08-03 | Auto-refresh + status MSSQL/ERP/synchronizacji          | ✅     |
+| 2026-08-03 | Wykresy, KPI, ostatnie ruchy i szybkie akcje            | ✅     |
+| 2026-08-03 | Typecheck, lint, testy, build                           | ✅     |
 
 **Testy:** 297 pass / 6 skip. **Tag:** v1.10.4.
 

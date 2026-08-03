@@ -177,6 +177,11 @@ Placeholdery w `.env.example`:
 - **B4 reset uses writeSubiektWithRetry** — consistent retry behavior.
 - **C3+E8 centralize isMalformedCode** — single regex from `lib/locations.ts`.
 - **E7 CHECK quantity > 0** — migration 0007.
-- **Timestamp-based change detection** (`tw_CzasM`): `subiekt-sync-monitor` cron co 5 min + `GET /api/locations/subiekt-changes` + `SyncStatusBadge` UI w /admin/verify.
+- **Timestamp-based change detection** (`tw_ZmianaTw.twz_CzasModyf`): `subiekt-sync-monitor` cron co 5 min + `GET /api/locations/subiekt-changes` + `SyncStatusBadge` UI w /admin/verify.
 
 **Testy**: +74 (296 total) — pełen coverage dla location code logic.
+
+### Monitor Subiekt i pamięć procesu (v1.10.6)
+
+- Monitor lokalizacji używa potwierdzonej tabeli `tw_ZmianaTw.twz_CzasModyf`; `tw__Towar.tw_CzasM` nie istnieje w tej bazie.
+- `memory.warning` korzysta z rzeczywistego limitu heap V8 (`heap_size_limit`), a nie z dynamicznego `heapTotal`, aby uniknąć fałszywych alarmów przy normalnym użyciu pamięci.

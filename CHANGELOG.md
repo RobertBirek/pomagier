@@ -43,11 +43,11 @@ _(brak zmian oczekujących na release)_
 
 ### New features
 
-- **Timestamp-based Subiekt change detection** (`tw_CzasM` pre-filter):
+- **Timestamp-based Subiekt change detection** (`tw_ZmianaTw.twz_CzasModyf` pre-filter):
   - `GET /api/locations/subiekt-changes?since=ISO` — returns Subiekt products modified since timestamp
   - `subiekt-sync-monitor` (cron co 5 min) — logEvent `system.subiekt.modified` with count
   - `config.subiekt_last_sync_at` — cursor (ISO timestamp) for change detection
-  - Bootstrap: first tick sets cursor to `MAX(tw_CzasM)` (clock-skew safety)
+  - Bootstrap: first tick sets cursor to `MAX(twz_CzasModyf)` (clock-skew safety)
 - **SyncStatusBadge** w /admin/verify — poll co 30s, shows "X produktów zmienionych w Subiekcie" + "Sync teraz" button
 - **New skill `location-sync`** — documents location code management, pitfalls, dual-write compensation, timestamp-based change detection
 

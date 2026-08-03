@@ -1,8 +1,8 @@
 # Plan — PomagierGT
 
-## Stan: v1.10.0 Production (2026-08-02)
+## Stan: v1.10.6 Production (2026-08-03)
 
-MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.10.0 (2026-08-02) zamyka Sprint 11: location sync hardening (B1-B4 bug fixes, E3-E8 cleanup) + timestamp-based Subiekt change detection (`tw_CzasM` pre-filter) + SyncStatusBadge UI. 296 testów pass / 6 skip. Projekt gotowy na rozwój kolejnych modułów magazynowych (inwentaryzacja, kompletacja, przyjęcie dostaw).
+MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.10.6 obejmuje hardening lokalizacji, timestamp sync przez `tw_ZmianaTw.twz_CzasModyf`, dashboard analytics, centralną wersję aplikacji oraz stabilny monitor systemowy. 297 testów pass / 6 skip.
 
 ## 1. Podsumowanie projektu
 
@@ -136,10 +136,10 @@ Rozwój kolejnych modułów magazynowych: inwentaryzacja, kompletacja, przyjęci
 
 Po decyzji użytkownika co do priorytetu modułu — implementacja pionowego wycinka (np. pełny flow inwentaryzacji: wybór zakresu → skanowanie → raport).
 
-## 16. Kryteria akceptacji (bieżące — v1.10.0)
+## 16. Kryteria akceptacji (bieżące — v1.10.6)
 
 - [x] `npm run build` — przechodzi
-- [x] `npm test` — 296 passed / 6 skipped
+- [x] `npm test` — 297 passed / 6 skipped
 - [x] `npm run typecheck` — czysto
 - [x] `npm run lint` — 0 errors, 0 warnings
 - [x] `pomagier-api` — active (systemd), health check OK

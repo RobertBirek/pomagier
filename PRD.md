@@ -4,9 +4,9 @@
 
 PomagierGT jest aplikacją webową i mobilną PWA stanowiącą warstwę operacyjną pomiędzy użytkownikami magazynu a systemem ERP Insert Subiekt GT.
 
-## Stan: v1.6.3 — Produkcyjny stabilny (2026-08-01)
+## Stan: v1.10.6 — Produkcyjny stabilny (2026-08-03)
 
-MVP (v1.0.0) został osiągnięty 2026-07-26. Wersja v1.6.3 (2026-08-01) zamyka Sprinty 3-6: chicken-and-egg fix, global warehouses, auto-logout on 401, warehouse-in-basket fix. 156 testów pass / 6 skip. System gotowy do dalszego rozwoju (inwentaryzacja, kompletacja, przyjęcie dostaw).
+MVP (v1.0.0) został osiągnięty 2026-07-26. Wersja v1.10.6 obejmuje global warehouses, comprehensive logging, hardening lokalizacji, timestamp sync, dashboard analytics, centralną wersję aplikacji oraz poprawiony monitor Subiekta. 297 testów pass / 6 skip. System gotowy do dalszego rozwoju modułów magazynowych.
 
 ## Zrealizowane moduły
 
