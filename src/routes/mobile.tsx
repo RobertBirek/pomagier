@@ -9,12 +9,18 @@ export const Route = createFileRoute("/mobile")({
 });
 
 function MobileLayout() {
-  use401Redirect("/mobile/login");
   return (
     <AuthProvider>
-      <ScanBasketProvider>
-        <MobileShell />
-      </ScanBasketProvider>
+      <MobileLayoutInner />
     </AuthProvider>
+  );
+}
+
+function MobileLayoutInner() {
+  use401Redirect("/mobile/login");
+  return (
+    <ScanBasketProvider>
+      <MobileShell />
+    </ScanBasketProvider>
   );
 }
