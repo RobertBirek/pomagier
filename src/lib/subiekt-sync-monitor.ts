@@ -54,11 +54,12 @@ export async function tickSubiektSync(): Promise<void> {
   const locationField = await getLocationFieldSafe();
 
   try {
-    const maxResult = await pool
-      .request()
-      .query(
-        `SELECT MAX(tw_CzasM) AS m FROM tw__Towar WITH (NOLOCK) WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
-      );
+    const maxResult = await pool.request().query(
+      `SELECT MAX(z.twz_CzasModyf) AS m
+         FROM tw_ZmianaTw z WITH (NOLOCK)
+         INNER JOIN tw__Towar t WITH (NOLOCK) ON t.tw_Id = z.twz_TowarId
+         WHERE t.${locationField} IS NOT NULL AND t.${locationField} != ''`,
+    );
     const row = maxResult.recordset[0] as { m: Date | null } | undefined;
     const nowSubiektMax = row?.m ? new Date(row.m) : null;
     if (!nowSubiektMax) return;
@@ -83,8 +84,11 @@ export async function tickSubiektSync(): Promise<void> {
         .request()
         .input("since", lastSync)
         .query(
-          `SELECT COUNT(*) AS n FROM tw__Towar WITH (NOLOCK)
-           WHERE tw_CzasM > @since AND ${locationField} IS NOT NULL AND ${locationField} != ''`,
+          `SELECT COUNT(DISTINCT z.twz_TowarId) AS n
+           FROM tw_ZmianaTw z WITH (NOLOCK)
+           INNER JOIN tw__Towar t WITH (NOLOCK) ON t.tw_Id = z.twz_TowarId
+           WHERE z.twz_CzasModyf > @since
+             AND t.${locationField} IS NOT NULL AND t.${locationField} != ''`,
         );
       const countRow = countResult.recordset[0] as { n: number } | undefined;
       const count = countRow?.n ?? 0;

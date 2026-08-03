@@ -134,7 +134,7 @@ describe("verify-sync-detail enhanced with subiektModifiedAt (T4.3)", () => {
     mockGetPool.mockResolvedValue(
       poolWith([
         {
-          match: /tw_CzasM AS modifiedAt/,
+          match: /twz_CzasModyf.*modifiedAt/,
           result: { recordset: [{ id: 1, val: "A 1-2-3-4", modifiedAt }] },
         },
         { match: /FROM tw__Towar WHERE tw_Id IN/, result: { recordset: [] } },
@@ -153,7 +153,7 @@ describe("verify-sync-detail enhanced with subiektModifiedAt (T4.3)", () => {
   it("includes lastSyncAt at top level when subiekt_last_sync_at is in config", async () => {
     activeDbMock = makeDb();
     mockGetPool.mockResolvedValue(
-      poolWith([{ match: /tw_CzasM AS modifiedAt/, result: { recordset: [] } }]),
+      poolWith([{ match: /twz_CzasModyf.*modifiedAt/, result: { recordset: [] } }]),
     );
     // Subiekt is empty so productsCache is skipped — only 2 where calls
     getMock().setWhereResults([
@@ -168,7 +168,7 @@ describe("verify-sync-detail enhanced with subiektModifiedAt (T4.3)", () => {
   it("returns lastSyncAt as null when no config row exists", async () => {
     activeDbMock = makeDb();
     mockGetPool.mockResolvedValue(
-      poolWith([{ match: /tw_CzasM AS modifiedAt/, result: { recordset: [] } }]),
+      poolWith([{ match: /twz_CzasModyf.*modifiedAt/, result: { recordset: [] } }]),
     );
     getMock().setWhereResults([() => Promise.resolve([]), () => Promise.resolve([])]);
     const res = await request(app).get("/api/locations/verify-sync-detail");

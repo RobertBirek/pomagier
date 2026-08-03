@@ -60,11 +60,11 @@ function makePool(max: Date | null, count: number | null) {
       const builder: Record<string, unknown> = {};
       builder.input = vi.fn().mockReturnValue(builder);
       builder.query = async (sqlText: string) => {
-        if (/MAX\(tw_CzasM\)/.test(sqlText)) {
-          return { recordset: max ? [{ m: max }] : [] };
-        }
-        if (/COUNT\(\*\)/.test(sqlText)) {
+        if (/COUNT\(/.test(sqlText)) {
           return { recordset: [{ n: count ?? 0 }] };
+        }
+        if (/twz_CzasModyf/.test(sqlText)) {
+          return { recordset: max ? [{ m: max }] : [] };
         }
         return { recordset: [] };
       };

@@ -1326,12 +1326,16 @@ export function registerLocationsRoutes(app: express.Express) {
         postgresMap.set(r.productId, e);
       }
 
-      // 2. Get Subiekt data (with tw_CzasM for T4.3)
-      const subiektRows = await pool
-        .request()
-        .query(
-          `SELECT tw_Id AS id, NULLIF(${locationField},'') AS val, tw_CzasM AS modifiedAt FROM tw__Towar WHERE ${locationField} IS NOT NULL AND ${locationField} != ''`,
-        );
+      // 2. Get Subiekt data from the real change-history table.
+      // tw__Towar has no tw_CzasM in this Subiekt version.
+      const subiektRows = await pool.request().query(
+        `SELECT t.tw_Id AS id, NULLIF(t.${locationField}, '') AS val,
+                  MAX(z.twz_CzasModyf) AS modifiedAt
+           FROM tw__Towar t WITH (NOLOCK)
+           LEFT JOIN tw_ZmianaTw z WITH (NOLOCK) ON z.twz_TowarId = t.tw_Id
+           WHERE t.${locationField} IS NOT NULL AND t.${locationField} != ''
+           GROUP BY t.tw_Id, t.${locationField}`,
+      );
       const subiektMap = new Map<number, { codes: Set<string>; modifiedAt: Date | null }>();
       for (const r of subiektRows.recordset) {
         const row = r as SubiektIdRow & { val: string | null; modifiedAt: Date | null };
@@ -1473,14 +1477,16 @@ export function registerLocationsRoutes(app: express.Express) {
         .request()
         .input("since", new Date(since))
         .query(
-          `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name,
-                  NULLIF(${locationField},'') AS val, tw_CzasM AS modifiedAt
-           FROM tw__Towar WITH (NOLOCK)
-           WHERE tw_CzasM > @since
-             AND ${locationField} IS NOT NULL
-             AND ${locationField} != ''
-           ORDER BY tw_CzasM DESC
-           OFFSET 0 ROWS FETCH NEXT 500 ROWS ONLY`,
+          `SELECT TOP 500 t.tw_Id AS id, t.tw_Symbol AS symbol, t.tw_Nazwa AS name,
+                  NULLIF(t.${locationField}, '') AS val, MAX(z.twz_CzasModyf) AS modifiedAt
+           FROM tw__Towar t WITH (NOLOCK)
+           INNER JOIN tw_ZmianaTw z WITH (NOLOCK) ON z.twz_TowarId = t.tw_Id
+           WHERE z.twz_CzasModyf > @since
+             AND t.${locationField} IS NOT NULL
+             AND t.${locationField} != ''
+           GROUP BY t.tw_Id, t.tw_Symbol, t.tw_Nazwa, t.${locationField}
+           ORDER BY modifiedAt DESC
+           `,
         );
 
       const products = result.recordset.map((r) => {

@@ -6,6 +6,9 @@ const osMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("node:os", () => osMocks);
+vi.mock("node:v8", () => ({
+  getHeapStatistics: vi.fn(() => ({ heap_size_limit: 1000 })),
+}));
 vi.mock("../../../src/lib/app-logger-server.js", () => ({
   logEvent: vi.fn(() => Promise.resolve()),
 }));

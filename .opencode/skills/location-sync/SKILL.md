@@ -49,9 +49,9 @@ Wszystkie Subiekt writes używają `writeSubiektWithRetry()` (3 attempts: 100/20
 
 ## Timestamp-based change detection (Sprint 11)
 
-Subiekt ma `tw_CzasM` (datetime2, czas ostatniej modyfikacji rekordu). WAŻNE: aktualizuje się dla DOWOLNEJ kolumny (nie tylko `tw_Pole1`), więc jest PRE-FILTER, nie kryterium.
+W tej konkretnej bazie Subiekt `tw__Towar` **nie ma `tw_CzasM`**. Historia zmian towaru jest w `tw_ZmianaTw` (`twz_TowarId`, `twz_NrZmiany`, `twz_CzasModyf datetime`). `twz_CzasModyf` jest PRE-FILTEREM zmian, nie dowodem zmiany samego `tw_Pole1`.
 
-- `src/lib/subiekt-sync-monitor.ts` - co 5 min sprawdza `MAX(tw_CzasM)` i loguje `system.subiekt.modified` z count + lastSyncAt + nowSubiektMax
+- `src/lib/subiekt-sync-monitor.ts` - co 5 min sprawdza `MAX(tw_ZmianaTw.twz_CzasModyf)` i loguje `system.subiekt.modified` z count + lastSyncAt + nowSubiektMax
 - `config.subiekt_last_sync_at` - cursor (ISO timestamp) do śledzenia ostatniej kontroli
 - `GET /api/locations/subiekt-changes?since=ISO` - returns modified products od danego timestampa
 - `SyncStatusBadge` w /admin/verify - poll co 30s, badge z "X produktów zmienionych" + "Sync teraz" button
@@ -61,7 +61,7 @@ Subiekt ma `tw_CzasM` (datetime2, czas ostatniej modyfikacji rekordu). WAŻNE: a
 
 First tick (when `subiekt_last_sync_at` IS NULL):
 
-- Sets cursor to `(SELECT MAX(tw_CzasM) FROM tw__Towar)` - Subiekt's clock, NOT Pomagier's Date.now()
+- Sets cursor to `(SELECT MAX(twz_CzasModyf) FROM tw_ZmianaTw)` - Subiekt's clock, NOT Pomagier's Date.now()
 - Avoids marking all old records as "modified" on first run
 
 ## Normalization (idempotent)

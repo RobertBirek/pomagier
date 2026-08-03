@@ -132,7 +132,7 @@ describe("verify-sync endpoints (T3.3)", () => {
   it("GET /api/locations/verify-sync: returns 200 with body when pool OK and no data", async () => {
     // Empty plRows + empty Subiekt result
     mockGetPool.mockResolvedValue(
-      poolWith([{ match: /SELECT tw_Id AS id/, result: { recordset: [] } }]),
+      poolWith([{ match: /SELECT.*tw_Id AS id/, result: { recordset: [] } }]),
     );
     const res = await request(app).get("/api/locations/verify-sync");
     expect(res.status).toBe(200);
@@ -141,7 +141,7 @@ describe("verify-sync endpoints (T3.3)", () => {
 
   it("GET /api/locations/verify-sync-detail: pagination parameters work", async () => {
     mockGetPool.mockResolvedValue(
-      poolWith([{ match: /SELECT tw_Id AS id/, result: { recordset: [] } }]),
+      poolWith([{ match: /SELECT.*tw_Id AS id/, result: { recordset: [] } }]),
     );
     const res = await request(app).get("/api/locations/verify-sync-detail?page=2&pageSize=10");
     expect(res.status).toBe(200);
@@ -158,7 +158,7 @@ describe("verify-sync endpoints (T3.3)", () => {
   it("GET /api/locations/verify-sync-detail: returns 200 with rows for Subiekt data", async () => {
     mockGetPool.mockResolvedValue(
       poolWith([
-        { match: /SELECT tw_Id AS id/, result: { recordset: [{ id: 1, val: "A 1-2-3-4" }] } },
+        { match: /SELECT.*tw_Id AS id/, result: { recordset: [{ id: 1, val: "A 1-2-3-4" }] } },
         { match: /FROM tw__Towar WHERE tw_Id IN/, result: { recordset: [] } },
       ]),
     );
@@ -171,7 +171,7 @@ describe("verify-sync endpoints (T3.3)", () => {
   it("GET /api/locations/verify-sync-detail: filters by area (case sensitive)", async () => {
     mockGetPool.mockResolvedValue(
       poolWith([
-        { match: /SELECT tw_Id AS id/, result: { recordset: [{ id: 1, val: "A 1-2-3-4" }] } },
+        { match: /SELECT.*tw_Id AS id/, result: { recordset: [{ id: 1, val: "A 1-2-3-4" }] } },
         { match: /FROM tw__Towar WHERE tw_Id IN/, result: { recordset: [] } },
       ]),
     );
@@ -183,7 +183,7 @@ describe("verify-sync endpoints (T3.3)", () => {
   it("GET /api/locations/verify-sync-detail: status=synced returns 200 (empty when all mismatch)", async () => {
     mockGetPool.mockResolvedValue(
       poolWith([
-        { match: /SELECT tw_Id AS id/, result: { recordset: [{ id: 1, val: "A 1-2-3-4" }] } },
+        { match: /SELECT.*tw_Id AS id/, result: { recordset: [{ id: 1, val: "A 1-2-3-4" }] } },
         { match: /FROM tw__Towar WHERE tw_Id IN/, result: { recordset: [] } },
       ]),
     );

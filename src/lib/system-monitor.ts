@@ -1,4 +1,5 @@
 import * as os from "node:os";
+import * as v8 from "node:v8";
 import { logEvent } from "./app-logger-server.js";
 
 const MEMORY_THRESHOLD = 0.8;
@@ -10,7 +11,8 @@ let lastDiskWarning = 0;
 
 async function checkMemory(): Promise<void> {
   const mem = process.memoryUsage();
-  const ratio = mem.heapTotal > 0 ? mem.heapUsed / mem.heapTotal : 0;
+  const heapLimit = v8.getHeapStatistics().heap_size_limit;
+  const ratio = heapLimit > 0 ? mem.heapUsed / heapLimit : 0;
   if (ratio <= MEMORY_THRESHOLD) return;
 
   const now = Date.now();
@@ -24,7 +26,7 @@ async function checkMemory(): Promise<void> {
     success: true,
     details: {
       heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
-      heapTotalMb: Math.round(mem.heapTotal / 1024 / 1024),
+      heapLimitMb: Math.round(heapLimit / 1024 / 1024),
       ratio: Number(ratio.toFixed(2)),
     },
   });

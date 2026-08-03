@@ -4,6 +4,12 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.6] — 2026-08-03 (sync monitor + memory warning fix)
+
+- Naprawiono `subiekt.sync.error`: używana jest rzeczywista tabela `tw_ZmianaTw.twz_CzasModyf`; `tw__Towar.tw_CzasM` nie istnieje w tej bazie.
+- Naprawiono fałszywe `memory.warning`: próg liczony względem limitu heap V8 zamiast `heapTotal`.
+- Zaktualizowano skill `location-sync` o potwierdzony schemat Subiekta.
+
 ## [v1.10.5] — 2026-08-03 (centralna wersja aplikacji)
 
 - Wersja aplikacji jest pobierana z `package.json` podczas builda Vite.
