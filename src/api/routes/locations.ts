@@ -535,7 +535,7 @@ export function registerLocationsRoutes(app: express.Express) {
         const result = await pool.request().input("code", code).query(`
           SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name
           FROM tw__Towar
-          WHERE tw_PodstKodKresk = @code
+          WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code
         `);
         if (result.recordset.length > 0) {
           foundProducts.push(result.recordset[0] as SubiektProductRow);
@@ -632,7 +632,12 @@ export function registerLocationsRoutes(app: express.Express) {
         actorSubiektUzId: req.user?.subiektUzId,
         target: { type: "location", id: parsed.raw },
         success: true,
-        details: { codes, count: codes.length, assigned: grouped.size },
+        details: {
+          codes,
+          count: codes.length,
+          assigned: grouped.size,
+          notFound,
+        },
       });
       res.json({
         ok: true,
@@ -738,7 +743,9 @@ export function registerLocationsRoutes(app: express.Express) {
         const result = await pool
           .request()
           .input("code", code)
-          .query("SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+          .query(
+            "SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code",
+          );
         for (const row of result.recordset) {
           const productId = (row as SubiektIdRow).id;
           // Decrease quantity in product_locations (or remove if quantity gets to 0)
@@ -788,7 +795,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("code", code)
           .query(
-            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
+            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code",
           );
         for (const row of r.recordset) {
           await db.insert(schema.productMovements).values({
@@ -968,7 +975,9 @@ export function registerLocationsRoutes(app: express.Express) {
       const pr = await pool
         .request()
         .input("code", code)
-        .query("SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code");
+        .query(
+          "SELECT tw_Id AS id FROM tw__Towar WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code",
+        );
       if (!pr.recordset[0]) {
         res.json({ found: false });
         return;
@@ -1065,7 +1074,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("code", code)
           .query(
-            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
+            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code",
           );
         for (const row of r.recordset) foundProducts.push(row as SubiektProductRow);
       }
@@ -2025,7 +2034,7 @@ export function registerLocationsRoutes(app: express.Express) {
           .request()
           .input("code", code)
           .query(
-            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code",
+            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code",
           );
         for (const row of r.recordset) {
           const productId = (row as SubiektProductRow).id;

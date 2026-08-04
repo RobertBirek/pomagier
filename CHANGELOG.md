@@ -4,6 +4,13 @@
 
 _(brak zmian oczekujących na release)_
 
+## [v1.10.8] — 2026-08-04 (location assignment by EAN or symbol)
+
+- Przypisywanie lokalizacji wyszukuje teraz produkt po EAN **lub symbolu Subiekta**.
+- Poprawiono assign, transfer, reset, undo i operacje synchronizacji lokalizacji.
+- `location.assigned` zapisuje teraz także listę kodów `notFound`.
+- Przypadek `AZ5885` z dzisiejszych skanów został potwierdzony i naprawiony.
+
 ## [v1.10.7] — 2026-08-03 (location log noise reduction)
 
 - Odczyt kodu lokalizacji otrzymał osobną akcję `location.viewed` zamiast `scan.completed`.
