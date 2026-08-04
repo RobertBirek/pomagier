@@ -4,7 +4,7 @@ import { getDb, schema } from "../../db/index.js";
 import { eq, and, or, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { logEvent } from "../../lib/app-logger-server.js";
-import { parseLocation, safeSubiektValue } from "../../lib/locations.js";
+import { isMalformedCode, parseLocation, safeSubiektValue } from "../../lib/locations.js";
 import { requireAdmin } from "../auth-middleware.js";
 import { checkIdempotency, storeIdempotency } from "../idempotency.js";
 import { getAdapter } from "../adapter-provider.js";
@@ -34,6 +34,16 @@ interface SubiektProductDetailRow {
   tw_Symbol: string;
   tw_Nazwa: string;
 }
+
+type VerifySortBy = "productId" | "symbol" | "name" | "barcode" | "postgres" | "subiekt";
+const VERIFY_SORT_FIELDS = new Set<VerifySortBy>([
+  "productId",
+  "symbol",
+  "name",
+  "barcode",
+  "postgres",
+  "subiekt",
+]);
 
 interface DuplicateEntry {
   productId: number;
@@ -1313,6 +1323,12 @@ export function registerLocationsRoutes(app: express.Express) {
       const area = (req.query.area as string) || "";
       const status = (req.query.status as string) || "all"; // all | mismatch | synced
       const q = (req.query.q as string) || "";
+      const requestedSortBy = req.query.sortBy as string;
+      const sortBy: VerifySortBy = VERIFY_SORT_FIELDS.has(requestedSortBy as VerifySortBy)
+        ? (requestedSortBy as VerifySortBy)
+        : "productId";
+      const sortOrder = req.query.sortOrder === "desc" ? "desc" : "asc";
+      const malformedOnly = req.query.malformedOnly === "true";
       const offset = (page - 1) * pageSize;
 
       // 1. Get all Postgres locations grouped by productId
@@ -1375,12 +1391,6 @@ export function registerLocationsRoutes(app: express.Express) {
         if (status === "mismatch" && isMatch) continue;
         if (status === "synced" && !isMatch) continue;
         if (area && pg && ![...pg.areas].some((a) => a === area)) continue;
-        if (
-          q &&
-          ![...pgCodes, ...subCodes].some((code) => code.toLowerCase().includes(q.toLowerCase()))
-        )
-          continue;
-
         allRows.push({
           productId: id,
           postgres: pgCodes,
@@ -1390,33 +1400,28 @@ export function registerLocationsRoutes(app: express.Express) {
         });
       }
 
-      const totalMismatch = allRows.filter(
-        (r) => r.postgres.join(",") !== r.subiekt.join(","),
-      ).length;
-      const totalSynced = allRows.length - totalMismatch;
-
-      // 4. Get product labels from cache + MSSQL
-      const pagedRows = allRows.slice(offset, offset + pageSize);
+      // 4. Get product labels from cache + MSSQL for every candidate before search, sort, and paging.
       const cacheMap = new Map<number, { symbol: string; name: string; barcode: string }>();
-      if (pagedRows.length > 0) {
+      if (allRows.length > 0) {
         const cached = await db
           .select()
           .from(schema.productsCache)
           .where(
             inArray(
               schema.productsCache.id,
-              pagedRows.map((r) => r.productId),
+              allRows.map((r) => r.productId),
             ),
           );
         for (const c of cached)
           cacheMap.set(c.id, { symbol: c.symbol, name: c.name, barcode: c.barcode || "" });
 
         // MSSQL fallback for missing
-        const missing = pagedRows.filter((r) => !cacheMap.has(r.productId)).map((r) => r.productId);
-        if (missing.length > 0) {
-          const placeholders = missing.map((_, i) => `@id${i}`);
+        const missing = allRows.filter((r) => !cacheMap.has(r.productId)).map((r) => r.productId);
+        for (let start = 0; start < missing.length; start += 500) {
+          const chunk = missing.slice(start, start + 500);
+          const placeholders = chunk.map((_, i) => `@id${i}`);
           const req2 = pool.request();
-          missing.forEach((id, i) => req2.input(`id${i}`, id));
+          chunk.forEach((id, i) => req2.input(`id${i}`, id));
           const mssqlResult = await req2.query(
             `SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name, tw_PodstKodKresk AS barcode FROM tw__Towar WHERE tw_Id IN (${placeholders.join(",")})`,
           );
@@ -1426,6 +1431,51 @@ export function registerLocationsRoutes(app: express.Express) {
           }
         }
       }
+
+      const normalizedQ = q.toLowerCase();
+      const filteredRows = allRows.filter((r) => {
+        const c = cacheMap.get(r.productId);
+        if (
+          normalizedQ &&
+          ![c?.barcode || "", c?.symbol || "", c?.name || "", ...r.postgres, ...r.subiekt].some(
+            (value) => value.toLowerCase().includes(normalizedQ),
+          )
+        )
+          return false;
+        if (malformedOnly && ![...r.postgres, ...r.subiekt].some((code) => isMalformedCode(code)))
+          return false;
+        return true;
+      });
+
+      const sortValue = (r: (typeof allRows)[number]): number | string => {
+        const c = cacheMap.get(r.productId);
+        switch (sortBy) {
+          case "productId":
+            return r.productId;
+          case "symbol":
+            return c?.symbol || `#${r.productId}`;
+          case "name":
+            return c?.name || "";
+          case "barcode":
+            return c?.barcode || "";
+          case "postgres":
+            return r.postgres.join(", ");
+          case "subiekt":
+            return r.subiekt.join(", ");
+        }
+      };
+      filteredRows.sort((a, b) => {
+        const va = sortValue(a);
+        const vb = sortValue(b);
+        const comparison = va < vb ? -1 : va > vb ? 1 : 0;
+        return sortOrder === "desc" ? -comparison : comparison;
+      });
+
+      const totalMismatch = filteredRows.filter(
+        (r) => r.postgres.join(",") !== r.subiekt.join(","),
+      ).length;
+      const totalSynced = filteredRows.length - totalMismatch;
+      const pagedRows = filteredRows.slice(offset, offset + pageSize);
 
       // 5. Get last sync timestamp (T4.3)
       const [lastSyncRow] = await db
@@ -1453,7 +1503,7 @@ export function registerLocationsRoutes(app: express.Express) {
         }),
         page,
         pageSize,
-        totalPages: Math.ceil(allRows.length / pageSize),
+        totalPages: Math.ceil(filteredRows.length / pageSize),
       });
     } catch (err) {
       logger.error({ err }, "Verify sync detail failed");

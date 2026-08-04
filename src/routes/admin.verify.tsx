@@ -108,8 +108,17 @@ function VerifyPage() {
   const isMalformed = (codes: string[]) => codes.some(isMalformedCode);
 
   const params = useMemo(
-    () => ({ page: String(page), pageSize: String(pageSize), area, status, q }),
-    [page, area, status, q],
+    () => ({
+      page: String(page),
+      pageSize: String(pageSize),
+      area,
+      status,
+      q,
+      sortBy,
+      sortOrder,
+      malformedOnly: String(malformedOnly),
+    }),
+    [page, area, status, q, sortBy, sortOrder, malformedOnly],
   );
 
   const { data, isLoading } = useQuery({
@@ -117,43 +126,10 @@ function VerifyPage() {
     queryFn: () => fetchVerify(params),
   });
 
-  const sortedRows = useMemo(() => {
-    if (!data?.rows) return [];
-    const rows = [...data.rows];
-    rows.sort((a, b) => {
-      let va: string | number = "",
-        vb: string | number = "";
-      switch (sortBy) {
-        case "productId":
-          va = a.productId;
-          vb = b.productId;
-          break;
-        case "symbol":
-          va = a.symbol;
-          vb = b.symbol;
-          break;
-        case "name":
-          va = a.name;
-          vb = b.name;
-          break;
-        case "postgres":
-          va = a.postgres.join(", ");
-          vb = b.postgres.join(", ");
-          break;
-        case "subiekt":
-          va = a.subiekt.join(", ");
-          vb = b.subiekt.join(", ");
-          break;
-      }
-      if (va < vb) return sortOrder === "asc" ? -1 : 1;
-      if (va > vb) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-    if (malformedOnly) return rows.filter((r) => isMalformed(r.postgres) || isMalformed(r.subiekt));
-    return rows;
-  }, [data, sortBy, sortOrder, malformedOnly]);
+  const rows = data?.rows ?? [];
 
   const handleSort = (col: string) => {
+    setPage(1);
     if (sortBy === col) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
     else {
       setSortBy(col);
@@ -218,10 +194,10 @@ function VerifyPage() {
 
   const toggleAll = () => {
     if (!data) return;
-    if (selected.size === sortedRows.length) {
+    if (selected.size === rows.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(sortedRows.map((r) => r.productId)));
+      setSelected(new Set(rows.map((r) => r.productId)));
     }
   };
 
@@ -304,7 +280,7 @@ function VerifyPage() {
             setQ(e.target.value);
             setPage(1);
           }}
-          placeholder="Szukaj lokalizacji np. A 1-2-3-4..."
+          placeholder="Szukaj po EAN, symbolu lub lokalizacji..."
           className="rounded border px-3 py-1.5 text-sm min-w-[200px] flex-1"
         />
         <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
@@ -325,7 +301,7 @@ function VerifyPage() {
         <div className="text-sm text-muted-foreground py-8 text-center">Ładowanie...</div>
       )}
 
-      {data && sortedRows.length === 0 && (
+      {data && rows.length === 0 && (
         <div className="text-center py-8">
           <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500 mb-2" />
           <p className="text-sm font-semibold">Brak rozbieżności</p>
@@ -333,7 +309,7 @@ function VerifyPage() {
         </div>
       )}
 
-      {data && sortedRows.length > 0 && (
+      {data && rows.length > 0 && (
         <>
           <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
@@ -342,7 +318,7 @@ function VerifyPage() {
                   <th className="px-3 py-2 text-left w-8">
                     <input
                       type="checkbox"
-                      checked={selected.size === sortedRows.length && sortedRows.length > 0}
+                      checked={selected.size === rows.length && rows.length > 0}
                       onChange={toggleAll}
                     />
                   </th>
@@ -368,6 +344,13 @@ function VerifyPage() {
                     onClick={handleSort}
                   />
                   <SortTh
+                    col="barcode"
+                    label="EAN"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onClick={handleSort}
+                  />
+                  <SortTh
                     col="postgres"
                     label="Postgres"
                     sortBy={sortBy}
@@ -385,7 +368,7 @@ function VerifyPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {sortedRows.map((row) => {
+                {rows.map((row) => {
                   const isMismatch = row.postgres.join(",") !== row.subiekt.join(",");
                   return (
                     <tr
@@ -404,6 +387,7 @@ function VerifyPage() {
                       <td className="px-3 py-2 text-xs text-muted-foreground max-w-[150px] truncate">
                         {row.name}
                       </td>
+                      <td className="px-3 py-2 font-mono text-xs">{row.barcode || "—"}</td>
                       <td className="px-3 py-2 font-mono text-xs">
                         {row.postgres.length > 0 ? (
                           row.postgres.join(", ")
@@ -449,6 +433,13 @@ function VerifyPage() {
           {data.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 text-sm">
               <button
+                onClick={() => setPage(1)}
+                disabled={page <= 1}
+                className="rounded border px-3 py-1 hover:bg-accent disabled:opacity-30"
+              >
+                «
+              </button>
+              <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="rounded border px-3 py-1 hover:bg-accent disabled:opacity-30"
@@ -464,6 +455,13 @@ function VerifyPage() {
                 className="rounded border px-3 py-1 hover:bg-accent disabled:opacity-30"
               >
                 ▶
+              </button>
+              <button
+                onClick={() => setPage(data.totalPages)}
+                disabled={page >= data.totalPages}
+                className="rounded border px-3 py-1 hover:bg-accent disabled:opacity-30"
+              >
+                »
               </button>
             </div>
           )}
