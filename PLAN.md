@@ -2,7 +2,7 @@
 
 ## Stan: v1.10.6 Production (2026-08-03)
 
-MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.10.6 obejmuje hardening lokalizacji, timestamp sync przez `tw_ZmianaTw.twz_CzasModyf`, dashboard analytics, centralną wersję aplikacji oraz stabilny monitor systemowy. 297 testów pass / 6 skip.
+MVP (v1.0.0) osiągnięty 2026-07-26. Wersja v1.10.10 obejmuje hardening lokalizacji, timestamp sync przez `tw_ZmianaTw.twz_CzasModyf`, dashboard analytics, centralną wersję aplikacji oraz admin-only pełne czyszczenie lokalizacji produktu. 303 testy pass / 6 skip.
 
 ## 1. Podsumowanie projektu
 
@@ -40,6 +40,7 @@ Rozwój kolejnych modułów magazynowych: inwentaryzacja, kompletacja, przyjęci
 
 - [x] Informacja o towarze po skanie EAN
 - [x] Lokalizacja towaru (przypisywanie, przenoszenie, reset, weryfikacja, mapa)
+- [x] Pełne czyszczenie lokalizacji produktu z terminala admina
 - [x] Zarządzanie użytkownikami (import z Subiekta, PIN, role admin/operator)
 - [x] Panel administracyjny (dashboard, produkty, użytkownicy, magazyny, terminale, ERP config, backup)
 - [x] Logi i audyt (audit_log, product_movements)
@@ -139,7 +140,7 @@ Po decyzji użytkownika co do priorytetu modułu — implementacja pionowego wyc
 ## 16. Kryteria akceptacji (bieżące — v1.10.6)
 
 - [x] `npm run build` — przechodzi
-- [x] `npm test` — 297 passed / 6 skipped
+- [x] `npm test` — 303 passed / 6 skipped
 - [x] `npm run typecheck` — czysto
 - [x] `npm run lint` — 0 errors, 0 warnings
 - [x] `pomagier-api` — active (systemd), health check OK

@@ -29,6 +29,8 @@ System składa się z dwóch części:
 
 ## Stan projektu
 
+**Aktualna wersja:** v1.10.10 · **Testy:** 303 pass / 6 skip
+
 - [x] Konfiguracja opencode (agenci, skille, pliki wiedzy)
 - [x] Faza 0: Audyt repozytorium i środowiska — zakończona 2026-07-29
 - [x] MVP v1.0.0 — informacja o towarze, lokalizacje, użytkownicy, panel admina, PWA, backup
@@ -47,4 +49,5 @@ System składa się z dwóch części:
 - [x] v1.10.5 — Centralna wersja aplikacji w admin/mobile/login, 297 testów
 - [x] v1.10.6 — Monitor Subiekta używa `tw_ZmianaTw.twz_CzasModyf`, poprawiony próg memory warning, 297 testów
 - [x] v1.10.6 — Naprawa sync monitora (`tw_ZmianaTw.twz_CzasModyf`) i fałszywych memory warnings, 297 testów
+- [x] v1.10.10 — Admin-only „Wyczyść lokalizacje” na `/mobile/locations`, retry/kompensacja i audyt, 303 testy
 - Aktualny stack: React 19 + Express 5 + Postgres 16/Drizzle + MSSQL Subiekt GT + Caddy + Playwright

@@ -1,6 +1,6 @@
 # AGENTS.md — PomagierGT
 
-## Stan projektu: v1.10.6 Production (2026-08-03)
+## Stan projektu: v1.10.10 Production (2026-08-05)
 
 | Warstwa          | Technologia                                                       | Stan          |
 | ---------------- | ----------------------------------------------------------------- | ------------- |
@@ -10,7 +10,7 @@
 | ERP              | Insert Subiekt GT (MSSQL read+write, whitelist-validated fields)  | ✓ Produkcyjny |
 | Reverse proxy    | Caddy (HTTPS, port 443)                                           | ✓ Produkcyjny |
 | mDNS             | avahi-daemon (pomagier.local)                                     | ✓ Produkcyjny |
-| Testy            | Vitest (297 pass / 6 skip), Playwright E2E, RTL render tests      | ✓ Aktywne     |
+| Testy            | Vitest (303 pass / 6 skip), Playwright E2E, RTL render tests      | ✓ Aktywne     |
 | Deployment       | systemd (pomagier-api), Caddy static files (frontend)             | ✓ Produkcyjny |
 
 ## Workflow projektu

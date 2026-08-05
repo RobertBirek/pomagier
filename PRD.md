@@ -6,12 +6,13 @@ PomagierGT jest aplikacją webową i mobilną PWA stanowiącą warstwę operacyj
 
 ## Stan: v1.10.6 — Produkcyjny stabilny (2026-08-03)
 
-MVP (v1.0.0) został osiągnięty 2026-07-26. Wersja v1.10.6 obejmuje global warehouses, comprehensive logging, hardening lokalizacji, timestamp sync, dashboard analytics, centralną wersję aplikacji oraz poprawiony monitor Subiekta. 297 testów pass / 6 skip. System gotowy do dalszego rozwoju modułów magazynowych.
+MVP (v1.0.0) został osiągnięty 2026-07-26. Wersja v1.10.10 obejmuje global warehouses, comprehensive logging, hardening lokalizacji, timestamp sync, dashboard analytics, centralną wersję aplikacji oraz admin-only pełne czyszczenie lokalizacji produktu. 303 testy pass / 6 skip. System gotowy do dalszego rozwoju modułów magazynowych.
 
 ## Zrealizowane moduły
 
 - [x] Informacja o towarze (skanowanie kodu → dane produktu, stany magazynowe)
 - [x] Lokalizacja towaru w magazynie (przypisywanie, przenoszenie, reset)
+- [x] Admin-only pełne czyszczenie lokalizacji produktu bez nadawania nowej lokalizacji
 - [x] Zarządzanie użytkownikami (import z Subiekta, PIN, role admin/operator)
 - [x] Panel administracyjny (dashboard, produkty, użytkownicy, magazyny, terminale, backup)
 - [x] Logi i audyt (`audit_log`, `product_movements`)

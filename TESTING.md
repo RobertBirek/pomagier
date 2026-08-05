@@ -1,5 +1,10 @@
 # Testing Standards — PomagierGT
 
+## Aktualny stan
+
+- Vitest: **303 passed / 6 skipped**
+- Nowe scenariusze: pełne czyszczenie lokalizacji, idempotency key, walidacja kodów i rollback Subiekta.
+
 ## Poziomy testów
 
 | Poziom                 | Odpowiedzialność                         | Narzędzia                      |
