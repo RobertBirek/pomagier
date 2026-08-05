@@ -1905,6 +1905,188 @@ export function registerLocationsRoutes(app: express.Express) {
     }
   });
 
+  // --- Pełne czyszczenie lokalizacji wskazanych produktów ---
+  app.post("/api/locations/clear", requireAdmin, async (req, res) => {
+    const rawCodes = req.body?.codes;
+    if (!Array.isArray(rawCodes) || rawCodes.length === 0 || rawCodes.length > 500) {
+      res.status(400).json({ error: "Brak kodów produktów lub przekroczono limit 500" });
+      return;
+    }
+    if (rawCodes.some((code: unknown) => typeof code !== "string")) {
+      res.status(400).json({ error: "Każdy kod produktu musi być tekstem" });
+      return;
+    }
+    const codes = [
+      ...new Set(
+        rawCodes
+          .filter((code): code is string => typeof code === "string")
+          .map((code) => code.trim()),
+      ),
+    ];
+    if (codes.some((code) => code.length === 0 || code.length > 128)) {
+      res.status(400).json({ error: "Nieprawidłowy kod produktu" });
+      return;
+    }
+    const method = req.body?.method === undefined ? "mobile" : req.body.method;
+    if (method !== "mobile" && method !== "web") {
+      res.status(400).json({ error: "Nieprawidłowa metoda operacji" });
+      return;
+    }
+    const idemKey = req.headers["x-idempotency-key"] as string | undefined;
+    if (idemKey) {
+      const cached = await checkIdempotency(idemKey, req.user?.subiektUzId);
+      if (cached) {
+        res.status(cached.statusCode).json(cached.result);
+        return;
+      }
+    }
+    const correlationId = crypto.randomUUID();
+
+    try {
+      const db = getDb();
+      const adapter = getAdapter();
+      const pool = await adapter.getPool?.();
+      if (!pool) {
+        res.status(503).json({ error: "MSSQL niedostępny" });
+        return;
+      }
+      const locationField = await getLocationField();
+      const products = new Map<number, { symbol: string; name: string }>();
+      const notFound: string[] = [];
+
+      for (const code of codes) {
+        const result = await pool
+          .request()
+          .input("code", code)
+          .query(
+            "SELECT tw_Id AS id, tw_Symbol AS symbol, tw_Nazwa AS name FROM tw__Towar WHERE tw_PodstKodKresk = @code OR tw_Symbol = @code",
+          );
+        const rows = result.recordset as SubiektProductRow[];
+        if (rows.length === 0) notFound.push(code);
+        for (const row of rows) products.set(row.id, { symbol: row.symbol, name: row.name });
+      }
+
+      type ClearSnapshot = {
+        productId: number;
+        symbol: string;
+        name: string;
+        subiektValue: string;
+        locations: {
+          productId: number;
+          locationId: string;
+          quantity: number | null;
+          code: string;
+        }[];
+      };
+      const snapshots: ClearSnapshot[] = [];
+      for (const [productId, product] of products) {
+        const rows = await db
+          .select({
+            productId: schema.productLocations.productId,
+            locationId: schema.productLocations.locationId,
+            quantity: schema.productLocations.quantity,
+            code: schema.locations.code,
+          })
+          .from(schema.productLocations)
+          .innerJoin(schema.locations, eq(schema.productLocations.locationId, schema.locations.id))
+          .where(eq(schema.productLocations.productId, productId));
+        const subiekt = await pool
+          .request()
+          .input("id", productId)
+          .query(`SELECT ${locationField} AS val FROM tw__Towar WHERE tw_Id = @id`);
+        snapshots.push({
+          productId,
+          ...product,
+          subiektValue: (subiekt.recordset[0] as SubiektFieldRow | undefined)?.val || "",
+          locations: rows as ClearSnapshot["locations"],
+        });
+      }
+
+      const updatedSubiekt: ClearSnapshot[] = [];
+      try {
+        for (const snapshot of snapshots) {
+          if (snapshot.subiektValue !== "") {
+            await writeSubiektWithRetry(async () => {
+              await pool
+                .request()
+                .input("id", snapshot.productId)
+                .input("val", "")
+                .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+            }, `clear-${snapshot.productId}`);
+            updatedSubiekt.push(snapshot);
+          }
+        }
+
+        const operatorName = await getOperatorName(req.user?.subiektUzId ?? 0);
+        await db.transaction(async (tx) => {
+          for (const snapshot of snapshots) {
+            await tx
+              .delete(schema.productLocations)
+              .where(eq(schema.productLocations.productId, snapshot.productId));
+          }
+          for (const snapshot of snapshots) {
+            for (const location of snapshot.locations) {
+              await tx.insert(schema.productMovements).values({
+                productId: snapshot.productId,
+                symbol: snapshot.symbol,
+                name: snapshot.name,
+                fromLocationId: location.locationId,
+                fromCode: location.code,
+                quantity: location.quantity ?? 1,
+                operator: operatorName,
+                correlationId,
+                method,
+                actorSubiektUzId: req.user?.subiektUzId,
+              });
+            }
+          }
+        });
+      } catch (operationError) {
+        for (const snapshot of updatedSubiekt) {
+          try {
+            await writeSubiektWithRetry(async () => {
+              await pool
+                .request()
+                .input("id", snapshot.productId)
+                .input("val", snapshot.subiektValue)
+                .query(`UPDATE tw__Towar SET ${locationField} = @val WHERE tw_Id = @id`);
+            }, `clear-rollback-${snapshot.productId}`);
+          } catch (rollbackError) {
+            logger.error(
+              { err: rollbackError, productId: snapshot.productId },
+              "Clear rollback failed",
+            );
+          }
+        }
+        throw operationError;
+      }
+
+      const cleared = snapshots.length;
+      const response = { ok: true, cleared, notFound };
+      await logEvent({
+        category: "mobile",
+        action: "location.cleared",
+        method,
+        actorUserId: req.user?.id,
+        actorSubiektUzId: req.user?.subiektUzId,
+        correlationId,
+        target: { type: "products", id: String(cleared) },
+        success: true,
+        details: {
+          codes,
+          productIds: snapshots.map((snapshot) => snapshot.productId),
+          cleared,
+          notFound,
+        },
+      });
+      if (idemKey) await storeIdempotency(idemKey, response);
+      res.json(response);
+    } catch (err) {
+      logger.error({ err }, "Clear locations failed");
+      res.status(500).json({ error: "Nie udało się wyczyścić lokalizacji" });
+    }
+  });
+
   // --- Fix sync per selected products ---
   app.post("/api/locations/fix-sync-batch", requireAdmin, async (req, res) => {
     const { productIds, direction } = req.body ?? {};

@@ -4,7 +4,11 @@ import request from "supertest";
 import { registerLocationsRoutes } from "../../../src/api/routes/locations.js";
 import { errorHandler } from "../../../src/api/error-handler.js";
 
-const mockGetPool = vi.fn();
+const { mockGetPool, mockCheckIdempotency, mockStoreIdempotency } = vi.hoisted(() => ({
+  mockGetPool: vi.fn(),
+  mockCheckIdempotency: vi.fn(() => null as { result: unknown; statusCode: number } | null),
+  mockStoreIdempotency: vi.fn(),
+}));
 
 vi.mock("../../../src/api/auth-middleware.js", () => ({
   requireAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -20,9 +24,11 @@ interface MockDb {
   delete: ReturnType<typeof vi.fn>;
   transaction: ReturnType<typeof vi.fn>;
   ops: { kind: string; table: string }[];
+  selectResult: unknown[];
 }
 
 function buildDbMock(): MockDb {
+  const db = {} as MockDb;
   const chain = {
     from: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
@@ -31,9 +37,9 @@ function buildDbMock(): MockDb {
     groupBy: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
     limit: vi.fn().mockImplementation(() => Promise.resolve([])),
-    then: vi.fn().mockImplementation((resolve: (v: unknown[]) => void) => resolve([])),
+    then: vi.fn().mockImplementation((resolve: (v: unknown[]) => void) => resolve(db.selectResult)),
   };
-  const db: MockDb = {
+  Object.assign(db, {
     select: vi.fn().mockReturnValue(chain),
     insert: vi.fn().mockImplementation((t: unknown) => {
       db.ops.push({ kind: "insert", table: tagOf(t) });
@@ -66,23 +72,12 @@ function buildDbMock(): MockDb {
       db.ops.push({ kind: "delete", table: tagOf(t) });
       return { where: vi.fn().mockResolvedValue(undefined) };
     }),
-    transaction: vi.fn().mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-      return cb({
-        select: vi.fn().mockReturnValue(chain),
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
-          }),
-        }),
-        update: vi.fn().mockReturnValue({
-          set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
-        }),
-        delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
-      });
-    }),
+    transaction: vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => cb(db)),
     ops: [],
-  };
+    selectResult: [],
+  });
   return db;
 }
 
@@ -148,8 +143,8 @@ vi.mock("../../../src/api/adapter-provider.js", () => ({
 }));
 
 vi.mock("../../../src/api/idempotency.js", () => ({
-  checkIdempotency: () => null,
-  storeIdempotency: () => {},
+  checkIdempotency: mockCheckIdempotency,
+  storeIdempotency: mockStoreIdempotency,
 }));
 
 vi.mock("../../../src/lib/app-logger-server.js", () => ({
@@ -165,7 +160,7 @@ vi.mock("../../../src/lib/logger.js", () => ({
   },
 }));
 
-function poolWith(subiektThrow: boolean) {
+function poolWith(subiektThrow: boolean, locationValue = "") {
   return {
     request: () => {
       const builder: Record<string, unknown> = {};
@@ -183,7 +178,7 @@ function poolWith(subiektThrow: boolean) {
           return { recordset: [{ id: 1 }] };
         }
         if (/SELECT \w+ AS val FROM tw__Towar/.test(sqlText)) {
-          return { recordset: [{ val: "" }] };
+          return { recordset: [{ val: locationValue }] };
         }
         if (/pd_Uzytkownik/.test(sqlText)) {
           return { recordset: [] };
@@ -204,6 +199,7 @@ describe("Locations dual-write compensation (B2)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCheckIdempotency.mockReturnValue(null);
     activeDbMock = buildDbMock();
     app = express();
     app.use(express.json());
@@ -270,5 +266,77 @@ describe("Locations dual-write compensation (B2)", () => {
       .send({ codes: ["123"], fromLocation: "A 1-1-1-1", toLocation: "B 2-2-2-2" });
     expect(res.status).toBe(500);
     expect(res.body.error).not.toMatch(/nie mieszczą się/);
+  });
+
+  it("clear removes every product location and records a clearing movement", async () => {
+    mockGetPool.mockResolvedValue(poolWith(false));
+    activeDbMock.selectResult = [
+      {
+        productLocationId: "pl-1",
+        productId: 1,
+        locationId: "loc-1",
+        code: "A 1-1-1-1",
+        quantity: 2,
+      },
+    ];
+
+    const res = await request(app)
+      .post("/api/locations/clear")
+      .send({ codes: ["123"] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, cleared: 1 });
+    expect(activeDbMock.ops).toEqual(
+      expect.arrayContaining([
+        { kind: "delete", table: "product_locations" },
+        { kind: "insert", table: "product_movements" },
+      ]),
+    );
+  });
+
+  it("clear restores product locations when Subiekt update fails", async () => {
+    mockGetPool.mockResolvedValue(poolWith(true, "A 1-1-1-1"));
+    activeDbMock.selectResult = [
+      {
+        productLocationId: "pl-1",
+        productId: 1,
+        locationId: "loc-1",
+        code: "A 1-1-1-1",
+        quantity: 1,
+      },
+    ];
+
+    const res = await request(app)
+      .post("/api/locations/clear")
+      .send({ codes: ["123"] });
+
+    expect(res.status).toBe(500);
+    expect(activeDbMock.ops).not.toEqual(
+      expect.arrayContaining([{ kind: "delete", table: "product_locations" }]),
+    );
+  });
+
+  it("clear rejects non-string product codes", async () => {
+    const res = await request(app)
+      .post("/api/locations/clear")
+      .send({ codes: [123] });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("clear reuses an idempotent response instead of executing again", async () => {
+    mockCheckIdempotency.mockResolvedValueOnce({
+      result: { ok: true, cleared: 1 },
+      statusCode: 200,
+    });
+
+    const res = await request(app)
+      .post("/api/locations/clear")
+      .set("X-Idempotency-Key", "clear-operation-1")
+      .send({ codes: ["123"] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, cleared: 1 });
+    expect(mockGetPool).not.toHaveBeenCalled();
   });
 });

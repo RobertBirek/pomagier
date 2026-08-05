@@ -89,6 +89,7 @@ First tick (when `subiekt_last_sync_at` IS NULL):
 | POST   | /api/locations/fix-sync-batch            | Per-product sync (subiekt-to-postgres diff merge OR postgres-to-subiekt) |
 | POST   | /api/locations/normalize                 | Idempotent format normalization                                          |
 | POST   | /api/locations/clear-field               | Zero out Subiekt field + remove from product_locations                   |
+| POST   | /api/locations/clear                    | Clear all locations for selected products (admin-only, compensated)      |
 | GET    | /api/locations/stats                     | Aggregations by area                                                     |
 | GET    | /api/locations/grid                      | Map data grouped by (area, aisle, shelf)                                 |
 | GET    | /api/locations/empty                     | Locations with no products                                               |

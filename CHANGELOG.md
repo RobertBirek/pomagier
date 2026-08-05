@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-_(brak zmian oczekujących na release)_
+- Dodano admin-only tryb mobilny **„Wyczyść lokalizacje”**.
+- Nowy endpoint `POST /api/locations/clear` usuwa wszystkie lokalizacje wskazanych produktów w Postgresie i Subiekcie.
+- Operacja ma retry, kompensację, audyt `location.cleared` oraz historię ruchów bez lokalizacji docelowej.
 
 ## [v1.10.8] — 2026-08-04 (location assignment by EAN or symbol)
 

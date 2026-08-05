@@ -174,6 +174,8 @@ Placeholdery w `.env.example`:
 - **B1 Subiekt varchar(50) overflow guard** (`safeSubiektValue`) — 4+ kodów długości 12-13 znaków overflow Subiekt. Teraz rzuca error 400 zamiast silent truncate.
 - **B2 transfer/reset dual-write compensation** — mirrors assign pattern. Decyzja #9 (DECISIONS.md) teraz fully implemented.
 - **B3 fix-sync-batch subiekt-to-postgres diff merge** — diff-based zamiast destructive delete+insert. Dane nie giną przy malformed Subiekt value.
+
+- **Pełne czyszczenie lokalizacji** — `POST /api/locations/clear` oraz tryb „Wyczyść lokalizacje” są dostępne wyłącznie dla administratora. Endpoint przyjmuje tylko listę kodów produktów, nie przyjmuje nazwy pola SQL ani surowego SQL; pole Subiekta pochodzi z whitelistowanej konfiguracji.
 - **B4 reset uses writeSubiektWithRetry** — consistent retry behavior.
 - **C3+E8 centralize isMalformedCode** — single regex from `lib/locations.ts`.
 - **E7 CHECK quantity > 0** — migration 0007.

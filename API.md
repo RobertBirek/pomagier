@@ -55,7 +55,9 @@
 
 ### Lokalizacje — autoryzacja
 
-Odczyty `/api/locations/*` wymagają zalogowania. Mutacje `/assign`, `/undo`, `/transfer`, `/reset`, `/normalize`, `/sync`, `/import`, `/fix-sync`, `/fix-sync-batch` i `/clear-field` wymagają administratora.
+Odczyty `/api/locations/*` wymagają zalogowania. Mutacje `/assign`, `/undo`, `/transfer`, `/reset`, `/clear`, `/normalize`, `/sync`, `/import`, `/fix-sync`, `/fix-sync-batch` i `/clear-field` wymagają administratora.
+
+`POST /api/locations/clear` przyjmuje `{ codes: string[], method?: "mobile" | "web" }`. Kody są rozpoznawane jako EAN lub symbol Subiekta. Operacja usuwa wszystkie przypisania produktu bez nadawania nowej lokalizacji.
 
 ## Walidacja
 

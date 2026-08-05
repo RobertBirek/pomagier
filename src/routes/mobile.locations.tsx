@@ -6,7 +6,16 @@ import { parseLocation } from "@/lib/locations";
 import { addScanToQueue } from "@/lib/offline-queue";
 import { useAuth } from "@/lib/auth";
 import { beep } from "@/lib/utils";
-import { MapPin, Package, X, CheckCircle2, History, RotateCcw, ArrowRightLeft } from "lucide-react";
+import {
+  MapPin,
+  Package,
+  X,
+  CheckCircle2,
+  History,
+  RotateCcw,
+  ArrowRightLeft,
+  Eraser,
+} from "lucide-react";
 import type { BasketItem } from "@/hooks/use-basket";
 import { useBasket } from "@/hooks/use-basket";
 import { BasketPanel } from "@/components/pomagier/BasketPanel";
@@ -20,7 +29,7 @@ interface HistoryEntry {
 
 const LAST_LOC_KEY = "pomagier-last-location";
 
-type Mode = "assign" | "transfer" | "reset";
+type Mode = "assign" | "transfer" | "reset" | "clear";
 
 async function assignProducts(codes: string[], location: string) {
   const r = await fetch("/api/locations/assign", {
@@ -52,6 +61,7 @@ const MODES: { key: Mode; label: string; icon: typeof MapPin; color: string }[] 
   { key: "assign", label: "Przypisz towary", icon: MapPin, color: "bg-blue-500" },
   { key: "transfer", label: "Przenieś towary", icon: ArrowRightLeft, color: "bg-amber-500" },
   { key: "reset", label: "Reset lokalizacji", icon: RotateCcw, color: "bg-red-500" },
+  { key: "clear", label: "Wyczyść lokalizacje", icon: Eraser, color: "bg-red-700" },
 ];
 
 export const Route = createFileRoute("/mobile/locations")({
@@ -85,6 +95,8 @@ function LocationsPage() {
   const [transferring, setTransferring] = useState(false);
   const [resetLocation, setResetLocation] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearIdempotencyKey, setClearIdempotencyKey] = useState<string | null>(null);
   const [flashCodes, setFlashCodes] = useState<Set<string>>(new Set());
 
   const currentMode = MODES.find((m) => m.key === mode)!;
@@ -112,6 +124,10 @@ function LocationsPage() {
 
       // Location code — set target
       if (loc) {
+        if (mode === "clear") {
+          toast.error("Tryb czyszczenia nie używa kodu lokalizacji");
+          return false;
+        }
         if (mode === "reset") {
           if (!resetLocation) {
             setResetLocation(loc.raw);
@@ -264,6 +280,42 @@ function LocationsPage() {
     }
   };
 
+  const handleClear = async () => {
+    if (basket.length === 0) return;
+    setClearing(true);
+    try {
+      const codes = basket.flatMap((b) => Array(b.qty).fill(b.code));
+      const operationKey = clearIdempotencyKey ?? crypto.randomUUID();
+      if (!clearIdempotencyKey) setClearIdempotencyKey(operationKey);
+      const r = await fetch("/api/locations/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Idempotency-Key": operationKey },
+        body: JSON.stringify({ codes, method: "mobile" }),
+      });
+      const result = (await r.json()) as {
+        ok?: boolean;
+        cleared?: number;
+        notFound?: string[];
+        error?: string;
+      };
+      if (!r.ok || !result.ok) {
+        beep(200, 400);
+        toast.error(result.error || "Błąd czyszczenia lokalizacji");
+        return;
+      }
+      beep(1000, 80);
+      clearBasket();
+      setClearIdempotencyKey(null);
+      toast.success(`Wyczyszczono lokalizacje: ${result.cleared ?? 0}`);
+      if (result.notFound?.length) toast.warning(`Nie znaleziono: ${result.notFound.join(", ")}`);
+    } catch (e: unknown) {
+      beep(200, 400);
+      toast.error(e instanceof Error ? e.message : "Błąd czyszczenia lokalizacji");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const handleUndo = async (entry: HistoryEntry) => {
     setUndoing(true);
     try {
@@ -293,6 +345,7 @@ function LocationsPage() {
     setTransferSource(null);
     setTransferTarget(null);
     setResetLocation(null);
+    setClearIdempotencyKey(null);
     setShowResult(null);
   };
 
@@ -304,7 +357,9 @@ function LocationsPage() {
   );
 
   // ── Tools (page-specific) ──
-  const tools: ScanHeaderTool[] = MODES.filter((m) => m.key !== "reset" || isAdmin).map((m) => ({
+  const tools: ScanHeaderTool[] = MODES.filter(
+    (m) => (m.key !== "reset" && m.key !== "clear") || isAdmin,
+  ).map((m) => ({
     key: m.key,
     label: m.label,
     icon: <m.icon className="h-5 w-5" />,
@@ -335,6 +390,11 @@ function LocationsPage() {
       if (resetLocation && basket.length > 0) return "Potwierdź reset poniżej";
       if (resetLocation) return `🔵 Reset do: ${resetLocation} — skanuj towary`;
       return "🟢 Zeskanuj lokalizację docelową";
+    }
+    if (mode === "clear") {
+      return basket.length > 0
+        ? "Potwierdź czyszczenie poniżej"
+        : "🟢 Skanuj towary do wyczyszczenia";
     }
     return "🟢 Skanuj towary (Enter)";
   })();
@@ -367,6 +427,42 @@ function LocationsPage() {
         {mode === "reset" && resetLocation && (
           <div className="rounded-lg border-2 border-red-200 bg-red-50 p-3 text-sm font-mono font-bold text-red-700 text-center">
             Reset do: {resetLocation}
+          </div>
+        )}
+
+        {mode === "clear" && basket.length > 0 && (
+          <div className="rounded-lg border-2 border-red-300 bg-red-50 p-4">
+            <div className="flex items-start gap-3">
+              <Eraser className="mt-0.5 h-5 w-5 text-red-700 shrink-0" />
+              <div className="flex-1">
+                <div className="font-semibold text-sm text-red-900">
+                  Potwierdź czyszczenie lokalizacji
+                </div>
+                <div className="text-xs text-red-800 mt-1">
+                  ⚠️ Wszystkie lokalizacje zostaną usunięte dla {totalQty} szt. produktów.
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={handleClear}
+                    disabled={clearing}
+                    className="touch-target inline-flex items-center gap-1.5 rounded-md bg-red-700 px-6 py-2.5 text-sm font-medium text-white flex-1 justify-center"
+                  >
+                    <Eraser className="h-4 w-4" />
+                    {clearing ? "Czyszczę…" : "Wyczyść"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearBasket();
+                      setClearIdempotencyKey(null);
+                    }}
+                    disabled={clearing}
+                    className="touch-target rounded-md border px-4 py-2.5 text-sm"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

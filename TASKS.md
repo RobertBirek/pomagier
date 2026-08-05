@@ -1,3 +1,16 @@
+# TASKS — Sprint 17: Pełne czyszczenie lokalizacji (2026-08-05)
+
+| Data       | Zadanie                                                       | Status |
+| ---------- | ------------------------------------------------------------- | ------ |
+| 2026-08-05 | Admin-only tryb „Wyczyść lokalizacje” w `/mobile/locations` | ✅     |
+| 2026-08-05 | `POST /api/locations/clear` z retry i kompensacją             | ✅     |
+| 2026-08-05 | Audyt `location.cleared` i ruchy bez lokalizacji docelowej   | ✅     |
+| 2026-08-05 | Testy, lint, typecheck i build                                | ✅     |
+
+**Testy:** 301 pass / 6 skip.
+
+---
+
 # TASKS — Sprint 15: Centralna wersja aplikacji (2026-08-03)
 
 | Data       | Zadanie                                                       | Status |

@@ -12,6 +12,14 @@ Każda ważna decyzja architektoniczna zawiera:
 
 ## Decyzje
 
+### 19. Dedykowany endpoint pełnego czyszczenia lokalizacji produktu (2026-08-05)
+
+- **Kontekst**: administrator potrzebuje usunąć wszystkie lokalizacje produktu bez nadawania nowej lokalizacji z terminala mobilnego.
+- **Rozważane opcje**: (a) użycie istniejącego `fix-sync-batch` z `direction=clear`, (b) rozszerzenie `reset` o brak lokalizacji, (c) dedykowany endpoint `POST /api/locations/clear`.
+- **Decyzja**: (c) — osobny endpoint i osobny tryb UI. Endpoint wymaga `requireAdmin`, czyści Postgresa i skonfigurowane pole Subiekta, stosuje retry oraz kompensację.
+- **Konsekwencje**: jednoznaczna semantyka i audyt `location.cleared`; dodatkowy endpoint do utrzymania. Operacja nie jest dostępna operatorom.
+- **Wycofanie**: usunięcie trybu UI i kierowanie administratorów do istniejących narzędzi weryfikacji, bez usuwania historii ruchów.
+
 ### 1. Modularny monolit zamiast mikroserwisów
 
 - **Kontekst**: MVP dla jednego magazynu, jeden VPS, mały zespół
